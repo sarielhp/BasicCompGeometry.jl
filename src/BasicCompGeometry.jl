@@ -1,0 +1,99 @@
+"""
+    BasicCompGeometry
+
+A comprehensive library for basic computational geometry operations.
+Supports high-dimensional points, segments, lines, polygons, and axis-aligned bounding boxes.
+Built for performance and ease of use using Julia's multiple dispatch system.
+"""
+module BasicCompGeometry
+
+using Parameters
+using StaticArrays
+using LinearAlgebra
+using DelimitedFiles
+using Distributions
+using Random
+
+include("Points.jl")
+include("Segments.jl")
+include("Polygons.jl")
+include("BBoxes.jl")
+include("Transforms2D.jl")
+include("PolygonHausdorff.jl")
+
+# Common high-level operations
+
+"""
+    distance_infty(P, Q)
+
+Calculate the maximum (L_∞) distance between corresponding vertices of two polygons.
+Requires `length(P) == length(Q)`.
+Useful for assessing the quality of point-to-point matching.
+"""
+function distance_infty(P::Polygon{D, T}, Q::Polygon{D, T}) where {D, T}
+    n = length(P)
+    @assert n == length(Q)
+    n == 0 && return 0.0
+    
+    d = 0.0
+    for i in 1:n
+        d = max(d, dist(P[i], Q[i]))
+    end
+    return d
+end
+
+"""
+    distance(y::Point, l::Line)
+
+Calculate the minimum Euclidean distance between query point `y` and infinite line `l`.
+"""
+function distance(y::Point{D, T}, l::Line{D, T}) where {D, T}
+    # projection parameter: t = <y - p, u> / <u, u>
+    t = dot(y - l.p, l.u) / dot(l.u, l.u)
+    x = l.p + t * l.u
+    return dist(x, y)
+end
+
+"""
+    centroid(P)
+
+Calculate the centroid (arithmetic mean) of a collection of points `P`.
+Works with Polygons or vectors of points.
+"""
+centroid(P) = sum(P) / length(P)
+
+"""
+    match_price(p_a, p_b, q_a, q_b)
+
+Calculate a cost metric for matching the segment `[p_a, p_b]` to the segment `[q_a, q_b]`.
+The price is defined as the product of the sum of the lengths of the two edges 
+and the average distance between their corresponding endpoints.
+"""
+function match_price(p_a::Point{N, T}, p_b::Point{N, T},
+                     q_a::Point{N, T}, q_b::Point{N, T}) where {N, T}
+    l_avg_endpoint = (dist(p_a, q_a) + dist(p_b, q_b)) / 2.0
+    l_sum_edges = dist(p_a, p_b) + dist(q_a, q_b)
+    return l_sum_edges * l_avg_endpoint
+end
+
+"""
+    VecPoint2I
+
+Type alias for a vector of 2D integer points.
+"""
+const VecPoint2I = Vector{Point2I}
+
+"""
+    VecPolygon2F
+
+Type alias for a vector of 2D polygons with Float64 coordinates.
+"""
+const VecPolygon2F = Vector{Polygon2F}
+
+export Segment, BBox, BBox2F, Segment2F, Line
+export is_left_turn, is_right_turn
+export dist, dist_sq, distance_infty, distance
+export Points, centroid, convex_comb
+export match_price, cardin, VecPolygon2F, VecPoint2I
+
+end
