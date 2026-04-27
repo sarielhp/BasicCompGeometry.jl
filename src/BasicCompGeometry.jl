@@ -20,6 +20,15 @@ include("Polygons.jl")
 include("BBoxes.jl")
 include("Transforms2D.jl")
 include("PolygonHausdorff.jl")
+include("ConvexHull.jl")
+include("VirtArray.jl")
+include("BBT.jl")
+include("WSPD.jl")
+include("Diameter.jl")
+
+using .VirtArray
+using .BBT
+using .WSPD
 
 # Common high-level operations
 
@@ -91,9 +100,11 @@ Type alias for a vector of 2D polygons with Float64 coordinates.
 const VecPolygon2F = Vector{Polygon2F}
 
 export Segment, BBox, BBox2F, Segment2F, Line
-export is_left_turn, is_right_turn
+export turn_sign, is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export dist, dist_sq, distance_infty, distance
-export Points, centroid, convex_comb
+export exact_diameter, approx_diameter
+export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPolygon2F, VecPoint2I
+export VirtArray, BBT, WSPD
 
 end

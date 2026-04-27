@@ -94,6 +94,7 @@ apply_transform
 
 ### Algorithms
 ```@docs
+convex_hull
 hausdorff_simplify
 hausdorff_dist_subseg
 distance_infty

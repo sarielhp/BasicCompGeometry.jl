@@ -57,23 +57,58 @@ When `t=0`, returns `p`. When `t=1`, returns `q`.
 end
 
 """
+    turn_sign(p, q, r)
+
+Return the sign of the turn formed by the sequence of 2D points `p -> q -> r`.
+A positive value indicates a counter-clockwise (left) turn, 
+a negative value indicates a clockwise (right) turn, 
+and zero indicates the points are collinear.
+"""
+@inline function turn_sign(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T}
+    return (q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1])
+end
+
+"""
     is_left_turn(p, q, r)
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn.
-Uses the sign of the cross product of vectors `pq` and `pr`.
 """
-@inline function is_left_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T}
-    return ((q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1])) > zero(T)
-end
+@inline is_left_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+    turn_sign(p, q, r) > zero(T)
 
 """
     is_right_turn(p, q, r)
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn.
 """
-@inline function is_right_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T}
-    return ((q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1])) < zero(T)
-end
+@inline is_right_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+    turn_sign(p, q, r) < zero(T)
+
+"""
+    is_left_eq_turn(p, q, r)
+
+Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn 
+or if the points are collinear.
+"""
+@inline is_left_eq_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+    turn_sign(p, q, r) >= zero(T)
+
+"""
+    is_right_eq_turn(p, q, r)
+
+Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn 
+or if the points are collinear.
+"""
+@inline is_right_eq_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+    turn_sign(p, q, r) <= zero(T)
+
+"""
+    is_collinear(p, q, r)
+
+Return `true` if the three 2D points `p`, `q`, and `r` are collinear.
+"""
+@inline is_collinear(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+    turn_sign(p, q, r) == zero(T)
 
 """
     npoint(args...)
@@ -117,5 +152,5 @@ export Point, Point2F, Point2I, Point3F
 export dist, dist_sq
 export rand_point, rand_gaussian
 export convex_comb
-export is_left_turn, is_right_turn
+export turn_sign, is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export npoint

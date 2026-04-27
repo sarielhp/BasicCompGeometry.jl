@@ -19,12 +19,7 @@ Construct an empty polygon for dimension `D` and type `T`.
 """
 Polygon{D, T}() where {D, T} = Polygon{D, T}(Point{D, T}[])
 
-"""
-    Polygon(pnts::Vector{Point{D, T}})
-
-Construct a polygon from an existing vector of points.
-"""
-Polygon(pnts::Vector{Point{D, T}}) where {D, T} = Polygon{D, T}(pnts)
+# Note: Struct definition already provides: Polygon(pnts::Vector{Point{D, T}})
 
 # Accessors
 """
@@ -225,6 +220,24 @@ function rand_polygon(D::Int, T::Type{<:Real}, n::Int)
 end
 
 """
+    Polygon_random_sphere(D, T, n)
+
+Generate a random polygon in D dimensions with `n` vertices sampled uniformly from the unit sphere.
+"""
+function Polygon_random_sphere(D::Int, T::Type{<:Real}, n::Int)
+    pnts = Vector{Point{D, T}}(undef, n)
+    for i in 1:n
+        p = randn(T, D)
+        mag = norm(p)
+        if mag > 0
+            p ./= mag
+        end
+        pnts[i] = Point{D, T}(p)
+    end
+    return Polygon(pnts)
+end
+
+"""
     Polygon2I
 
 Alias for a 2D polygon with `Int64` coordinates.
@@ -248,4 +261,4 @@ const Polygon3F = Polygon{3, Float64}
 export Polygon, Polygon2I, Polygon2F, Polygon3F
 export Points, cardin, geom_length, prefix_lengths
 export translate!, scale!, simplify, sample_uniformly, at
-export rand_polygon, write_plt
+export rand_polygon, Polygon_random_sphere, write_plt

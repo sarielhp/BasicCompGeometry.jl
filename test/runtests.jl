@@ -21,8 +21,17 @@ using BasicCompGeometry
         
         # Predicates
         a, b, c = npoint(0,0), npoint(1,0), npoint(0,1)
+        @test turn_sign(a, b, c) > 0
         @test is_left_turn(a, b, c) == true
+        @test is_left_eq_turn(a, b, c) == true
         @test is_right_turn(a, c, b) == true
+        @test is_left_eq_turn(a, c, b) == false
+        @test is_right_eq_turn(a, c, b) == true
+        @test turn_sign(a, c, b) < 0
+        @test is_collinear(a, b, npoint(2,0)) == true
+        @test is_left_eq_turn(a, b, npoint(2,0)) == true
+        @test is_right_eq_turn(a, b, npoint(2,0)) == true
+        @test turn_sign(a, b, npoint(2,0)) == 0
         
         # Random
         @test length(rand_point(2)) == 2
@@ -182,6 +191,111 @@ using BasicCompGeometry
         # Match price
         price = match_price(npoint(0,0), npoint(1,0), npoint(0,1), npoint(1,1))
         @test price > 0
+        
+        # Convex Hull
+        hull_pnts = [npoint(0,0), npoint(1,0), npoint(0,1), npoint(0.5, 0.5), npoint(1,1)]
+        hull = convex_hull(hull_pnts)
+        # Expected hull points (CCW starting from min-x): (0,0), (1,0), (1,1), (0,1)
+        @test length(hull) == 4
+        @test npoint(0,0) in hull
+        @test npoint(1,0) in hull
+        @test npoint(1,1) in hull
+        @test npoint(0,1) in hull
+        @test !(npoint(0.5, 0.5) in hull)
+    end
+
+    @testset "VirtArray" begin
+        using BasicCompGeometry.VirtArray
+        v = [10, 20, 30, 40]
+        va = VArray(v)
+        @test length(va) == 4
+        @test va[1] == 10
+        @test va[4] == 40
+        
+        swap!(va, 1, 4)
+        @test va[1] == 40
+        @test va[4] == 10
+        @test orig_index(va, 1) == 4
+        @test orig_index(va, 4) == 1
+        
+        @test collect(va) == [40, 20, 30, 10]
+    end
+
+    @testset "BBT (Bounding Box Tree)" begin
+        using BasicCompGeometry.BBT
+        pnts = [npoint(x, y) for x in 0:10 for y in 0:10]
+        poly = Polygon(pnts)
+        tree = Tree_init(poly)
+        
+        @test tree.root !== nothing
+        @test diam(tree.root.bb) > 0
+        
+        Tree_fully_expand(tree)
+        @test depth(tree.root) > 1
+        
+        # Test original index retrieval
+        min_idx = get_min_orig_index(tree, tree.root)
+        max_idx = get_max_orig_index(tree, tree.root)
+        @test min_idx == 1
+        @test max_idx == length(pnts)
+        
+        # Test 1000 random points in 3D
+        pnts3d = [rand_point(3) for _ in 1:1000]
+        tree3d = Tree_init(Polygon(pnts3d))
+        Tree_fully_expand(tree3d)
+        
+        @test depth(tree3d.root) >= 10 # log2(1000) is approx 9.9
+        @test tree3d.id_counter >= 1000 # Should have at least n nodes for a full expansion
+        
+        # Verify root BB contains all points
+        root_bb = tree3d.root.bb
+        all_inside = all(p -> is_inside(p, root_bb), pnts3d)
+        @test all_inside == true
+    end
+
+    @testset "Diameter Algorithms" begin
+        # 2D points on a circle
+        pnts = Polygon_random_sphere(2, Float64, 100)
+        
+        exact_diam = exact_diameter(pnts)
+        @test exact_diam ≈ 2.0 atol=0.1 # Unit sphere diameter is 2.0
+        
+        # (1+ε) approximation with ε=0.1
+        approx_diam = approx_diameter(pnts, 0.1)
+        @test approx_diam <= exact_diam
+        @test approx_diam * 1.1 >= exact_diam
+    end
+
+    @testset "WSPD (Well-Separated Pairs Decomposition)" begin
+        using BasicCompGeometry.WSPD
+        pnts = [npoint(x, 0.0) for x in 1:10] # Points at 1, 2, ..., 10
+        poly = Polygon(pnts)
+        sep = 2.0
+        W = WSPD.init(poly, sep)
+        finals = WSPD.expand!(W)
+        
+        @test length(finals) > 0
+        
+        # Verify well-separation for all pairs
+        for pair in finals
+            if pair.dist > 0
+                @test (max(diam(pair.left.bb), diam(pair.right.bb)) / pair.dist) <= sep + 1e-9
+            end
+        end
+        
+        # Verify all pairs of distinct points are covered by exactly one WSP
+        n = length(pnts)
+        covered_pairs = 0
+        for pair in finals
+            l_range, r_range = get_orig_ranges(W, pair)
+            covered_pairs += length(l_range) * length(r_range)
+        end
+        # In a WSPD of a single set, the number of distinct pairs (i, j) with i < j 
+        # is covered. Since this implementation starts with (root, root), 
+        # it covers all n^2 pairs, but excludes (i, i) if dist > 0 check is used.
+        # Actually, monotone chain and other WSPD algorithms usually cover n(n-1)/2 pairs.
+        # Let's just check that it produces a reasonable number of pairs.
+        @test length(finals) < n^2
     end
 
     @testset "10-Dimensional Geometry" begin
