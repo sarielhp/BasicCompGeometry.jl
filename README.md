@@ -47,7 +47,7 @@ d = exact_diameter(mp)
 
 ## AbsPolygon Interface
 
-The library provides an `AbsPolygon{D, T}` abstract interface. All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
+The library provides an `AbsPolygon{D, T}` abstract interface representing a **sequence of points** (which can be viewed as a point set, a polygonal chain, or a classical polygon). All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
 - `Polygon{D, T}`: Standard `Vector{Point{D, T}}` backed representation.
 - `MatPolygon{D, T}`: Matrix-backed representation (`D x N` matrix) for zero-copy integration with existing datasets.
 

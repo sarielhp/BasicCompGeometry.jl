@@ -4,7 +4,8 @@
 """
     AbsPolygon{D, T}
 
-Abstract supertype for all polygon representations in D dimensions with coordinate type T.
+Abstract supertype for all representations of a sequence of points (polygonal 
+chain or polygon) in D dimensions with coordinate type T.
 Subtypes must implement the `AbsFMS` interface (`dist` and `size`) and 
 provide access to vertices.
 """
@@ -13,7 +14,8 @@ abstract type AbsPolygon{D,T} <: AbsFMS end
 """
     Polygon{D, T}
 
-A wrapper around `Vector{Point{D, T}}` representing a polygon or a polygonal curve in D dimensions.
+A wrapper around `Vector{Point{D, T}}` representing a sequence of points, 
+a polygonal curve, or a classical polygon in D dimensions.
 The points are stored sequentially in the `pnts` field.
 
 `Polygon` is a subtype of `AbsPolygon{D, T}`, meaning it can be treated as a finite metric space
@@ -26,8 +28,9 @@ end
 """
     MatPolygon{D, T, M, V}
 
-A polygon representation backed by an `AbstractMatrix{T}` of size `D x N`.
-It provides a zero-copy view of the matrix columns as `Point{D, T}` objects.
+A representation of a sequence of points backed by an `AbstractMatrix{T}` 
+of size `D x N`. It provides a zero-copy view of the matrix columns as 
+`Point{D, T}` objects.
 """
 struct MatPolygon{D,T,M<:AbstractMatrix{T},V<:AbstractVector{Point{D,T}}} <: AbsPolygon{D,T}
     mat::M

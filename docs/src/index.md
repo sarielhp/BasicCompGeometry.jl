@@ -4,6 +4,8 @@
 
 `BasicCompGeometry.jl` provides efficient, high-dimensional primitives and algorithms for computational geometry, leveraging Julia's multiple dispatch and the `StaticArrays.jl` ecosystem.
 
+A core concept in the library is the `AbsPolygon`, which is treated as a **sequence of points**. This can represent a simple point set, a polygonal chain, or a classical closed polygon.
+
 ## Features
 
 - **High-Dimensional Primitives**: Support for Points, Segments, Lines, Polygons, and Axis-Aligned Bounding Boxes (BBox) in any dimension.
