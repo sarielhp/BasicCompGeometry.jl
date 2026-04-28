@@ -31,12 +31,12 @@ end
 A visualization utility for BoundingBoxTrees. 
 Draws the tree levels into a multi-page PDF.
 """
-function BBTree_draw(tree::BBT.Tree{2, T, S}, filename::String) where {T, S}
+function BBTree_draw(tree::BBT.Tree{2,T,S}, filename::String) where {T,S}
     if !HAS_VIS
         println("BBTree_draw requires Cairo and Colors packages.")
         return
     end
-    
+
     # Import necessary symbols from Cairo and Colors
     # Using 'using' inside function requires a specific trick or just 'import'
     # Here we just use the module prefix to be safe and clear.
@@ -59,7 +59,7 @@ function BBTree_draw(tree::BBT.Tree{2, T, S}, filename::String) where {T, S}
         if level ∈ range
             yellow_transparent = Clr.coloralpha(Clr.parse(Clr.Colorant, "yellow"), 0.1)
             C.set_source(context, yellow_transparent)
-            
+
             # Expand slightly for better visibility
             bb = node.bb + (diam(node.bb) * 0.01)
             bl = bottom_left(bb)
@@ -84,7 +84,7 @@ function BBTree_draw(tree::BBT.Tree{2, T, S}, filename::String) where {T, S}
     # Main drawing logic
     # Expand root BB for margins
     bb_root = tree.root.bb + (diam(tree.root.bb) * 0.2)
-    
+
     # We use the max coordinates for surface size
     tr = top_right(bb_root)
     surface = C.CairoPDFSurface(filename, tr[1], tr[2])
@@ -97,7 +97,7 @@ function BBTree_draw(tree::BBT.Tree{2, T, S}, filename::String) where {T, S}
     C.show_page(context)
 
     # Subsequent pages: Level-by-level visualization
-    for i in (d-1):-1:0
+    for i = (d-1):-1:0
         bbox_draw(context, bb_root, Clr.parse(Clr.Colorant, "lightblue"))
         node_draw(context, tree.root, 0, i:(i+1))
         C.show_page(context)
@@ -110,16 +110,23 @@ end
 function test_diameter(P, N::Int, D::Int)
     # If 2D, scale and shift for visualization purposes
     if D == 2
-        translate!(P, npoint(200.0, 200.0))
+        translate!(P, point(200.0, 200.0))
         scale!(P, 500.0)
     end
 
     t_approx = @timed approx_diam = approx_diameter(P, 0.1)
     t_exact = @timed exact_diam = exact_diameter(P)
 
-    @printf("D: %d  N: %8d  Approx: %10.6f  Exact: %10.6f    T_approx: %10.4fs  T_exact: %10.4fs\n",
-            D, N, approx_diam, exact_diam, t_approx.time, t_exact.time)
-            
+    @printf(
+        "D: %d  N: %8d  Approx: %10.6f  Exact: %10.6f    T_approx: %10.4fs  T_exact: %10.4fs\n",
+        D,
+        N,
+        approx_diam,
+        exact_diam,
+        t_approx.time,
+        t_exact.time
+    )
+
     return DataFrame(
         dimension = D,
         N = N,
@@ -136,7 +143,7 @@ function diam_test_sphere(D, iters, filename)
     exact_diameter(P_warm)
 
     df = DataFrame()
-    for i in 1:iters
+    for i = 1:iters
         N = 2^i
         P = Polygon_random_sphere(D, Float64, N)
         new_row = test_diameter(P, N, D)
@@ -146,28 +153,27 @@ function diam_test_sphere(D, iters, filename)
     mkpath(dirname(filename))
     open(filename, "w") do fl
         # Rename columns to match desired headers if using DataFrame
-        df_display = rename(df, 
+        df_display = rename(
+            df,
             :dimension => "Dim",
             :N => "N",
             :approx_runtime => "RT Approx",
             :exact_runtime => "RT Exact",
-            :approx_ratio => "Ratio"
+            :approx_ratio => "Ratio",
         )
-        pretty_table(fl, df_display, 
-                     alignment=:r,
-                     backend=:markdown)
+        pretty_table(fl, df_display, alignment = :r, backend = :markdown)
     end
     println("Results saved to: $filename")
 end
 
 function main()
     println("--- BasicCompGeometry Example: Sphere Diameter ---")
-    
+
     # 1. BBT Visualization Example (2D)
     if HAS_VIS
         println("\nGenerating BBT visualization...")
         P_viz = Polygon_random_sphere(2, Float64, 200)
-        translate!(P_viz, npoint(400.0, 400.0))
+        translate!(P_viz, point(400.0, 400.0))
         scale!(P_viz, 300.0)
         tree = BBT.Tree_init(P_viz)
         BBT.Tree_fully_expand(tree)
@@ -179,7 +185,7 @@ function main()
     # Using smaller iters for the example run
     diam_test_sphere(2, 12, "results/example_2d.md")
     diam_test_sphere(3, 10, "results/example_3d.md")
-    
+
     println("\nExample completed successfully.")
 end
 
