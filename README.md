@@ -1,7 +1,7 @@
 # BasicCompGeometry.jl
 
 [![Build Status](https://github.com/sarielhp/BasicCompGeometry.jl/workflows/Documentation/badge.svg)](https://github.com/sarielhp/BasicCompGeometry.jl/actions)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sarielhp.github.io/BasicCompGeometry.jl/stable)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sarielhp.github.io/BasicCompGeometry.jl/dev)
 
 `BasicCompGeometry.jl` is a comprehensive Julia library for basic computational geometry. It provides efficient, high-dimensional primitives and algorithms, designed to be performant and easy to use through Julia's multiple dispatch system.
 
@@ -11,8 +11,8 @@ This library provides a flat, idiomatic hierarchy for geometric types and algori
 
 ## Features
 
-- **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Polygons, and Axis-Aligned Bounding Boxes in any dimension (2D, 3D, and high-D).
-- **Zero-Copy Matrix Integration**: Use `MatPolygon` to treat columns of a matrix as points without copying memory.
+- **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes in any dimension (2D, 3D, and high-D).
+- **Zero-Copy Matrix Integration**: Use `MatPntSeq` to treat columns of a matrix as points without copying memory.
 - **Coordinate Agnostic**: Works with `Float64`, `Int64`, and other numeric types.
 - **Fast Predicates**: Optimized checks for left/right turns, point-in-box containment, etc.
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
@@ -36,20 +36,22 @@ bb = BBox(p1, p2)
 is_inside(point(1.5, 2.0), bb) # true
 
 # Hausdorff Simplification
-poly = rand_polygon(2, Float64, 1000)
-simplified, indices = hausdorff_simplify(poly, 0.01)
+ps = rand_pnt_seq(2, Float64, 1000)
+simplified, indices = hausdorff_simplify(ps, 0.01)
 
 # Zero-copy matrix wrapper
 M = rand(2, 500)
-mp = MatPolygon(M)
+mp = MatPntSeq(M)
 d = exact_diameter(mp)
 ```
 
-## AbsPolygon Interface
+## AbsPntSeq Interface
 
-The library provides an `AbsPolygon{D, T}` abstract interface representing a **sequence of points** (which can be viewed as a point set, a polygonal chain, or a classical polygon). All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
-- `Polygon{D, T}`: Standard `Vector{Point{D, T}}` backed representation.
-- `MatPolygon{D, T}`: Matrix-backed representation (`D x N` matrix) for zero-copy integration with existing datasets.
+The library provides an `AbsPntSeq{D, T}` abstract interface representing a **sequence of points** (which can be viewed as a point set, a polygonal chain, or a classical polygon). All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
+- `PntSeq{D, T}`: Standard `Vector{Point{D, T}}` backed representation.
+- `MatPntSeq{D, T}`: Matrix-backed representation (`D x N` matrix) for zero-copy integration with existing datasets.
+
+`AbsPolygon`, `Polygon`, and `MatPolygon` are provided as aliases for backward compatibility.
 
 By using Julia's parametric type system, these abstractions incur **zero runtime overhead**.
 
