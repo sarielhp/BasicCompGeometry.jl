@@ -6,25 +6,25 @@ using ..BasicCompGeometry.VirtArray
 using DataStructures
 
 """
-    WSPair{D, T, S}
+    WSPair{D, T, S, V}
 
 A pair of nodes in the BBT that may be well-separated.
 `S` is the type for distance/diameter (usually Float64).
 """
-struct WSPair{D, T, S}
-    left::BBT.Node{D, T, S}
-    right::BBT.Node{D, T, S}
+struct WSPair{D,T,S,V}
+    left::BBT.Node{D,T,S,V}
+    right::BBT.Node{D,T,S,V}
 
     dist::S             # Distance between the boxes
     max_sides_diam::S   # Maximum diameter of the two boxes
     diam_ub::S          # Upper bound on distance between any two points in the boxes
 end
 
-function WSPair_init(left::BBT.Node{D, T, S}, right::BBT.Node{D, T, S}) where {D, T, S}
+function WSPair_init(left::BBT.Node{D,T,S,V}, right::BBT.Node{D,T,S,V}) where {D,T,S,V}
     d = dist(left.bb, right.bb)
     max_side = max(diam(left.bb), diam(right.bb))
     ub = max_dist(left.bb, right.bb)
-    return WSPair{D, T, S}(left, right, d, max_side, ub)
+    return WSPair{D,T,S,V}(left, right, d, max_side, ub)
 end
 
 const MAX_SEP = 1e18 # Representation of very large separation
@@ -40,27 +40,27 @@ end
 struct WSPDOrder <: Base.Order.Ordering end
 Base.Order.lt(::WSPDOrder, a::WSPair, b::WSPair) = a.diam_ub > b.diam_ub
 
-const PairInt = Tuple{Int, Int}
+const PairInt = Tuple{Int,Int}
 
 """
-    PD{D, T, S}
+    PD{D, T, S, V}
 
 WSPD construction state.
 """
-mutable struct PD{D, T, S}
-    pnts::Polygon{D, T}
-    finals::Vector{WSPair{D, T, S}}
-    heap::BinaryHeap{WSPair{D, T, S}, WSPDOrder}
-    tree::BBT.Tree{D, T, S}
+mutable struct PD{D,T,S,V}
+    pnts::AbsPolygon{D,T}
+    finals::Vector{WSPair{D,T,S,V}}
+    heap::BinaryHeap{WSPair{D,T,S,V},WSPDOrder}
+    tree::BBT.Tree{D,T,S,V}
     sep::S  # Desired quality of separation (s-well-separated)
-    hash_pairs::Dict{PairInt, Bool}
+    hash_pairs::Dict{PairInt,Bool}
 end
 
 @inline function get_id(u::BBT.Node, v::BBT.Node)::PairInt
     return (min(u.id, v.id), max(u.id, v.id))
 end
 
-function push_pair!(W::PD{D, T, S}, u::BBT.Node{D, T, S}, v::BBT.Node{D, T, S}) where {D, T, S}
+function push_pair!(W::PD{D,T,S,V}, u::BBT.Node{D,T,S,V}, v::BBT.Node{D,T,S,V}) where {D,T,S,V}
     id = get_id(u, v)
     if haskey(W.hash_pairs, id)
         return nothing
@@ -77,7 +77,7 @@ end
 
 Takes the top of the active pairs and refines it by splitting the larger node.
 """
-function top_refine!(W::PD{D, T, S}) where {D, T, S}
+function top_refine!(W::PD{D,T,S,V}) where {D,T,S,V}
     isempty(W.heap) && return nothing
 
     top = pop!(W.heap)
@@ -122,13 +122,14 @@ end
 
 Initialize the WSPD construction state.
 """
-function init(pnts::Polygon{D, T}, sep::S) where {D, T, S}
+function init(pnts::AbsPolygon{D,T}, sep::S) where {D,T,S}
     tree = BBT.Tree_init(pnts)
-    
-    PairT = WSPair{D, T, S}
+    V = typeof(Points(pnts))
+
+    PairT = WSPair{D,T,S,V}
     heap = BinaryHeap{PairT}(WSPDOrder(), PairT[])
-    
-    W = PD{D, T, S}(pnts, PairT[], heap, tree, sep, Dict{PairInt, Bool}())
+
+    W = PD{D,T,S,V}(pnts, PairT[], heap, tree, sep, Dict{PairInt,Bool}())
 
     # Start with (root, root) pair
     push_pair!(W, tree.root, tree.root)
@@ -164,10 +165,10 @@ function expand_bichromatic!(W::PD, index_cut::Int)
 
         i_min = min_orig_index(W, top)
         i_max = max_orig_index(W, top)
-        
+
         # If both nodes are entirely on one side of the cut, ignore this pair
         f_boring = (i_max <= index_cut) || (i_min > index_cut)
-        
+
         if f_boring
             pop!(W.heap)
             continue
@@ -196,7 +197,7 @@ end
 
 Return the diameter upper bound of the top pair in the priority queue.
 """
-function top_diam_ub(W::PD{D, T, S}) where {D, T, S}
+function top_diam_ub(W::PD{D,T,S,V}) where {D,T,S,V}
     if isempty(W.heap)
         return zero(S)
     end
@@ -208,17 +209,22 @@ function get_reps(W::PD, pair::WSPair)
 end
 
 function reps_orig_indexes(W::PD, pair::WSPair)
-    return orig_index(W.tree.PS, first(pair.left.r)), orig_index(W.tree.PS, first(pair.right.r))
+    return orig_index(W.tree.PS, first(pair.left.r)),
+    orig_index(W.tree.PS, first(pair.right.r))
 end
 
 function min_orig_index(W::PD, pair::WSPair)
-    return min(BBT.get_min_orig_index(W.tree, pair.left),
-               BBT.get_min_orig_index(W.tree, pair.right))
+    return min(
+        BBT.get_min_orig_index(W.tree, pair.left),
+        BBT.get_min_orig_index(W.tree, pair.right),
+    )
 end
 
 function max_orig_index(W::PD, pair::WSPair)
-    return max(BBT.get_max_orig_index(W.tree, pair.left),
-               BBT.get_max_orig_index(W.tree, pair.right))
+    return max(
+        BBT.get_max_orig_index(W.tree, pair.left),
+        BBT.get_max_orig_index(W.tree, pair.right),
+    )
 end
 
 function get_orig_ranges(W::PD, pair::WSPair)

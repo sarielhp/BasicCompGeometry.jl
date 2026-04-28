@@ -7,11 +7,12 @@
 
 ## Overview
 
-This library was originally developed as a core component of the `FrechetDist` package. It has been refactored into a standalone module to provide a flat, idiomatic hierarchy for geometric types and algorithms that are useful across various computational geometry tasks.
+This library provides a flat, idiomatic hierarchy for geometric types and algorithms that are useful across various computational geometry tasks.
 
 ## Features
 
 - **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Polygons, and Axis-Aligned Bounding Boxes in any dimension (2D, 3D, and high-D).
+- **Zero-Copy Matrix Integration**: Use `MatPolygon` to treat columns of a matrix as points without copying memory.
 - **Coordinate Agnostic**: Works with `Float64`, `Int64`, and other numeric types.
 - **Fast Predicates**: Optimized checks for left/right turns, point-in-box containment, etc.
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
@@ -24,20 +25,33 @@ This library was originally developed as a core component of the `FrechetDist` p
 using BasicCompGeometry
 
 # Create a 2D point
-p1 = npoint(0.0, 0.0)
-p2 = npoint(3.0, 4.0)
+p1 = point(0.0, 0.0)
+p2 = point(3.0, 4.0)
 
 # Euclidean distance
 println(dist(p1, p2)) # 5.0
 
 # Bounding Box containment
 bb = BBox(p1, p2)
-is_inside(npoint(1.5, 2.0), bb) # true
+is_inside(point(1.5, 2.0), bb) # true
 
 # Hausdorff Simplification
 poly = rand_polygon(2, Float64, 1000)
 simplified, indices = hausdorff_simplify(poly, 0.01)
+
+# Zero-copy matrix wrapper
+M = rand(2, 500)
+mp = MatPolygon(M)
+d = exact_diameter(mp)
 ```
+
+## AbsPolygon Interface
+
+The library provides an `AbsPolygon{D, T}` abstract interface. All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
+- `Polygon{D, T}`: Standard `Vector{Point{D, T}}` backed representation.
+- `MatPolygon{D, T}`: Matrix-backed representation (`D x N` matrix) for zero-copy integration with existing datasets.
+
+By using Julia's parametric type system, these abstractions incur **zero runtime overhead**.
 
 ## Documentation
 

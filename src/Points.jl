@@ -15,21 +15,21 @@ const Point = SVector
 
 A 2-dimensional point with `Int64` coordinates.
 """
-const Point2I = Point{2, Int64}
+const Point2I = Point{2,Int64}
 
 """
     Point2F
 
 A 2-dimensional point with `Float64` coordinates.
 """
-const Point2F = Point{2, Float64}
+const Point2F = Point{2,Float64}
 
 """
     Point3F
 
 A 3-dimensional point with `Float64` coordinates.
 """
-const Point3F = Point{3, Float64}
+const Point3F = Point{3,Float64}
 
 """
     dist_sq(p, q)
@@ -37,14 +37,14 @@ const Point3F = Point{3, Float64}
 Calculate the square of the Euclidean distance between two points `p` and `q`.
 This is more efficient than `dist(p, q)` if only relative distances are needed.
 """
-@inline dist_sq(p::Point{D, T}, q::Point{D, T}) where {D, T} = sum(abs2, p - q)
+@inline dist_sq(p::Point{D,T}, q::Point{D,T}) where {D,T} = sum(abs2, p - q)
 
 """
     dist(p, q)
 
 Calculate the Euclidean distance between two points `p` and `q`.
 """
-@inline dist(p::Point{D, T}, q::Point{D, T}) where {D, T} = sqrt(dist_sq(p, q))
+@inline dist(p::Point{D,T}, q::Point{D,T}) where {D,T} = sqrt(dist_sq(p, q))
 
 """
     convex_comb(p, q, t)
@@ -52,7 +52,7 @@ Calculate the Euclidean distance between two points `p` and `q`.
 Return the convex combination of two points: `(1-t)p + tq`.
 When `t=0`, returns `p`. When `t=1`, returns `q`.
 """
-@inline function convex_comb(p::Point{D, T}, q::Point{D, T}, t::Real) where {D, T}
+@inline function convex_comb(p::Point{D,T}, q::Point{D,T}, t::Real) where {D,T}
     return p + (q - p) * t
 end
 
@@ -64,7 +64,7 @@ A positive value indicates a counter-clockwise (left) turn,
 a negative value indicates a clockwise (right) turn, 
 and zero indicates the points are collinear.
 """
-@inline function turn_sign(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T}
+@inline function turn_sign(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T}
     return (q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1])
 end
 
@@ -73,7 +73,7 @@ end
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn.
 """
-@inline is_left_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+@inline is_left_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
     turn_sign(p, q, r) > zero(T)
 
 """
@@ -81,7 +81,7 @@ Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-cloc
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn.
 """
-@inline is_right_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+@inline is_right_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
     turn_sign(p, q, r) < zero(T)
 
 """
@@ -90,7 +90,7 @@ Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (r
 Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn 
 or if the points are collinear.
 """
-@inline is_left_eq_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+@inline is_left_eq_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
     turn_sign(p, q, r) >= zero(T)
 
 """
@@ -99,7 +99,7 @@ or if the points are collinear.
 Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn 
 or if the points are collinear.
 """
-@inline is_right_eq_turn(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+@inline is_right_eq_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
     turn_sign(p, q, r) <= zero(T)
 
 """
@@ -107,16 +107,16 @@ or if the points are collinear.
 
 Return `true` if the three 2D points `p`, `q`, and `r` are collinear.
 """
-@inline is_collinear(p::Point{2, T}, q::Point{2, T}, r::Point{2, T}) where {T} =
+@inline is_collinear(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
     turn_sign(p, q, r) == zero(T)
 
 """
-    npoint(args...)
+    point(args...)
 
 Construct a `Point` (SVector) from a list of coordinates or a single collection.
-Example: `npoint(1.0, 2.0)` or `npoint([1, 2, 3])`.
+Example: `point(1.0, 2.0)` or `point([1, 2, 3])`.
 """
-@inline npoint(args...) = Point(args...)
+@inline point(args...) = Point(args...)
 
 """
     rand_gaussian(D, T=Float64)
@@ -124,7 +124,7 @@ Example: `npoint(1.0, 2.0)` or `npoint([1, 2, 3])`.
 Return a random `Point{D, T}` where each coordinate is sampled from a standard normal distribution.
 """
 function rand_gaussian(D::Int, T::Type{<:Real} = Float64)
-    return Point{D, T}(randn(T, D))
+    return Point{D,T}(randn(T, D))
 end
 
 """
@@ -132,25 +132,26 @@ end
 
 Return a random `Point{D, T}` where each coordinate is sampled uniformly from the interval `[0, 1)`.
 """
-rand_point(D::Int, T::Type{<:Real} = Float64) = rand(Point{D, T})
+rand_point(D::Int, T::Type{<:Real} = Float64) = rand(Point{D,T})
 
 """
     max(p, q)
 
 Return a point where each coordinate is the maximum of the corresponding coordinates of `p` and `q`.
 """
-@inline Base.max(p::Point{D, T}, q::Point{D, T}) where {D, T} = Point{D, T}(max.(p, q))
+@inline Base.max(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(max.(p, q))
 
 """
     min(p, q)
 
 Return a point where each coordinate is the minimum of the corresponding coordinates of `p` and `q`.
 """
-@inline Base.min(p::Point{D, T}, q::Point{D, T}) where {D, T} = Point{D, T}(min.(p, q))
+@inline Base.min(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(min.(p, q))
 
 export Point, Point2F, Point2I, Point3F
 export dist, dist_sq
 export rand_point, rand_gaussian
 export convex_comb
-export turn_sign, is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
-export npoint
+export turn_sign,
+    is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
+export point

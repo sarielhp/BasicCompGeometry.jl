@@ -18,8 +18,8 @@
 using BasicCompGeometry
 
 # Create points
-p1 = npoint(0.0, 0.0)
-p2 = npoint(3.0, 4.0)
+p1 = point(0.0, 0.0)
+p2 = point(3.0, 4.0)
 
 # Calculate distance
 d = dist(p1, p2) # 5.0
@@ -30,7 +30,7 @@ len = geom_length(seg)
 
 # Bounding boxes
 bb = BBox(p1, p2)
-is_inside(npoint(1.0, 1.0), bb) # true
+is_inside(point(1.0, 1.0), bb) # true
 ```
 
 ## API Reference
@@ -38,7 +38,7 @@ is_inside(npoint(1.0, 1.0), bb) # true
 ### Points
 ```@docs
 Point
-npoint
+point
 dist
 dist_sq
 convex_comb
@@ -62,7 +62,9 @@ bisection_point
 
 ### Polygons
 ```@docs
+AbsPolygon
 Polygon
+MatPolygon
 Points
 cardin
 prefix_lengths

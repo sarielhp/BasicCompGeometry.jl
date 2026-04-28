@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "c89ec76fd16416963c91cbddc0526cf3935ee009"
+project_hash = "1980814274fe3868c32d1be496534cf93512aa56"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -19,7 +19,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
 [[deps.BasicCompGeometry]]
-deps = ["DataStructures", "DelimitedFiles", "Distributions", "LinearAlgebra", "Parameters", "Random", "StaticArrays", "Test"]
+deps = ["Cairo", "Colors", "DataFrames", "DataStructures", "DelimitedFiles", "Distances", "Distributions", "LinearAlgebra", "Parameters", "PrettyTables", "Random", "StaticArrays", "Test"]
 path = "."
 uuid = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
 version = "0.1.0"
@@ -110,6 +110,20 @@ deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
+
+[[deps.Distances]]
+deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
+git-tree-sha1 = "c7e3a542b999843086e2f29dac96a618c105be1d"
+uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+version = "0.10.12"
+
+    [deps.Distances.extensions]
+    DistancesChainRulesCoreExt = "ChainRulesCore"
+    DistancesSparseArraysExt = "SparseArrays"
+
+    [deps.Distances.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.Distributions]]
 deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]

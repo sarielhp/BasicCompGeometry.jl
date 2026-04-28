@@ -7,9 +7,7 @@ Calculate the Hausdorff distance between the subpolygon `P[rng]` and the single 
 connecting its first and last vertices. 
 This is used as an error measure for curve simplification.
 """
-function hausdorff_dist_subseg(P::Polygon{D, T},
-                               rng::UnitRange{Int} = 0:0
-                               )::T where {D, T}
+function hausdorff_dist_subseg(P::AbsPolygon{D,T}, rng::UnitRange{Int} = 0:0)::T where {D,T}
     if rng == 0:0
         rng = 1:length(P)
     end
@@ -20,7 +18,7 @@ function hausdorff_dist_subseg(P::Polygon{D, T},
 
     s, t = P[first(rng)], P[last(rng)]
     leash = zero(T)
-    for i in first(rng)+1:last(rng)-1
+    for i = (first(rng)+1):(last(rng)-1)
         leash = max(leash, dist_point_segment(P[i], s, t))
     end
 
@@ -34,9 +32,7 @@ Find a prefix of polygon `P` starting at `start` that (approximately) exceeds
 the error threshold `w`. Uses exponential search for efficiency on large curves.
 Returns the end index of the prefix.
 """
-function exp_search_prefix(P::Polygon{D, T},
-                           start::Int,
-                           w::Real) where {D, T}
+function exp_search_prefix(P::AbsPolygon{D,T}, start::Int, w::Real) where {D,T}
     n = length(P)
     hi = min(start + 2, n)
     hi >= n && return hi
@@ -55,8 +51,7 @@ end
 Perform a binary search between indices `i` and `j` to find the longest prefix 
 starting at `start` that has a Hausdorff distance at most `w`.
 """
-function h_bin_search_inner(P::Polygon{D, T}, start::Int,
-                            i::Int, j::Int, w::T) where {D, T}
+function h_bin_search_inner(P::AbsPolygon{D,T}, start::Int, i::Int, j::Int, w::T) where {D,T}
     if i >= j || (start + 1) == j
         return j
     end
@@ -65,7 +60,7 @@ function h_bin_search_inner(P::Polygon{D, T}, start::Int,
     if (i + 1) == j
         return i
     end
-    
+
     mid = (i + j - 1) >> 1
     r_m = hausdorff_dist_subseg(P, start:mid)
     if r_m > w
@@ -79,7 +74,7 @@ end
 
 High-level wrapper to find the optimal split point for simplification between `i` and `j`.
 """
-function find_prefix(P::Polygon{D, T}, i::Int, j::Int, w::T) where {D, T}
+function find_prefix(P::AbsPolygon{D,T}, i::Int, j::Int, w::T) where {D,T}
     r = hausdorff_dist_subseg(P, i:j)
     if r <= w
         return j
@@ -96,12 +91,12 @@ For every segment `[v_i, v_{i+1}]` in the simplification, the Hausdorff distance
 to the original subcurve it replaces is at most `w`.
 Returns `(simplified_polygon, vertex_indices)`.
 """
-function hausdorff_simplify(P::Polygon{D, T}, w::T) where {D, T}
-    pout = Polygon{D, T}()
+function hausdorff_simplify(P::AbsPolygon{D,T}, w::T) where {D,T}
+    pout = Polygon{D,T}()
     pindices = Int[]
     n = length(P)
     n == 0 && return pout, pindices
-    
+
     push!(pout, P[1])
     push!(pindices, 1)
 

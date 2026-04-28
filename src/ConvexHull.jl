@@ -7,7 +7,11 @@ counter-clockwise order, starting from the point with the minimum x-coordinate.
 The algorithm has $O(n \log n)$ time complexity due to the initial sorting step.
 """
 
-function convex_hull(pnts::Vector{Point{2, T}}) where {T}
+function convex_hull(ps::AbsPolygon{2,T}) where {T}
+    return convex_hull(Points(ps))
+end
+
+function convex_hull(pnts::Vector{Point{2,T}}) where {T}
     n = length(pnts)
     if n <= 2
         return Polygon(pnts)
@@ -18,7 +22,7 @@ function convex_hull(pnts::Vector{Point{2, T}}) where {T}
 
     # Helper to build a half-hull
     function build_half_hull(points_seq)
-        hull = Point{2, T}[]
+        hull = Point{2,T}[]
         for p in points_seq
             while length(hull) >= 2 && !is_left_turn(hull[end-1], hull[end], p)
                 pop!(hull)
@@ -36,7 +40,7 @@ function convex_hull(pnts::Vector{Point{2, T}}) where {T}
     # This result is in counter-clockwise order.
     pop!(lower)
     pop!(upper)
-    
+
     return Polygon(vcat(lower, upper))
 end
 
