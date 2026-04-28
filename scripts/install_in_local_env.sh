@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# Configuration: Update this path to the absolute path of your package
-PACKAGE_PATH="/home/sariel/prog/26/BasicCompGeometry"
+# Determine the directory where this script is located
+# Since it lives in scripts/, the package root is one level up.
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PACKAGE_PATH="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 echo "Setting up Julia environment in $(pwd)..."
+echo "Developing package from: $PACKAGE_PATH"
 
 # Run Julia to activate the local project and develop the package
-# 1. --project=.  : Activates the environment in the current directory
-# 2. Pkg.develop  : Links the local source code instead of downloading it
 julia --project=. -e '
 using Pkg;
 try
