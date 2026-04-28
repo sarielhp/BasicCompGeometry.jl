@@ -38,6 +38,27 @@ The library implements a variety of classic and modern geometric algorithms:
 - **Metric Spaces**: `AbsFMS` interface and `PointsSpace` wrappers.
 - **Utilities**: `VArray` for efficient permutation and original index tracking.
 
+## Metric Spaces
+
+The library provides a robust framework for working with **Finite Metric Spaces (FMS)**, allowing algorithms to operate on abstract indices while the underlying representation handles the distance calculations.
+
+### The `AbsFMS` Interface
+All metric spaces subtype `AbsFMS`. They represent a set of $n$ points identified by indices $1 \dots n$. The core interface requires:
+- `size(space)`: Number of points.
+- `dist(space, i, j)`: Distance between points at indices $i$ and $j$.
+
+### Provided Metric Space Types
+- **`PointsSpace{T}`**: A simple wrapper around a `Vector` of any objects that support the `dist(p1, p2)` function.
+- **`MPointsSpace{T}`**: A matrix-backed space where each column is treated as a point in $\mathbb{R}^d$. It uses optimized Euclidean distance calculations.
+- **`AbsPntSeq`**: Any point sequence (like `PntSeq` or `MatPntSeq`) automatically implements the `AbsFMS` interface.
+- **`PermutMetric`**: A powerful decorator that creates a "view" of an existing metric space under a specific permutation or subset of indices.
+- **`SpherePMetric`**: A specialized space where the distance between two points $i$ and $j$ is the **angle** they form at a fixed base point $b$.
+
+### Metric Space Algorithms
+- **Greedy Permutation**: Generates a furthest-point ordering of the metric space.
+    - `greedy_permutation_naive`: Standard $O(n^2)$ implementation of Gonzalez's algorithm.
+    - `greedy_permutation_vanity`: A variation that breaks distance ties using a secondary "vanity" score.
+
 ## Quick Start
 
 ```julia
