@@ -3,7 +3,25 @@
 [![Build Status](https://github.com/sarielhp/BasicCompGeometry.jl/workflows/Documentation/badge.svg)](https://github.com/sarielhp/BasicCompGeometry.jl/actions)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sarielhp.github.io/BasicCompGeometry.jl/dev)
 
-`BasicCompGeometry.jl` is a comprehensive Julia library for basic computational geometry. It provides efficient, high-dimensional primitives and algorithms, designed to be performant and easy to use through Julia's multiple dispatch system.
+`BasicCompGeometry.jl` is a Julia library for basic computational
+geometry stuff. It contains some code I wrote over the last few years
+in a self contained cleaner form.  Its a bit of a random collection of
+things so far, but hopefully would become more coherent over time. The
+main guideline is to have self-contained code that does not rely on
+heavy external packages (some of the examples use heavier packages for
+visualization).
+
+## Disclaimer
+
+Much of the code in this package (like the convex hull code in 2 and 3
+dimensions) was written using gemini-cli. Writing robust and efficient
+code for Computational Geometry is notoriously difficult - see
+[CGAL](https://www.cgal.org/) for a library that does it right!
+(Unlike this library!) Some things are naturally robust and should
+work fine, but even convex-hull computation in 2d using floating point
+can become tricky. 
+
+
 
 ## Overview
 
@@ -18,6 +36,54 @@ This library provides a flat, idiomatic hierarchy for geometric types and algori
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling of polygonal curves.
 - **Planar Geometry**: Homogeneous 2D transformations (translation and rotation).
+
+## Algorithms
+
+The library implements a variety of classic and modern geometric algorithms:
+
+- **Convex Hull**:
+    - **2D**: Monotone Chain algorithm ($O(n \log n)$).
+    - **3D**: Gift-wrapping based implementation.
+- **Diameter**:
+    - **Exact**: Brute-force $O(n^2)$ calculation.
+    - **Approximate**: $(1+\epsilon)$-approximation using WSPD ($O(n \log n + n/\epsilon^d)$).
+- **Spatial Decomposition**:
+    - **WSPD**: Well-Separated Pairs Decomposition.
+    - **BBT**: Bounding Box Tree construction and expansion.
+- **Curve Processing**:
+    - **Simplification**: Hausdorff distance-based simplification.
+    - **Resampling**: Uniform arc-length resampling.
+- **Metric Space Algorithms**:
+    - **Greedy Permutation**: Incremental furthest-point sampling ($O(n^2)$ or optimized via BBT).
+- **Advanced Optimization**:
+    - **Longest Convex Subset**: Dynamic programming based calculation.
+- **Geometric Predicates**:
+    - Fast `turn_sign`, `is_left_turn`, `is_right_turn`, and `is_collinear` checks.
+- **Distance Calculations**:
+    - Point-Point, Point-Segment, Point-Line, Segment-Segment.
+    - Min/Max distance between Bounding Boxes.
+
+## Data Structures
+
+`BasicCompGeometry` provides highly optimized, type-safe data structures:
+
+- **Geometric Primitives**:
+    - `Point{D, T}`: High-dimensional points (using `StaticArrays`).
+    - `Segment{D, T}`: Directed line segments.
+    - `Line{D, T}`: Infinite lines defined by a point and a direction.
+    - `BBox{D, T}`: Axis-aligned bounding boxes.
+- **Point Sequences (Polygons)**:
+    - `PntSeq{D, T}`: Standard sequence of points.
+    - `MatPntSeq{D, T}`: Zero-copy view of a Julia `Matrix` as a point sequence.
+- **Tree Structures**:
+    - `BBT.Tree`: Hierarchical Bounding Box Tree.
+    - `BBT.Node`: Internal nodes and leaves of the BBT.
+- **Metric Spaces**:
+    - `AbsFMS`: Abstract interface for Finite Metric Spaces.
+    - `PointsSpace`: Wrapper for treated point sets as metric spaces.
+- **Utilities**:
+    - `VArray`: Virtual array for efficient permutation and original index tracking.
+
 
 ## Quick Start
 
@@ -68,7 +134,9 @@ Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
 
 ## Origins
 
-The code in this module was originally part of the `FrechetDist` package. It has been modernized and reorganized to follow Julia's best practices, including:
+The code in this module was originally part of the `FrechetDist`
+package. It has been modernized and reorganized to follow Julia's best
+practices, including:
 - A flat module hierarchy.
 - Type-generic implementations.
 - Integration with the `StaticArrays.jl` ecosystem.
