@@ -4,11 +4,11 @@
 
 `BasicCompGeometry.jl` provides efficient, high-dimensional primitives and algorithms for computational geometry, leveraging Julia's multiple dispatch and the `StaticArrays.jl` ecosystem.
 
-A core concept in the library is the `AbsPolygon`, which is treated as a **sequence of points**. This can represent a simple point set, a polygonal chain, or a classical closed polygon.
+A core concept in the library is the `AbsPntSeq`, which is treated as a **sequence of points**. This can represent a simple point set, a polygonal chain, or a classical closed polygon. `AbsPolygon` is provided as an alias for backward compatibility.
 
 ## Features
 
-- **High-Dimensional Primitives**: Support for Points, Segments, Lines, Polygons, and Axis-Aligned Bounding Boxes (BBox) in any dimension.
+- **High-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes (BBox) in any dimension.
 - **Multiple Coordinate Types**: Works seamlessly with `Float64`, `Int64`, and other numeric types.
 - **Geometric Predicates**: Fast checks for turns (left/right) and containment.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling.
@@ -33,6 +33,10 @@ len = geom_length(seg)
 # Bounding boxes
 bb = BBox(p1, p2)
 is_inside(point(1.0, 1.0), bb) # true
+
+# Point Sequences (Polygons)
+ps = PntSeq([p1, p2, point(0.0, 4.0)])
+cardin(ps) # 3
 ```
 
 ## API Reference
@@ -62,17 +66,17 @@ dist_segment_segment
 bisection_point
 ```
 
-### Polygons
+### Point Sequences
 ```@docs
-AbsPolygon
-Polygon
-MatPolygon
+AbsPntSeq
+PntSeq
+MatPntSeq
 Points
 cardin
 prefix_lengths
 simplify
 sample_uniformly
-rand_polygon
+rand_pnt_seq
 write_plt
 ```
 
@@ -98,7 +102,6 @@ apply_transform
 
 ### Algorithms
 ```@docs
-convex_hull
 hausdorff_simplify
 hausdorff_dist_subseg
 distance_infty

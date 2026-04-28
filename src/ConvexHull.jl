@@ -2,19 +2,19 @@ raw"""
     convex_hull(points)
 
 Compute the 2D convex hull of a collection of points using the Monotone Chain algorithm.
-Returns a Polygon representing the convex hull. The vertices are returned in 
+Returns a PntSeq representing the convex hull. The vertices are returned in 
 counter-clockwise order, starting from the point with the minimum x-coordinate.
 The algorithm has $O(n \log n)$ time complexity due to the initial sorting step.
 """
 
-function convex_hull(ps::AbsPolygon{2,T}) where {T}
+function convex_hull(ps::AbsPntSeq{2,T}) where {T}
     return convex_hull(Points(ps))
 end
 
 function convex_hull(pnts::Vector{Point{2,T}}) where {T}
     n = length(pnts)
     if n <= 2
-        return Polygon(pnts)
+        return PntSeq(pnts)
     end
 
     # Sort points primarily by x-coordinate, secondarily by y-coordinate
@@ -41,7 +41,7 @@ function convex_hull(pnts::Vector{Point{2,T}}) where {T}
     pop!(lower)
     pop!(upper)
 
-    return Polygon(vcat(lower, upper))
+    return PntSeq(vcat(lower, upper))
 end
 
 export convex_hull

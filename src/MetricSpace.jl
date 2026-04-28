@@ -15,7 +15,8 @@ permutations) from the underlying representation of the points and the distance 
 
 1. `PointsSpace`: Defined by a collection of points of any type that supports `dist(p1, p2)`.
 2. `MPointsSpace`: Defined by a matrix where columns represent points. Uses Euclidean distance.
-3. `PermutMetric`: A wrapper that allows reordering or subsetting an existing metric space via a permutation vector.
+3. `AbsPntSeq`: Any point sequence can be treated as an `AbsFMS`.
+4. `PermutMetric`: A wrapper that allows reordering or subsetting an existing metric space via a permutation vector.
 4. `SpherePMetric`: A specialized space where distances are defined as angles relative to a base point (useful for spherical geometry or directional data).
 
 # Algorithms

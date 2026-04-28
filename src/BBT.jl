@@ -87,7 +87,7 @@ function node_init(tree::Tree{D,T,S,V}, range::UnitRange{Int}) where {D,T,S,V}
     )
 end
 
-function Tree_init_inner(p::AbsPolygon{D,T}) where {D,T}
+function Tree_init_inner(p::AbsPntSeq{D,T}) where {D,T}
     pnts = Points(p)
     varr = VArray(pnts)
     V = typeof(pnts)
@@ -175,7 +175,7 @@ function node_expand(v::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
     node_split(v, tree)
 end
 
-function Tree_init(PS::AbsPolygon{D,T}) where {D,T}
+function Tree_init(PS::AbsPntSeq{D,T}) where {D,T}
     tree = Tree_init_inner(PS)
     node_expand(tree.root, tree)
     return tree

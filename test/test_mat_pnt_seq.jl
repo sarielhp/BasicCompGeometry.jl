@@ -4,13 +4,13 @@ using BasicCompGeometry.WSPD
 using Test
 using LinearAlgebra
 
-@testset "MatPolygon" begin
+@testset "MatPntSeq" begin
     D, N = 3, 10
     M = rand(D, N)
-    mp = MatPolygon(M)
+    mp = MatPntSeq(M)
     
     @testset "Basics" begin
-        @test mp isa AbsPolygon{3, Float64}
+        @test mp isa AbsPntSeq{3, Float64}
         @test dim(mp) == 3
         @test length(mp) == N
         @test size(mp) == N
@@ -24,9 +24,9 @@ using LinearAlgebra
         M[1, 1] = 999.0
         @test mp[1][1] == 999.0
         
-        # Test that updating the polygon (if possible) updates the matrix
+        # Test that updating the pnt seq (if possible) updates the matrix
         # Since Point is SVector (immutable), we have to set the whole point
-        # But setindex! is defined for AbsPolygon
+        # But setindex! is defined for AbsPntSeq
         new_p = Point{3, Float64}(1.0, 2.0, 3.0)
         mp[2] = new_p
         @test M[:, 2] == [1.0, 2.0, 3.0]

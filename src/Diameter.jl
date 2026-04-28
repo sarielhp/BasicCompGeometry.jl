@@ -1,10 +1,10 @@
 raw"""
     exact_diameter(P)
 
-Calculate the exact Euclidean diameter of a set of points `P` (Polygon or vector of points).
+Calculate the exact Euclidean diameter of a set of points `P` (point sequence or vector of points).
 This uses a brute-force $O(n^2)$ approach.
 """
-function exact_diameter(P::AbsPolygon{D,T}) where {D,T}
+function exact_diameter(P::AbsPntSeq{D,T}) where {D,T}
     n = length(P)
     n <= 1 && return 0.0
     curr = 0.0
@@ -22,7 +22,7 @@ raw"""
 Calculate a $(1+ε)$-approximation of the Euclidean diameter of a set of points `P`.
 Uses Well-Separated Pairs Decomposition (WSPD) to achieve $O(n \log n + n/\epsilon^d)$ time complexity.
 """
-function approx_diameter(P::AbsPolygon{D,T}, ε::Real) where {D,T}
+function approx_diameter(P::AbsPntSeq{D,T}, ε::Real) where {D,T}
     n = length(P)
     n <= 1 && return 0.0
 

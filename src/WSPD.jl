@@ -48,7 +48,7 @@ const PairInt = Tuple{Int,Int}
 WSPD construction state.
 """
 mutable struct PD{D,T,S,V}
-    pnts::AbsPolygon{D,T}
+    pnts::AbsPntSeq{D,T}
     finals::Vector{WSPair{D,T,S,V}}
     heap::BinaryHeap{WSPair{D,T,S,V},WSPDOrder}
     tree::BBT.Tree{D,T,S,V}
@@ -122,7 +122,7 @@ end
 
 Initialize the WSPD construction state.
 """
-function init(pnts::AbsPolygon{D,T}, sep::S) where {D,T,S}
+function init(pnts::AbsPntSeq{D,T}, sep::S) where {D,T,S}
     tree = BBT.Tree_init(pnts)
     V = typeof(Points(pnts))
 

@@ -25,11 +25,11 @@ Construct a bounding box that tightly encloses points `p` and `q`.
 BBox(p::Point{D,T}, q::Point{D,T}) where {D,T} = init!(BBox{D,T}(), p, q)
 
 """
-    BBox(P::AbsPolygon{D, T})
+    BBox(P::AbsPntSeq{D, T})
 
-Construct a bounding box that tightly encloses all vertices of polygon `P`.
+Construct a bounding box that tightly encloses all vertices of point sequence `P`.
 """
-BBox(P::AbsPolygon{D,T}) where {D,T} = bound!(BBox{D,T}(), P)
+BBox(P::AbsPntSeq{D,T}) where {D,T} = bound!(BBox{D,T}(), P)
 
 """
     width(bb, dim=1)
@@ -234,11 +234,11 @@ function bound!(bb::BBox{D,T}, P) where {D,T}
 end
 
 """
-    bound!(bb, P::AbsPolygon)
+    bound!(bb, P::AbsPntSeq)
 
-Update the bounding box `bb` in-place to include all vertices of polygon `P`.
+Update the bounding box `bb` in-place to include all vertices of point sequence `P`.
 """
-function bound!(bb::BBox{D,T}, P::AbsPolygon{D,T}) where {D,T}
+function bound!(bb::BBox{D,T}, P::AbsPntSeq{D,T}) where {D,T}
     for p in Points(P)
         bound!(bb, p)
     end

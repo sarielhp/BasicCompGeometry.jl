@@ -2,7 +2,7 @@
     BasicCompGeometry
 
 A comprehensive library for basic computational geometry operations.
-Supports high-dimensional points, segments, lines, polygons, and axis-aligned bounding boxes.
+Supports high-dimensional points, segments, lines, point sequences, and axis-aligned bounding boxes.
 Built for performance and ease of use using Julia's multiple dispatch system.
 """
 module BasicCompGeometry
@@ -24,10 +24,10 @@ abstract type AbsFMS end
 
 include("Points.jl")
 include("Segments.jl")
-include("Polygons.jl")
+include("PntSeqs.jl")
 include("BBoxes.jl")
 include("Transforms2D.jl")
-include("PolygonHausdorff.jl")
+include("PntSeqHausdorff.jl")
 include("ConvexHull.jl")
 include("ConvexHull3D.jl")
 include("VirtArray.jl")
@@ -51,11 +51,11 @@ using .ConvexHull3D
 """
     distance_infty(P, Q)
 
-Calculate the maximum (L_∞) distance between corresponding vertices of two polygons.
+Calculate the maximum (L_∞) distance between corresponding vertices of two point sequences.
 Requires `length(P) == length(Q)`.
 Useful for assessing the quality of point-to-point matching.
 """
-function distance_infty(P::AbsPolygon{D,T}, Q::AbsPolygon{D,T}) where {D,T}
+function distance_infty(P::AbsPntSeq{D,T}, Q::AbsPntSeq{D,T}) where {D,T}
     n = length(P)
     @assert n == length(Q)
     n == 0 && return 0.0
@@ -83,7 +83,7 @@ end
     centroid(P)
 
 Calculate the centroid (arithmetic mean) of a collection of points `P`.
-Works with Polygons or vectors of points.
+Works with point sequences or vectors of points.
 """
 centroid(P) = sum(P) / length(P)
 
@@ -113,11 +113,18 @@ Type alias for a vector of 2D integer points.
 const VecPoint2I = Vector{Point2I}
 
 """
+    VecPntSeq2F
+
+Type alias for a vector of 2D point sequences with Float64 coordinates.
+"""
+const VecPntSeq2F = Vector{PntSeq2F}
+
+"""
     VecPolygon2F
 
-Type alias for a vector of 2D polygons with Float64 coordinates.
+Alias for backward compatibility.
 """
-const VecPolygon2F = Vector{Polygon2F}
+const VecPolygon2F = VecPntSeq2F
 
 export Segment, BBox, BBox2F, Segment2F, Line
 export turn_sign,
@@ -125,7 +132,7 @@ export turn_sign,
 export dist, dist_sq, distance_infty, distance
 export exact_diameter, approx_diameter
 export Points, centroid, convex_comb, convex_hull
-export match_price, cardin, VecPolygon2F, VecPoint2I
+export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
 export VirtArray, BBT, WSPD, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
 
 end

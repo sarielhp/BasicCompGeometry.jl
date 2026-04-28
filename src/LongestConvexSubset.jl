@@ -43,13 +43,13 @@ end
 Main context for the Longest Convex Subset algorithm.
 """
 mutable struct LCSContext{T}
-    PS::AbsPolygon{2,T}
+    PS::AbsPntSeq{2,T}
     turns::Vector{PointTurn}
     Lens::Vector{Int}
 end
 
 struct RotateOrder{T} <: Base.Order.Ordering
-    PS::AbsPolygon{2,T}
+    PS::AbsPntSeq{2,T}
     base::Point{2,T}
 end
 
@@ -61,7 +61,7 @@ end
 # Initialization
 ################################################################################
 
-function pt_init(PS::AbsPolygon{2,T}, loc::Int) where {T}
+function pt_init(PS::AbsPntSeq{2,T}, loc::Int) where {T}
     pt = PointTurn()
 
     for j = (loc+1):length(PS)
@@ -76,11 +76,11 @@ function pt_init(PS::AbsPolygon{2,T}, loc::Int) where {T}
     return pt
 end
 
-function sort_points!(ps::Polygon{2,T}) where {T}
+function sort_points!(ps::PntSeq{2,T}) where {T}
     sort!(ps.pnts, lt = (p, q) -> p[1] < q[1] || (p[1] == q[1] && p[2] < q[2]))
 end
 
-function lcs_init(PS::AbsPolygon{2,T}) where {T}
+function lcs_init(PS::AbsPntSeq{2,T}) where {T}
     # PS should already be sorted
     pt = [PointTurn() for _ = 1:length(PS)]
     lct = LCSContext{T}(PS, pt, Int[])
@@ -243,11 +243,11 @@ end
 ################################################################################
 
 """
-    longest_convex_chain(ps::Polygon{2, T})
+    longest_convex_chain(ps::PntSeq{2, T})
 
 Finds the longest convex chain in a set of points.
 """
-function longest_convex_chain(ps::AbsPolygon{2,T}) where {T}
+function longest_convex_chain(ps::AbsPntSeq{2,T}) where {T}
     n = length(ps)
     n == 0 && return Point{2,T}[]
     n < 3 && return ps.pnts
@@ -267,22 +267,22 @@ function longest_convex_chain(ps::AbsPolygon{2,T}) where {T}
 end
 
 """
-    longest_concave_chain(ps::Polygon{2, T})
+    longest_concave_chain(ps::PntSeq{2, T})
 
 Finds the longest concave chain in a set of points by reflecting on the x-axis.
 """
-function longest_concave_chain(ps::AbsPolygon{2,T}) where {T}
-    ps_reflected = Polygon{2,T}([point(p[1], -p[2]) for p in ps])
+function longest_concave_chain(ps::AbsPntSeq{2,T}) where {T}
+    ps_reflected = PntSeq{2,T}([point(p[1], -p[2]) for p in ps])
     chain = longest_convex_chain(ps_reflected)
     return [point(p[1], -p[2]) for p in chain]
 end
 
 """
-    compute_largest_convex_subset(ps::Polygon{2, T})
+    compute_largest_convex_subset(ps::PntSeq{2, T})
 
 Computes the largest convex subset of the given points.
 """
-function compute_largest_convex_subset(ps::AbsPolygon{2,T}) where {T}
+function compute_largest_convex_subset(ps::AbsPntSeq{2,T}) where {T}
     n = length(ps)
     if n <= 2
         return deepcopy(ps)
@@ -292,7 +292,7 @@ function compute_largest_convex_subset(ps::AbsPolygon{2,T}) where {T}
     work_ps = deepcopy(ps)
     sort_points!(work_ps)
 
-    ps_reflected = Polygon{2,T}([point(p[1], -p[2]) for p in work_ps])
+    ps_reflected = PntSeq{2,T}([point(p[1], -p[2]) for p in work_ps])
     # Note: reflection doesn't change x-order, so ps_reflected is also sorted by x.
 
     max_sz = -1
@@ -346,7 +346,7 @@ function compute_largest_convex_subset(ps::AbsPolygon{2,T}) where {T}
         end
     end
 
-    return Polygon{2,T}([work_ps[i] for i in max_sol])
+    return PntSeq{2,T}([work_ps[i] for i in max_sol])
 end
 
 end # module LongestConvexSubset

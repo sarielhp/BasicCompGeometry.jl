@@ -75,9 +75,9 @@ using BasicCompGeometry
               dist(point(0.0, 10.0), point(5.0, 5.0))
     end
 
-    @testset "Polygons" begin
+    @testset "PntSeqs" begin
         pnts = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
-        poly = Polygon(pnts)
+        poly = PntSeq(pnts)
 
         @test length(poly) == 4
         @test dim(poly) == 2
@@ -124,7 +124,7 @@ using BasicCompGeometry
         @test geom_length(poly_uniform) ≈ geom_length(poly)
 
         # Random
-        @test length(rand_polygon(2, Float64, 5)) == 5
+        @test length(rand_pnt_seq(2, Float64, 5)) == 5
     end
 
     @testset "Bounding Boxes" begin
@@ -180,7 +180,7 @@ using BasicCompGeometry
         # Hausdorff
         pnts1 = [point(x, 0.0) for x = 0:10]
         pnts2 = [point(x, 0.1) for x = 0:10]
-        poly1, poly2 = Polygon(pnts1), Polygon(pnts2)
+        poly1, poly2 = PntSeq(pnts1), PntSeq(pnts2)
 
         @test hausdorff_dist_subseg(poly1) == 0.0
         sim_p, sim_i = hausdorff_simplify(poly1, 0.5)
@@ -226,7 +226,7 @@ using BasicCompGeometry
     @testset "BBT (Bounding Box Tree)" begin
         using BasicCompGeometry.BBT
         pnts = [point(x, y) for x = 0:10 for y = 0:10]
-        poly = Polygon(pnts)
+        poly = PntSeq(pnts)
         tree = Tree_init(poly)
 
         @test tree.root !== nothing
@@ -243,7 +243,7 @@ using BasicCompGeometry
 
         # Test 1000 random points in 3D
         pnts3d = [rand_point(3) for _ = 1:1000]
-        tree3d = Tree_init(Polygon(pnts3d))
+        tree3d = Tree_init(PntSeq(pnts3d))
         Tree_fully_expand(tree3d)
 
         @test depth(tree3d.root) >= 10 # log2(1000) is approx 9.9
@@ -271,7 +271,7 @@ using BasicCompGeometry
     @testset "WSPD (Well-Separated Pairs Decomposition)" begin
         using BasicCompGeometry.WSPD
         pnts = [point(x, 0.0) for x = 1:10] # Points at 1, 2, ..., 10
-        poly = Polygon(pnts)
+        poly = PntSeq(pnts)
         sep = 2.0
         W = WSPD.init(poly, sep)
         finals = WSPD.expand!(W)
@@ -319,8 +319,8 @@ using BasicCompGeometry
         @test is_inside(point(fill(0.1, 10)...), bb10)
         @test !is_inside(point(fill(1.1, 10)...), bb10)
 
-        # 10D Polygon
-        poly10 = Polygon([p10_1, p10_2, p10_1])
+        # 10D PntSeq
+        poly10 = PntSeq([p10_1, p10_2, p10_1])
         @test cardin(poly10) == 3
         @test geom_length(poly10) ≈ 2 * sqrt(10.0)
     end
@@ -329,6 +329,6 @@ using BasicCompGeometry
     include("test_read_write.jl")
     include("test_longest_convex_subset.jl")
     include("test_convex_hull_3d.jl")
-    include("test_mat_polygon.jl")
+    include("test_mat_pnt_seq.jl")
 
 end

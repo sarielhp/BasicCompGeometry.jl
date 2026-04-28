@@ -12,7 +12,7 @@ using ..BasicCompGeometry
 using LinearAlgebra
 using Random
 
-import ..BasicCompGeometry: dist, Point3F, AbsPolygon
+import ..BasicCompGeometry: dist, Point3F, AbsPntSeq
 
 export convex_hull_3d, verify_convex_hull_3d
 
@@ -144,7 +144,7 @@ Returns a pair `(vertices, faces)` where `vertices` is a vector of indices
 into the original point set, and `faces` is a vector of triples of indices into 
 the `vertices` vector.
 """
-function convex_hull_3d(ps::AbsPolygon{3,T}) where {T}
+function convex_hull_3d(ps::AbsPntSeq{3,T}) where {T}
     return convex_hull_3d(Points(ps))
 end
 
