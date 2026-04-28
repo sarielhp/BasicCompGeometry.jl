@@ -1,0 +1,4 @@
+[deps]
+BasicCompGeometry = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
