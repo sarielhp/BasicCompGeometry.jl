@@ -4,27 +4,63 @@
 # Since it lives in scripts/, the package root is one level up.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PACKAGE_PATH="$( cd "$SCRIPT_DIR/.." && pwd )"
+SCRIPT_NAME=$(basename "$0")
 
-echo "Setting up Julia environment in $(pwd)..."
-echo "Developing package from: $PACKAGE_PATH"
+# Function to display detailed usage
+show_usage() {
+    cat << EOF
+Usage: $SCRIPT_NAME [command]
 
-# Run Julia to activate the local project and develop the package
-julia --project=. -e '
-using Pkg;
-try
-    Pkg.develop(PackageSpec(path="'$PACKAGE_PATH'"));
-    Pkg.instantiate();
-    println("\nSuccess: BasicCompGeometry is now developed in this environment.");
-catch e
-    println("\nError: Could not add package at '$PACKAGE_PATH'");
-    println(e);
-    exit(1);
-end
-'
+This script manages the local Julia environment in the current directory,
+linking it to the BasicCompGeometry package located at:
+$PACKAGE_PATH
 
-if [ $? -eq 0 ]; then
-    echo "--------------------------------------------------------"
-    echo "To use this environment, run: julia --project=."
-    echo "Then in Julia, run: using BasicCompGeometry"
-    echo "--------------------------------------------------------"
+Commands:
+  add       Installs/links BasicCompGeometry to the current directory's Julia environment.
+            This uses 'Pkg.develop', meaning any changes you make to the source code 
+            at the path above will be immediately reflected in your environment.
+
+How it works:
+  1. Activates the Julia project in your current working directory.
+  2. Uses 'Pkg.develop' to link the package source code.
+  3. Runs 'Pkg.instantiate' to ensure all dependencies are satisfied.
+
+Example:
+  cd /path/to/my/new/research_project
+  $SCRIPT_DIR/$SCRIPT_NAME add
+
+Once installed, you can start Julia in that directory:
+  julia --project=.
+  julia> using BasicCompGeometry
+EOF
+}
+
+# Check for the "add" argument
+if [ "$1" == "add" ]; then
+    echo "Setting up Julia environment in $(pwd)..."
+    echo "Developing package from: $PACKAGE_PATH"
+
+    # Run Julia to activate the local project and develop the package
+    julia --project=. -e '
+    using Pkg;
+    try
+        Pkg.develop(PackageSpec(path="'$PACKAGE_PATH'"));
+        Pkg.instantiate();
+        println("\nSuccess: BasicCompGeometry is now developed in this environment.");
+    catch e
+        println("\nError: Could not add package at '$PACKAGE_PATH'");
+        println(e);
+        exit(1);
+    end
+    '
+
+    if [ $? -eq 0 ]; then
+        echo "--------------------------------------------------------"
+        echo "To use this environment, run: julia --project=."
+        echo "Then in Julia, run: using BasicCompGeometry"
+        echo "--------------------------------------------------------"
+    fi
+else
+    # Show usage message if "add" is not provided
+    show_usage
 fi
