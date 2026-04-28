@@ -8,11 +8,35 @@ A core concept in the library is the `AbsPntSeq`, which is treated as a **sequen
 
 ## Features
 
-- **High-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes (BBox) in any dimension.
+- **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes (BBox) in any dimension.
+- **Zero-Copy Matrix Integration**: Use `MatPntSeq` to treat columns of a matrix as points without copying memory.
 - **Multiple Coordinate Types**: Works seamlessly with `Float64`, `Int64`, and other numeric types.
 - **Geometric Predicates**: Fast checks for turns (left/right) and containment.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling.
+- **Spatial Decomposition**: Efficient Bounding Box Trees (BBT) and Well-Separated Pairs Decompositions (WSPD).
 - **2D Transformations**: Efficient translation and rotation for planar geometry.
+
+## Algorithms
+
+The library implements a variety of classic and modern geometric algorithms:
+
+- **Convex Hull**: 2D (Monotone Chain) and 3D (Gift-wrapping).
+- **Diameter**: Exact $O(n^2)$ and $(1+\epsilon)$-approximation via WSPD.
+- **Spatial Decomposition**: WSPD and Bounding Box Tree (BBT) construction.
+- **Curve Processing**: Hausdorff distance-based simplification and uniform resampling.
+- **Metric Space Algorithms**: Greedy permutation (incremental furthest-point sampling).
+- **Advanced Optimization**: Longest Convex Subset calculation.
+- **Geometric Predicates**: Fast `turn_sign`, `is_left_turn`, `is_right_turn`, and `is_collinear` checks.
+
+## Data Structures
+
+`BasicCompGeometry` provides highly optimized, type-safe data structures:
+
+- **Geometric Primitives**: `Point{D, T}`, `Segment{D, T}`, `Line{D, T}`, and `BBox{D, T}`.
+- **Point Sequences**: `PntSeq{D, T}` and the matrix-backed `MatPntSeq{D, T}`.
+- **Tree Structures**: Hierarchical `BBT.Tree` and `BBT.Node`.
+- **Metric Spaces**: `AbsFMS` interface and `PointsSpace` wrappers.
+- **Utilities**: `VArray` for efficient permutation and original index tracking.
 
 ## Quick Start
 
