@@ -24,8 +24,9 @@ The library implements a variety of classic and modern geometric algorithms:
 - **Convex Hull**: 2D (Monotone Chain) and 3D (Gift-wrapping).
 - **Diameter**: Exact $O(n^2)$ and $(1+\epsilon)$-approximation via WSPD.
 - **Nearest Neighbor Search**: Exact, $c$-approximate (via BBT), and "silly" (fast descent) versions.
-- **Spatial Decomposition**: WSPD and Bounding Box Tree (BBT) construction.
-- **Curve Processing**: Hausdorff distance-based simplification and uniform resampling.
+- **Spatial Decomposition**: WSPD, Bounding Box Tree (BBT), and Minimum Volume Bounding Box (MVBB).
+- **Curve Processing**: Hausdorff distance-based simplification and uniform arc-length resampling.
+
 - **Metric Space Algorithms**: Greedy permutation (incremental furthest-point sampling).
 - **Advanced Optimization**: Longest Convex Subset calculation.
 - **Geometric Predicates**: Fast `turn_sign`, `is_left_turn`, `is_right_turn`, and `is_collinear` checks.
@@ -146,6 +147,14 @@ BBT.exact_naive_scan
 BBT.approx_nn
 BBT.silly_nn
 BBT.hybrid_nn
+```
+
+### Minimum Volume Bounding Box (MVBB)
+```@docs
+MVBB.approx_mvbb
+MVBB.approx_diam
+MVBB.OBBox
+MVBB.volume
 ```
 
 ### Transformations (2D)

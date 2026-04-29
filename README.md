@@ -55,6 +55,7 @@ The library implements a variety of classic and modern geometric algorithms:
 - **Spatial Decomposition**:
     - **WSPD**: Well-Separated Pairs Decomposition.
     - **BBT**: Bounding Box Tree construction and expansion.
+    - **MVBB**: Approximate Minimum Volume Bounding Box ($O(n \log n + n \text{ poly}(1/\epsilon))$).
 - **Curve Processing**:
     - **Simplification**: Hausdorff distance-based simplification.
     - **Resampling**: Uniform arc-length resampling.

@@ -35,12 +35,14 @@ include("BBT.jl")
 include("WSPD.jl")
 include("Diameter.jl")
 include("MetricSpace.jl")
+include("MVBB.jl")
 include("ReadWrite.jl")
 include("LongestConvexSubset.jl")
 
 using .VirtArray
 using .BBT
 using .WSPD
+using .MVBB
 using .MetricSpace
 using .ReadWrite
 using .LongestConvexSubset
@@ -134,6 +136,6 @@ export exact_diameter, approx_diameter
 export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
 export bottom_left, top_right, width, height, middle, diam, max_dist, is_inside
-export VirtArray, BBT, WSPD, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
+export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
 
 end
