@@ -330,5 +330,6 @@ using BasicCompGeometry
     include("test_longest_convex_subset.jl")
     include("test_convex_hull_3d.jl")
     include("test_mat_pnt_seq.jl")
+    include("test_bbt_ann.jl")
 
 end

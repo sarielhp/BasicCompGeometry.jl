@@ -37,14 +37,14 @@ const Point3F = Point{3,Float64}
 Calculate the square of the Euclidean distance between two points `p` and `q`.
 This is more efficient than `dist(p, q)` if only relative distances are needed.
 """
-@inline dist_sq(p::Point{D,T}, q::Point{D,T}) where {D,T} = sum(abs2, p - q)
+@inline dist_sq(p::Point{D,T1}, q::Point{D,T2}) where {D,T1,T2} = sum(abs2, p - q)
 
 """
     dist(p, q)
 
 Calculate the Euclidean distance between two points `p` and `q`.
 """
-@inline dist(p::Point{D,T}, q::Point{D,T}) where {D,T} = sqrt(dist_sq(p, q))
+@inline dist(p::Point{D,T1}, q::Point{D,T2}) where {D,T1,T2} = sqrt(dist_sq(p, q))
 
 """
     convex_comb(p, q, t)

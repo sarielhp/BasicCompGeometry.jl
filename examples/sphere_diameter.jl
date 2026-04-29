@@ -12,100 +12,8 @@ using Printf
 using DataFrames
 using PrettyTables
 using LinearAlgebra
-
-# Visualization requires Cairo and Colors
-const HAS_VIS = try
-    import Cairo, Colors
-    true
-catch e
-    false
-end
-
-if !HAS_VIS
-    @warn "Cairo and/or Colors not found. Visualization disabled. Install them to enable PDF output."
-end
-
-"""
-    BBTree_draw(tree, filename)
-
-A visualization utility for BoundingBoxTrees. 
-Draws the tree levels into a multi-page PDF.
-"""
-function BBTree_draw(tree::BBT.Tree{2,T,S}, filename::String) where {T,S}
-    if !HAS_VIS
-        println("BBTree_draw requires Cairo and Colors packages.")
-        return
-    end
-
-    # Import necessary symbols from Cairo and Colors
-    # Using 'using' inside function requires a specific trick or just 'import'
-    # Here we just use the module prefix to be safe and clear.
-    C = Cairo
-    Clr = Colors
-
-    # Utility to draw a single bounding box
-    function bbox_draw(context, bb, color)
-        C.set_source(context, color)
-        bl = bottom_left(bb)
-        w = width(bb, 1)
-        h = height(bb, 2)
-        C.rectangle(context, bl[1], bl[2], w, h)
-        C.fill(context)
-    end
-
-    # Recursive utility to draw nodes at specific levels
-    function node_draw(context, node, level, range)
-        node.f_leaf && return
-        if level ∈ range
-            yellow_transparent = Clr.coloralpha(Clr.parse(Clr.Colorant, "yellow"), 0.1)
-            C.set_source(context, yellow_transparent)
-
-            # Expand slightly for better visibility
-            bb = node.bb + (diam(node.bb) * 0.01)
-            bl = bottom_left(bb)
-            w = width(bb, 1)
-            h = height(bb, 2)
-
-            C.rectangle(context, bl[1], bl[2], w, h)
-            C.fill_preserve(context)
-
-            C.set_source(context, Clr.parse(Clr.Colorant, "blue"))
-            C.set_line_width(context, 1.0)
-            C.stroke(context)
-        end
-        if !isnothing(node.left)
-            node_draw(context, node.left, level + 1, range)
-        end
-        if !isnothing(node.right)
-            node_draw(context, node.right, level + 1, range)
-        end
-    end
-
-    # Main drawing logic
-    # Expand root BB for margins
-    bb_root = tree.root.bb + (diam(tree.root.bb) * 0.2)
-
-    # We use the max coordinates for surface size
-    tr = top_right(bb_root)
-    surface = C.CairoPDFSurface(filename, tr[1], tr[2])
-    context = C.CairoContext(surface)
-
-    # Page 1: Overview
-    bbox_draw(context, bb_root, Clr.parse(Clr.Colorant, "lightblue"))
-    d = BBT.depth(tree.root)
-    node_draw(context, tree.root, 0, 0:d)
-    C.show_page(context)
-
-    # Subsequent pages: Level-by-level visualization
-    for i = (d-1):-1:0
-        bbox_draw(context, bb_root, Clr.parse(Clr.Colorant, "lightblue"))
-        node_draw(context, tree.root, 0, i:(i+1))
-        C.show_page(context)
-    end
-
-    C.finish(surface)
-    println("Created tree visualization: $filename")
-end
+using Cairo
+using Colors
 
 function test_diameter(P, N::Int, D::Int)
     # If 2D, scale and shift for visualization purposes
@@ -170,15 +78,14 @@ function main()
     println("--- BasicCompGeometry Example: Sphere Diameter ---")
 
     # 1. BBT Visualization Example (2D)
-    if HAS_VIS
-        println("\nGenerating BBT visualization...")
-        P_viz = Polygon_random_sphere(2, Float64, 200)
-        translate!(P_viz, point(400.0, 400.0))
-        scale!(P_viz, 300.0)
-        tree = BBT.Tree_init(P_viz)
-        BBT.Tree_fully_expand(tree)
-        BBTree_draw(tree, "sphere_bbt.pdf")
-    end
+    println("\nGenerating BBT visualization...")
+    P_viz = Polygon_random_sphere(2, Float64, 200)
+    translate!(P_viz, point(400.0, 400.0))
+    scale!(P_viz, 300.0)
+    tree = BBT.Tree_init(P_viz)
+    BBT.Tree_fully_expand(tree)
+    mkpath("output")
+    BBT.Tree_draw(tree, joinpath("output", "sphere_bbt.pdf"))
 
     # 2. Performance Comparison
     println("\nRunning diameter tests (Approx vs Exact)...")

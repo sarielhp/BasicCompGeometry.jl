@@ -47,6 +47,11 @@ The library implements a variety of classic and modern geometric algorithms:
 - **Diameter**:
     - **Exact**: Brute-force $O(n^2)$ calculation.
     - **Approximate**: $(1+\epsilon)$-approximation using WSPD ($O(n \log n + n/\epsilon^d)$).
+- **Nearest Neighbor Search**:
+    - **Exact**: Brute-force $O(n)$ linear scan (`exact_naive_scan`).
+    - **Approximate**: $c$-approximation using BBT ($O(\log n)$ for many distributions) (`approx_nn`).
+    - **Silly**: Simple tree descent for extremely fast, heuristic results (`silly_nn`).
+    - **Hybrid**: Combines Silly and Approximate for better performance (`hybrid_nn`).
 - **Spatial Decomposition**:
     - **WSPD**: Well-Separated Pairs Decomposition.
     - **BBT**: Bounding Box Tree construction and expansion.
@@ -130,6 +135,16 @@ simplified, indices = hausdorff_simplify(ps, 0.01)
 M = rand(2, 500)
 mp = MatPntSeq(M)
 d = exact_diameter(mp)
+
+# Nearest Neighbor Search (using Bounding Box Tree)
+tree = BBT.Tree_init(mp)
+BBT.Tree_fully_expand(tree)
+q = point(0.5, 0.5)
+
+# Exact, Approximate (c=1.5), and Heuristic ("Silly") NN
+d1, p1, i1 = BBT.exact_naive_scan(tree, q)
+d2, p2, i2 = BBT.approx_nn(tree, q, 1.5)
+d3, p3, i3 = BBT.silly_nn(tree, q)
 ```
 
 ## AbsPntSeq Interface
@@ -151,6 +166,21 @@ For detailed information on all types and functions, please see the [Latest Docu
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
+```
+
+## Visualization & Optional Dependencies
+
+Starting with Julia 1.9, `BasicCompGeometry` uses **Package Extensions** to keep the core library lightweight. Visualization features (like `BBT.Tree_draw`) are only available when you explicitly load the following packages in your environment:
+
+- **Cairo.jl**
+- **Colors.jl**
+
+```julia
+using BasicCompGeometry
+using Cairo, Colors # This triggers the BBTCairoExt extension
+
+# Now Tree_draw is available
+BBT.Tree_draw(tree, "output/tree.pdf")
 ```
 
 ## Origins

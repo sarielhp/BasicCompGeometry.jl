@@ -15,6 +15,7 @@ A core concept in the library is the `AbsPntSeq`, which is treated as a **sequen
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling.
 - **Spatial Decomposition**: Efficient Bounding Box Trees (BBT) and Well-Separated Pairs Decompositions (WSPD).
 - **2D Transformations**: Efficient translation and rotation for planar geometry.
+- **Visualization (Optional)**: High-quality PDF visualization for trees and polygons via `Cairo.jl` and `Colors.jl` (only loaded if these packages are present).
 
 ## Algorithms
 
@@ -22,6 +23,7 @@ The library implements a variety of classic and modern geometric algorithms:
 
 - **Convex Hull**: 2D (Monotone Chain) and 3D (Gift-wrapping).
 - **Diameter**: Exact $O(n^2)$ and $(1+\epsilon)$-approximation via WSPD.
+- **Nearest Neighbor Search**: Exact, $c$-approximate (via BBT), and "silly" (fast descent) versions.
 - **Spatial Decomposition**: WSPD and Bounding Box Tree (BBT) construction.
 - **Curve Processing**: Hausdorff distance-based simplification and uniform resampling.
 - **Metric Space Algorithms**: Greedy permutation (incremental furthest-point sampling).
@@ -136,6 +138,14 @@ max_dist
 is_inside
 expand!
 expand_add!
+```
+
+### Nearest Neighbor Search (BBT)
+```@docs
+BBT.exact_naive_scan
+BBT.approx_nn
+BBT.silly_nn
+BBT.hybrid_nn
 ```
 
 ### Transformations (2D)

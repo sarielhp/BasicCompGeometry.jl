@@ -102,6 +102,36 @@ function diam(bb::BBox{D,T}) where {D,T}
 end
 
 """
+    dist_sq(p::Point, bb::BBox)
+
+Return the minimum squared Euclidean distance between point `p` and bounding box `bb`.
+Returns 0 if the point is inside the box.
+"""
+function dist_sq(p::Point{D,T1}, bb::BBox{D,T2}) where {D,T1,T2}
+    !bb.f_init && return zero(promote_type(T1, T2))
+    s = zero(promote_type(T1, T2))
+    for i = 1:D
+        d_i = if p[i] > bb.maxi[i]
+            p[i] - bb.maxi[i]
+        elseif p[i] < bb.mini[i]
+            bb.mini[i] - p[i]
+        else
+            zero(promote_type(T1, T2))
+        end
+        s += d_i^2
+    end
+    return s
+end
+
+"""
+    dist(p::Point, bb::BBox)
+
+Return the minimum Euclidean distance between point `p` and bounding box `bb`.
+Returns 0 if the point is inside the box.
+"""
+@inline dist(p::Point{D,T1}, bb::BBox{D,T2}) where {D,T1,T2} = sqrt(dist_sq(p, bb))
+
+"""
     dist(bb1, bb2)
 
 Return the minimum Euclidean distance between two bounding boxes.
