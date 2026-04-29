@@ -95,6 +95,7 @@ Point
 point
 dist
 dist_sq
+dist_subspace
 convex_comb
 is_left_turn
 is_right_turn
@@ -166,6 +167,9 @@ apply_transform
 
 ### Algorithms
 ```@docs
+exact_diameter
+approx_diameter
+approx_diameter_subspace
 hausdorff_simplify
 hausdorff_dist_subseg
 distance_infty

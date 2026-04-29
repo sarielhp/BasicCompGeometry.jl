@@ -47,6 +47,21 @@ Calculate the Euclidean distance between two points `p` and `q`.
 @inline dist(p::Point{D,T1}, q::Point{D,T2}) where {D,T1,T2} = sqrt(dist_sq(p, q))
 
 """
+    dist_subspace(p, q, dir)
+
+Calculate the Euclidean distance between the projections of `p` and `q` 
+onto the subspace orthogonal to the unit vector `dir`.
+`dir` must be a unit vector.
+"""
+function dist_subspace(p::Point{D,T}, q::Point{D,T}, dir::Point{D,T}) where {D,T}
+    diff = p - q
+    proj_len = dot(diff, dir)
+    # distance^2 = |p-q|^2 - <p-q, dir>^2
+    d_sq = dot(diff, diff) - proj_len^2
+    return d_sq > 0 ? sqrt(d_sq) : zero(T)
+end
+
+"""
     convex_comb(p, q, t)
 
 Return the convex combination of two points: `(1-t)p + tq`.

@@ -332,5 +332,6 @@ using BasicCompGeometry
     include("test_mat_pnt_seq.jl")
     include("test_bbt_ann.jl")
     include("test_mvbb.jl")
+    include("test_diameter_exactness.jl")
 
 end

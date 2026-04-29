@@ -131,7 +131,7 @@ const VecPolygon2F = VecPntSeq2F
 export Segment, BBox, BBox2F, Segment2F, Line
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
-export dist, dist_sq, distance_infty, distance
+export dist, dist_sq, dist_subspace, distance_infty, distance
 export exact_diameter, approx_diameter
 export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
