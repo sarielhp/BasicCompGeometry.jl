@@ -328,12 +328,12 @@ function approx_nn_with_start(
     pq = PriorityQueue{Node{D,T,S,V},Float64}()
 
     if d_root * c < best_dist
-        enqueue!(pq, tree.root, Float64(d_root))
+        push!(pq, tree.root => Float64(d_root))
     end
 
     while !isempty(pq)
-        node, d_node_bb = peek(pq)
-        dequeue!(pq)
+        node, d_node_bb = first(pq)
+        popfirst!(pq)
 
         # If it is not going to improve anything, no point looking...
         if d_node_bb >= best_dist

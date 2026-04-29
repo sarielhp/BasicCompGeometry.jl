@@ -325,6 +325,24 @@ using BasicCompGeometry
         @test geom_length(poly10) ≈ 2 * sqrt(10.0)
     end
 
+    @testset "Subspace Diameter Exactness (ε=0.0)" begin
+        using Random
+        rng = Random.Xoshiro(42)
+        for _ in 1:100
+            n = 100
+            pts = [point(rand(rng), rand(rng), rand(rng)) for _ in 1:n]
+            ps = PntSeq(pts)
+            dir = normalize(point(randn(rng), randn(rng), randn(rng)))
+            
+            exact = exact_diameter_subspace(ps, dir)
+            wspd = approx_diameter_subspace(ps, 0.0, dir)
+            fst = BasicCompGeometry.MVBB.approx_diam_subspace(ps, 0.0, dir).distance
+            
+            @test wspd ≈ exact
+            @test fst ≈ exact
+        end
+    end
+
     include("test_metric_space.jl")
     include("test_read_write.jl")
     include("test_longest_convex_subset.jl")

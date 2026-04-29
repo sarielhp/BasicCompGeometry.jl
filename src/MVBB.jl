@@ -261,8 +261,8 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
     update_diam!(pp, p_min, p_max)
 
     while !isempty(pq)
-        (n1, n2), d_max = peek(pq)
-        dequeue!(pq)
+        (n1, n2), d_max = first(pq)
+        popfirst!(pq)
         
         if d_max <= (1 + ε) * pp.distance
             break
@@ -353,18 +353,15 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
     
     pq = PriorityQueue{Tuple{Node,Node},T}(Base.Order.Reverse)
     root = tree.root
-    pq[(root, root)] = max_dist(root.bb, root.bb) # This is an upper bound on subspace dist too
+    pq[(root, root)] = max_dist_subspace(root.bb, root.bb, dir)
     
     while !isempty(pq)
-        (n1, n2), d_max_ub = peek(pq)
-        dequeue!(pq)
+        (n1, n2), d_max_ub = first(pq)
+        popfirst!(pq)
         
         if d_max_ub <= (1 + ε) * pp.distance
             break
         end
-        
-        # More accurate bound for subspace: max distance between any vertices of bboxes projected.
-        # But for now let's use the simple bound or refine it.
         
         if n1.f_leaf && n2.f_leaf
             p1 = tree.PS[first(n1.r)]
@@ -380,6 +377,7 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
             Tree_refine_node(tree, n2)
         end
 
+        # Sample points to update lower bound
         p1 = tree.PS[first(n1.r)]
         p2 = tree.PS[first(n2.r)]
         update_diam_subspace!(pp, p1, p2, dir)
@@ -387,7 +385,7 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
         if !n1.f_leaf && !n2.f_leaf
             for c1 in (n1.left, n1.right), c2 in (n2.left, n2.right)
                 if !isnothing(c1) && !isnothing(c2)
-                    d = max_dist(c1.bb, c2.bb)
+                    d = max_dist_subspace(c1.bb, c2.bb, dir)
                     if d > (1 + ε) * pp.distance
                         pq[(c1, c2)] = d
                     end
@@ -396,7 +394,7 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
         elseif !n1.f_leaf
             for c1 in (n1.left, n1.right)
                 if !isnothing(c1)
-                    d = max_dist(c1.bb, n2.bb)
+                    d = max_dist_subspace(c1.bb, n2.bb, dir)
                     if d > (1 + ε) * pp.distance
                         pq[(c1, n2)] = d
                     end
@@ -405,7 +403,7 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
         else
             for c2 in (n2.left, n2.right)
                 if !isnothing(c2)
-                    d = max_dist(n1.bb, c2.bb)
+                    d = max_dist_subspace(n1.bb, c2.bb, dir)
                     if d > (1 + ε) * pp.distance
                         pq[(n1, c2)] = d
                     end

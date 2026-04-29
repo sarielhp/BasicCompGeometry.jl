@@ -172,11 +172,56 @@ function max_dist(b::BBox{D,T}, c::BBox{D,T}) where {D,T}
 end
 
 """
+    max_dist_subspace(b, c, dir)
+
+Return an upper bound on the maximum distance between any point in `b` and any point in `c`
+after projection into the subspace orthogonal to `dir`.
+"""
+function max_dist_subspace(b::BBox{D,T}, c::BBox{D,T}, dir::Point{D,T}) where {D,T}
+    !b.f_init && return zero(T)
+    !c.f_init && return zero(T)
+    
+    # The maximum distance between two boxes b and c is achieved at their corners.
+    # Specifically, it's the maximum value of ||p - q||_subspace where p is a corner of b
+    # and q is a corner of c. This is equivalent to maximizing ||d||_subspace where
+    # d is in the Minkowski difference box B_diff = [b.mini - c.maxi, b.maxi - c.mini].
+    # Since the subspace norm is convex, the maximum is achieved at a vertex of B_diff.
+    # There are 2^D such vertices.
+    
+    # Construct the Minkowski difference box
+    diff_box = BBox{D,T}(true, MVector{D,T}(b.mini .- c.maxi), MVector{D,T}(b.maxi .- c.mini))
+    
+    max_d_sq = 0.0
+    for i in 0:(2^D - 1)
+        d = corner(diff_box, i)
+        
+        proj = dot(d, dir)
+        d_sq = dot(d, d) - proj^2
+        if d_sq > max_d_sq
+            max_d_sq = d_sq
+        end
+    end
+    
+    return sqrt(max(0.0, max_d_sq))
+end
+
+"""
     bottom_left(bb)
 
 Return the `mini` corner of the box as a `Point`.
 """
 @inline bottom_left(bb::BBox{D,T}) where {D,T} = Point{D,T}(bb.mini)
+
+"""
+    corner(bb, i)
+
+Return the i-th corner of the bounding box `bb`, where `i` is between 0 and 2^D - 1.
+The bits of `i` encode which side (min or max) to take for each dimension.
+"""
+function corner(bb::BBox{D,T}, i::Integer) where {D,T}
+    @assert 0 <= i < (1 << D) "Corner index $i must be in the range [0, $( (1 << D) - 1 )] for D=$D"
+    return Point{D,T}(ntuple(j -> (i >> (j - 1)) & 1 == 1 ? bb.maxi[j] : bb.mini[j], D))
+end
 
 """
     top_right(bb)

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-29
+
+### Added
+- Subspace diameter algorithms: `approx_diameter_subspace` and `exact_diameter_subspace`.
+- `MVBB` (Minimum Volume Bounding Box) module for 3D point sets.
+- Rotating Calipers algorithm for 2D minimum area rectangle (`MVBB.rotating_calipers_min_area`).
+- `approx_diam` in `MVBB` using BBT-based spatial decomposition.
+- `OBBox` type for arbitrarily oriented bounding boxes.
+
+### Changed
+- Exported subspace diameter functions in the main `BasicCompGeometry` module.
+- Improved `BBT` (Bounding Box Tree) with lazy expansion and optimized node refinement.
+
 ## [0.1.0] - 2026-04-28
 
 ### Added

@@ -64,12 +64,19 @@ function approx_diameter_subspace(P::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) 
     curr = dist_subspace(P[1], P[end], dir)
 
     while !isempty(W.heap)
+        top = WSPD.get_top(W)
+
         # Use Euclidean diam_ub as a safe upper bound for the subspace distance
-        if WSPD.top_diam_ub(W) <= c * curr
+        if top.diam_ub <= c * curr
             break
         end
 
-        top = WSPD.get_top(W)
+        # Tighter upper bound for the subspace
+        if max_dist_subspace(top.left.bb, top.right.bb, dir) <= c * curr
+            WSPD.top_finalize!(W)
+            continue
+        end
+
         p, q = WSPD.get_reps(W, top)
         curr = max(curr, dist_subspace(p, q, dir))
         WSPD.top_refine!(W)
@@ -77,5 +84,22 @@ function approx_diameter_subspace(P::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) 
 
     return curr
 end
+raw"""
+    exact_diameter_subspace(P, dir)
 
-export exact_diameter, approx_diameter, approx_diameter_subspace
+Calculate the exact diameter of point set `P` projected into the subspace orthogonal to unit vector `dir`.
+Uses a brute-force $O(n^2)$ approach.
+"""
+function exact_diameter_subspace(P::AbsPntSeq{D,T}, dir::Point{D,T}) where {D,T}
+    n = length(P)
+    n <= 1 && return 0.0
+    curr = 0.0
+    for i = 1:(n-1)
+        for j = (i+1):n
+            curr = max(curr, dist_subspace(P[i], P[j], dir))
+        end
+    end
+    return curr
+end
+
+export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace

@@ -1,6 +1,6 @@
 name = "BasicCompGeometry"
 uuid = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

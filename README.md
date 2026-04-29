@@ -45,8 +45,8 @@ The library implements a variety of classic and modern geometric algorithms:
     - **2D**: Monotone Chain algorithm ($O(n \log n)$).
     - **3D**: Gift-wrapping based implementation.
 - **Diameter**:
-    - **Exact**: Brute-force $O(n^2)$ calculation.
-    - **Approximate**: $(1+\epsilon)$-approximation using WSPD ($O(n \log n + n/\epsilon^d)$).
+    - **Exact**: Brute-force $O(n^2)$ calculation (`exact_diameter`, `exact_diameter_subspace`).
+    - **Approximate**: $(1+\epsilon)$-approximation using WSPD ($O(n \log n + n/\epsilon^d)$) (`approx_diameter`, `approx_diameter_subspace`).
 - **Nearest Neighbor Search**:
     - **Exact**: Brute-force $O(n)$ linear scan (`exact_naive_scan`).
     - **Approximate**: $c$-approximation using BBT ($O(\log n)$ for many distributions) (`approx_nn`).

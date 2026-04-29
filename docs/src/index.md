@@ -169,6 +169,7 @@ apply_transform
 ```@docs
 exact_diameter
 approx_diameter
+exact_diameter_subspace
 approx_diameter_subspace
 hausdorff_simplify
 hausdorff_dist_subseg
