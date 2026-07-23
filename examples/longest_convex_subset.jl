@@ -1,5 +1,8 @@
 #! /bin/env julia
 
+using Pkg
+Pkg.activate(@__DIR__)
+
 """
     Example: Longest Convex Subset
 
@@ -96,21 +99,21 @@ function output_to_pdf(ps, sol, filename::String)
 
     # Expand for margin
     # Using the project's BBox operations
-    center = point((bb.min[1] + bb.max[1])/2, (bb.min[2] + bb.max[2])/2)
-    half_w = (bb.max[1] - bb.min[1]) * 1.1 / 2
-    half_h = (bb.max[2] - bb.min[2]) * 1.1 / 2
+    center = point((bb.mini[1] + bb.maxi[1])/2, (bb.mini[2] + bb.maxi[2])/2)
+    half_w = (bb.maxi[1] - bb.mini[1]) * 1.1 / 2
+    half_h = (bb.maxi[2] - bb.mini[2]) * 1.1 / 2
     bbo = BBox(center - point(half_w, half_h), center + point(half_w, half_h))
 
     iwidth = 800
-    iheight = Int(round(iwidth * (bbo.max[2] - bbo.min[2]) / (bbo.max[1] - bbo.min[1])))
+    iheight = Int(round(iwidth * (bbo.maxi[2] - bbo.mini[2]) / (bbo.maxi[1] - bbo.mini[1])))
 
     c = Cairo.CairoPDFSurface(filename, iwidth, iheight)
     cr = CairoContext(c)
 
     # Transform setup
-    xcal = iwidth / (bbo.max[1] - bbo.min[1])
+    xcal = iwidth / (bbo.maxi[1] - bbo.mini[1])
     Cairo.scale(cr, xcal, xcal)
-    Cairo.translate(cr, -bbo.min[1], -bbo.min[2])
+    Cairo.translate(cr, -bbo.mini[1], -bbo.mini[2])
 
     # Draw the solution polygon
     set_line_width(cr, 0.005)

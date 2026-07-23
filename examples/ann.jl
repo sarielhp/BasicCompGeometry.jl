@@ -1,4 +1,7 @@
-#! /bin/env julial
+#! /bin/env julia
+
+using Pkg
+Pkg.activate(@__DIR__)
 
 """
     Example: Nearest Neighbor Search Comparison (Accuracy and Performance)

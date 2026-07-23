@@ -24,11 +24,13 @@ abstract type AbsFMS end
 
 include("Points.jl")
 include("Segments.jl")
+include("Planes.jl")
 include("PntSeqs.jl")
 include("BBoxes.jl")
 include("Transforms2D.jl")
 include("PntSeqHausdorff.jl")
 include("ConvexHull.jl")
+include("CairoDraw.jl")
 include("ConvexHull3D.jl")
 include("VirtArray.jl")
 include("BBT.jl")
@@ -128,13 +130,14 @@ Alias for backward compatibility.
 """
 const VecPolygon2F = VecPntSeq2F
 
-export Segment, BBox, BBox2F, Segment2F, Line
+export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export dist, dist_sq, dist_subspace, distance_infty, distance
 export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace
 export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
+export polar
 export bottom_left, corner, top_right, width, height, middle, diam, max_dist, max_dist_subspace, is_inside
 export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
 
