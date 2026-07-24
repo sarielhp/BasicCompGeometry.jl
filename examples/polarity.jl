@@ -20,8 +20,13 @@ function verify_round_trip(p)
     q = polar(pl)
     err = dist(p, q)
     @printf("Point:      %s\n", p)
-    @printf("  Plane p:  %s\n", pl.p)
-    @printf("  Plane n:  %s\n", pl.n)
+    if pl isa Line
+        @printf("  Line p:   %s\n", pl.p)
+        @printf("  Line u:   %s\n", pl.u)
+    else
+        @printf("  Plane p:  %s\n", pl.p)
+        @printf("  Plane n:  %s\n", pl.n)
+    end
     @printf("  Polar:    %s\n", q)
     @printf("  Error:    %.2e\n\n", err)
     return err

@@ -351,5 +351,6 @@ using BasicCompGeometry
     include("test_bbt_ann.jl")
     include("test_mvbb.jl")
     include("test_diameter_exactness.jl")
+    include("test_spheres.jl")
 
 end

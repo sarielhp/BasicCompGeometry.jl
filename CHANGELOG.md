@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-07-23
+
+### Added
+- `Sphere{D, T}`, `Circle{T}`, and `CircleArc{T}` primitives with type aliases (`Circle2F`, `Sphere2F`, `Sphere3F`, `CircleArc2F`).
+- Circular inversion (`invert`) for `Point`, `Line`, `Sphere`, and `Segment` in 2D.
+- 2D `Line` $\leftrightarrow$ `Plane` conversion constructors (`Line(::Plane)` and `Plane(::Line)`).
+- `polar_line(p)` and `polar(Line, p)` methods for explicit 2D Point $\iff$ Line duality; 2D `polar(p)` now defaults to `Line{2, T}`.
+- In-place bounding box merging method `bound!(bb1::BBox, bb2::BBox)`.
+- Multi-page visualization outputs in `examples/polar_bisectory.jl`: `bisectory_random.pdf`, `bisectory_square.pdf`, and `bisectory_20.pdf`.
+- Comprehensive unit test suite in `test/test_spheres.jl`.
+
 ## [0.2.1] - 2026-07-23
 
 ### Added

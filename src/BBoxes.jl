@@ -321,6 +321,18 @@ function bound!(bb::BBox{D,T}, P::AbsPntSeq{D,T}) where {D,T}
 end
 
 """
+    bound!(bb, other::BBox)
+
+Update the bounding box `bb` in-place to include another bounding box `other`.
+"""
+function bound!(bb::BBox{D,T}, other::BBox{D,T}) where {D,T}
+    !other.f_init && return bb
+    bound!(bb, Point{D,T}(other.mini))
+    bound!(bb, Point{D,T}(other.maxi))
+    return bb
+end
+
+"""
     BBox2F
 
 Alias for a 2D bounding box with `Float64` coordinates.

@@ -84,6 +84,15 @@ function distance(y::Point{D,T}, l::Line{D,T}) where {D,T}
 end
 
 """
+    distance(y::Point, pl::Plane)
+
+Calculate the minimum Euclidean distance between query point `y` and hyperplane `pl`.
+"""
+function distance(y::Point{D,T}, pl::Plane{D,T}) where {D,T}
+    return abs(dot(pl.n, y - pl.p)) / norm(pl.n)
+end
+
+"""
     centroid(P)
 
 Calculate the centroid (arithmetic mean) of a collection of points `P`.
@@ -130,14 +139,17 @@ Alias for backward compatibility.
 """
 const VecPolygon2F = VecPntSeq2F
 
+include("Spheres.jl")
+
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
+export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export dist, dist_sq, dist_subspace, distance_infty, distance
 export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace
 export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
-export polar
+export polar, polar_line
 export bottom_left, corner, top_right, width, height, middle, diam, max_dist, max_dist_subspace, is_inside
 export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
 

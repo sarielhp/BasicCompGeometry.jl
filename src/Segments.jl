@@ -13,6 +13,8 @@ struct Line{D,T}
     u::Point{D,T}
 end
 
+Line(l::Line) = l
+
 ###############################################
 ### Segment type
 
