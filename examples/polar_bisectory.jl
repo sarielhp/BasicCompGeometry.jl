@@ -6,18 +6,24 @@ Pkg.instantiate()
 
 
 #
-# examples/2d_random_ch.jl
+# examples/polar_bisectory.jl
 #
-# Generate 20 random points in the disk of radius 0.5 centered at the origin,
-# compute their convex hull, and output a PDF with four pages:
-#   Page 1: the random point set and origin
-#   Page 2: the convex hull polygon, points, and origin
-#   Page 3: the original convex hull polygon, origin, polar points & dual polygon
-#           of the supporting lines, and the polar lines corresponding to the convex polygon vertices.
-#   Page 4: all elements from Page 3 plus 100 polar points of the bisector lines B(t)
-#           between the origin and 100 uniformly sampled points P(t) on the polygon.
+# Compute convex hull, polar duality, bisector inversion arcs, curve polygon representation,
+# tangent line intersection functions, periodic angle plots, and staircase ray shooting.
+# Outputs multi-page PDFs (bisectory_random.pdf, bisectory_square.pdf, bisectory_20.pdf) with 10 pages:
+#   Page 1: random point set and origin
+#   Page 2: convex hull polygon, points, and origin
+#   Page 3: convex hull polygon, origin, polar points, dual polygon, vertex polar lines, unit circle
+#   Page 4: bisector line inversion arcs (halved hull edges) with 30% sector fills
+#   Page 5: inverted full supporting circles of halved polygon edges + Page 4 elements
+#   Page 6: outer shape formed by circular arcs as CurvePolygon2D CP with inner dual hull polygon Q
+#   Page 7: tangent line to Q at random angle alpha, tangency point q, and intersections u (right) & v (left) on CP
+#   Page 8: plots of before_tangent_to_polygon (u) and after_tangent_to_polygon (v) over alpha in [0, 2pi]
+#   Page 9: periodic curve plot with vertical gray interval segments between u and v curves
+#   Page 10: staircase algorithm S(x_1) with horizontal ray-shooting and self-intersection termination
 #
-# The output is written to output/2d_random_ch.pdf (1000x1000 pixels).
+# Generates 200 PNG frame images (output/frames/%06d.png) and an MP4 video (output/staircase.mp4).
+#
 
 using BasicCompGeometry
 using LinearAlgebra
