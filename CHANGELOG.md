@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-07-30
+
+### Added
+- `Curve2D{T}` type alias (`Union{Segment{2, T}, CircleArc{T}}`) and `CurvePolygon2D{T}` struct representing polygons formed by curves between consecutive vertices.
+- Total length computation `geom_length(cp::CurvePolygon2D)`.
+- Parametric position evaluation `point_on(cp::CurvePolygon2D, t)` and `point_on(pnt_seq::AbsPntSeq, t; closed=false)`.
+- `direction(alpha)` returning 2D unit vector at angle $\alpha$.
+- `tangent_line(poly, alpha)` returning tangent line to convex polygon with outer normal `direction(alpha)`.
+- `before_tangent_to_polygon` and `after_tangent_to_polygon` computing parametric intersection locations $u, v$ on `CP` for tangent lines to inner polygon $Q$.
+- Extended multi-page visualizations in `examples/polar_bisectory.jl`:
+  - Page 6: CurvePolygon2D `CP` outer boundary representation.
+  - Page 7: Tangent line to inner polygon $Q$ at angle $\alpha$, tangency point $q$, and intersection points $u, v$ on `CP`.
+  - Pages 8 & 9: Periodic plots of $f(\alpha)$ and $g(\alpha)$ with vertical interval segments between curves.
+  - Page 10: Staircase algorithm $S(x_1)$ with ray-shooting and self-intersection termination.
+- Animated MP4 movie (`output/staircase.mp4`) and 200 frame PNG generation (`output/frames/%06d.png`).
+
 ## [0.2.2] - 2026-07-23
 
 ### Added

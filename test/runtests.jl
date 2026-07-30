@@ -352,5 +352,6 @@ using BasicCompGeometry
     include("test_mvbb.jl")
     include("test_diameter_exactness.jl")
     include("test_spheres.jl")
+    include("test_curve_polygon.jl")
 
 end
