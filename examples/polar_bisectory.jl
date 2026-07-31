@@ -50,6 +50,188 @@ function supporting_lines(poly)
 end
 
 """
+    line_intersection(l1::Line{2,Float64}, l2::Line{2,Float64})
+
+Compute 2D intersection point of two lines `l1` and `l2`.
+"""
+function line_intersection(l1::Line{2,Float64}, l2::Line{2,Float64})
+    p1, u1 = l1.p, l1.u
+    p2, u2 = l2.p, l2.u
+    det = u1[1] * u2[2] - u1[2] * u2[1]
+    if abs(det) < 1e-12
+        return p1
+    end
+    dx = p2[1] - p1[1]
+    dy = p2[2] - p1[2]
+    t1 = (dx * u2[2] - dy * u2[1]) / det
+    return p1 + t1 * u1
+end
+
+"""
+    render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
+
+Render Page 12 elements (new polygon formed by intersecting tangent lines) onto Cairo context `cr`.
+"""
+function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
+    s = cairo_draw_setup(cr, bb5, cw, ch, 20)
+
+    # 1. Outer shape CP filled in light gray
+    Cairo.new_path(cr)
+    for c in CP.curves
+        if c isa CircleArc2F
+            Cairo.arc(cr, c.center[1], c.center[2], c.radius, c.theta1, c.theta2)
+        elseif c isa Segment2F
+            Cairo.line_to(cr, c.q[1], c.q[2])
+        end
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.9, 0.9, 0.9)
+    Cairo.fill_preserve(cr)
+    set_source_rgb(cr, 0.15, 0.15, 0.5)
+    set_line_width(cr, 3.0)
+    Cairo.stroke(cr)
+
+    # 2. Inner polar polygon Q (dual_hull) filled in white
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, Q[1][1], Q[1][2])
+    for i = 2:length(Q)
+        Cairo.line_to(cr, Q[i][1], Q[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 1.0, 1.0, 1.0)
+    Cairo.fill(cr)
+
+    # 3. Draw origin in green square
+    set_source_rgb(cr, 0.0, 0.6, 0.0)
+    draw_origin(cr, s, 20)
+
+    # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
+    sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
+    unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+    for item in sorted_v_info
+        if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
+            push!(unique_v_info, item)
+        end
+    end
+
+    m_v = length(unique_v_info)
+    intersections = Point{2,Float64}[]
+    if m_v >= 3
+        lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+        for j = 1:m_v
+            l_curr = lines_and_cols[j][1]
+            l_next = lines_and_cols[mod1(j + 1, m_v)][1]
+            push!(intersections, line_intersection(l_curr, l_next))
+        end
+    end
+
+    # 4. Fill new polygon with 30% opacity yellow (drawn after Q fill)
+    if length(intersections) >= 3
+        set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30)
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, intersections[1][1], intersections[1][2])
+        for j = 2:length(intersections)
+            Cairo.line_to(cr, intersections[j][1], intersections[j][2])
+        end
+        Cairo.close_path(cr)
+        Cairo.fill(cr)
+    end
+
+    # 5. Draw boundary of inner polygon Q again (green stroke, 4.0pt)
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, Q[1][1], Q[1][2])
+    for i = 2:length(Q)
+        Cairo.line_to(cr, Q[i][1], Q[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.1, 0.75, 0.2)
+    set_line_width(cr, 4.0)
+    Cairo.stroke(cr)
+
+    # 6. Draw boundary of the new polygon (colored edges and vertices)
+    if m_v >= 3
+        lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+        for j = 1:m_v
+            p_start = intersections[mod1(j - 1, m_v)]
+            p_end = intersections[j]
+            col = lines_and_cols[j][2]
+
+            set_source_rgb(cr, col...)
+            set_line_width(cr, 3.5)
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, p_start[1], p_start[2])
+            Cairo.line_to(cr, p_end[1], p_end[2])
+            Cairo.stroke(cr)
+        end
+
+        set_source_rgb(cr, 0.2, 0.2, 0.2)
+        cairo_draw_points(cr, intersections, 6 / s)
+    end
+end
+
+"""
+    render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, ch)
+
+Render Page 13 elements (original polygon, polar points with disks) onto Cairo context `cr`.
+"""
+function render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, ch)
+    s = cairo_draw_setup(cr, bb_cover_global, cw, ch, 20)
+
+    # 1. Fill inner polygon (hull) in light gray FIRST
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, hull[1][1], hull[1][2])
+    for i = 2:length(hull)
+        Cairo.line_to(cr, hull[i][1], hull[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.85, 0.85, 0.85)
+    Cairo.fill(cr)
+
+    # 2. Draw filled disks (20% opacity) and circle boundaries centered at polar points
+    for (x_i, col) in stair_v_info
+        line_tan, _ = tangent_line(Q, x_i)
+        p_i = polar(line_tan)
+        r_i = norm(p_i)
+        set_source_rgba(cr, col[1], col[2], col[3], 0.20)
+        Cairo.new_path(cr)
+        Cairo.arc(cr, p_i[1], p_i[2], r_i, 0, 2pi)
+        Cairo.fill_preserve(cr)
+        set_source_rgb(cr, col...)
+        set_line_width(cr, 1.5)
+        Cairo.stroke(cr)
+    end
+
+    # 3. Stroke boundary of original polygon in Black
+    set_source_rgb(cr, 0.0, 0.0, 0.0)
+    set_line_width(cr, 2.0)
+    cairo_draw_polygon(cr, hull, true)
+
+    # 4. Draw polar points in their corresponding colors
+    for (x_i, col) in stair_v_info
+        line_tan, _ = tangent_line(Q, x_i)
+        p_i = polar(line_tan)
+        set_source_rgb(cr, col...)
+        cairo_draw_points(cr, [p_i], 7 / s)
+    end
+
+    # Draw a bigger circle around the point corresponding to x1 in its consistent fixed color
+    if !isempty(stair_v_info)
+        x1_val, col1 = stair_v_info[1]
+        line_tan1, _ = tangent_line(Q, x1_val)
+        p1_pt = polar(line_tan1)
+        set_source_rgb(cr, col1...)
+        set_line_width(cr, 2.5)
+        Cairo.new_path(cr)
+        Cairo.arc(cr, p1_pt[1], p1_pt[2], 16 / s, 0, 2pi)
+        Cairo.stroke(cr)
+    end
+
+    # 5. Draw origin point AFTER drawing everything else
+    set_source_rgb(cr, 0.0, 0.6, 0.0)
+    draw_origin(cr, s, 20)
+end
+
+"""
     closed_polygon_at(poly, t::Real)
 
 Evaluate point on the closed perimeter of convex polygon `poly` for normalized parameter `t` in `[0, 1]`.
@@ -93,12 +275,12 @@ function bisector_polar_point(p::Point{2,Float64})
 end
 
 """
-    draw_origin(cr, s, sz=10)
+    draw_origin(cr, s, sz=20)
 
 Draw a small filled square centered at the origin (0, 0).
 `s` is the scale factor returned by `cairo_draw_setup`. `sz` is the side length in pixels.
 """
-function draw_origin(cr, s::Real, sz::Real=10)
+function draw_origin(cr, s::Real, sz::Real=20)
     half_w = (sz / 2) / s
     Cairo.new_path(cr)
     Cairo.rectangle(cr, -half_w, -half_w, 2 * half_w, 2 * half_w)
@@ -791,8 +973,235 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.show_page(cr)
 
     # Draw Page 10 (PDF page) with random x1
+    Cairo.save(cr)
     x1_pdf = 2pi * rand()
-    draw_page_10!(cr, x1_pdf, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+    stair_v_info = draw_page_10!(cr, x1_pdf, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+
+    Cairo.restore(cr)
+    Cairo.show_page(cr)
+
+    # Page 11: Copy of Page 6 + tangent lines to Q at values x_1, x_2, ..., x_t of staircase vertical walls
+    Cairo.save(cr)
+    s = cairo_draw_setup(cr, bb5, cw, ch, 20)
+
+    # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
+    Q = dual_hull
+    sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
+    unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+    for item in sorted_v_info
+        if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
+            push!(unique_v_info, item)
+        end
+    end
+
+    m_v = length(unique_v_info)
+    intersections = Point{2,Float64}[]
+    if m_v >= 3
+        lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+        for j = 1:m_v
+            l_curr = lines_and_cols[j][1]
+            l_next = lines_and_cols[mod1(j + 1, m_v)][1]
+            push!(intersections, line_intersection(l_curr, l_next))
+        end
+    end
+
+    # 1. Outer shape CP filled in light gray
+    Cairo.new_path(cr)
+    for c in CP.curves
+        if c isa CircleArc2F
+            Cairo.arc(cr, c.center[1], c.center[2], c.radius, c.theta1, c.theta2)
+        elseif c isa Segment2F
+            Cairo.line_to(cr, c.q[1], c.q[2])
+        end
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.9, 0.9, 0.9)
+    Cairo.fill_preserve(cr)
+    set_source_rgb(cr, 0.15, 0.15, 0.5)
+    set_line_width(cr, 3.0)
+    Cairo.stroke(cr)
+
+    # 2. Inner polar polygon Q (dual_hull) filled in white, green stroke
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, Q[1][1], Q[1][2])
+    for i = 2:length(Q)
+        Cairo.line_to(cr, Q[i][1], Q[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 1.0, 1.0, 1.0)
+    Cairo.fill_preserve(cr)
+    set_source_rgb(cr, 0.1, 0.75, 0.2)
+    set_line_width(cr, 2.0)
+    Cairo.stroke(cr)
+
+    # 3. Draw origin in green square
+    set_source_rgb(cr, 0.0, 0.6, 0.0)
+    draw_origin(cr, s, 10)
+
+    # 4. Tangent lines to Q at values x_i of staircase vertical walls (matching Page 10 colors)
+    for (x_i, col) in stair_v_info
+        line_tan, q_tan = tangent_line(Q, x_i)
+        set_source_rgb(cr, col...)
+        set_line_width(cr, 2.0)
+        Cairo.set_dash(cr, [6.0, 4.0], 0.0)
+        draw_plane_line(cr, line_tan, bb5)
+        Cairo.set_dash(cr, Float64[], 0.0)
+        cairo_draw_points(cr, [q_tan], 7 / s)
+    end
+
+    Cairo.restore(cr)
+    Cairo.show_page(cr)
+
+    # Page 12: Copy of Page 6 + new polygon formed by intersecting consecutive tangent lines
+    Cairo.save(cr)
+    s = cairo_draw_setup(cr, bb5, cw, ch, 20)
+
+    # 1. Outer shape CP filled in light gray
+    Cairo.new_path(cr)
+    for c in CP.curves
+        if c isa CircleArc2F
+            Cairo.arc(cr, c.center[1], c.center[2], c.radius, c.theta1, c.theta2)
+        elseif c isa Segment2F
+            Cairo.line_to(cr, c.q[1], c.q[2])
+        end
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.9, 0.9, 0.9)
+    Cairo.fill_preserve(cr)
+    set_source_rgb(cr, 0.15, 0.15, 0.5)
+    set_line_width(cr, 3.0)
+    Cairo.stroke(cr)
+
+    # 2. Inner polar polygon Q (dual_hull) filled in white
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, Q[1][1], Q[1][2])
+    for i = 2:length(Q)
+        Cairo.line_to(cr, Q[i][1], Q[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 1.0, 1.0, 1.0)
+    Cairo.fill(cr)
+
+    # 3. Draw origin in green square
+    set_source_rgb(cr, 0.0, 0.6, 0.0)
+    draw_origin(cr, s, 10)
+
+    # 4. Fill new polygon with 30% opacity yellow (drawn after Q fill)
+    if length(intersections) >= 3
+        set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30) # 30% opacity yellow
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, intersections[1][1], intersections[1][2])
+        for j = 2:length(intersections)
+            Cairo.line_to(cr, intersections[j][1], intersections[j][2])
+        end
+        Cairo.close_path(cr)
+        Cairo.fill(cr)
+    end
+
+    # 5. Draw boundary of inner polygon Q again (green stroke)
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, Q[1][1], Q[1][2])
+    for i = 2:length(Q)
+        Cairo.line_to(cr, Q[i][1], Q[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.1, 0.75, 0.2)
+    set_line_width(cr, 4.0)
+    Cairo.stroke(cr)
+
+    # 6. Draw boundary of the new polygon (colored edges and vertices)
+    if m_v >= 3
+        lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+        for j = 1:m_v
+            p_start = intersections[mod1(j - 1, m_v)]
+            p_end = intersections[j]
+            col = lines_and_cols[j][2]
+
+            set_source_rgb(cr, col...)
+            set_line_width(cr, 3.5)
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, p_start[1], p_start[2])
+            Cairo.line_to(cr, p_end[1], p_end[2])
+            Cairo.stroke(cr)
+        end
+
+        # Draw intersection vertices
+        set_source_rgb(cr, 0.2, 0.2, 0.2)
+        cairo_draw_points(cr, intersections, 6 / s)
+    end
+
+    Cairo.restore(cr)
+    Cairo.show_page(cr)
+
+    # Page 13: Original polygon P + polar points of tangent lines from Page 11 with 20% opacity disks centered at points with radius = dist(p, origin)
+    Cairo.save(cr)
+
+    # Compute bounding box for Page 13 including disks
+    bb13 = BBox(ps) + 0.2
+    bound!(bb13, point(0.0, 0.0))
+    for (x_i, _) in stair_v_info
+        line_tan, _ = tangent_line(Q, x_i)
+        p_i = polar(line_tan)
+        r_i = norm(p_i)
+        bound!(bb13, p_i + point(r_i, r_i))
+        bound!(bb13, p_i - point(r_i, r_i))
+    end
+    bb13 = bb13 + 0.2
+
+    s = cairo_draw_setup(cr, bb13, cw, ch, 20)
+
+    # 1. Fill inner polygon (hull) in light gray FIRST
+    Cairo.new_path(cr)
+    Cairo.move_to(cr, hull[1][1], hull[1][2])
+    for i = 2:length(hull)
+        Cairo.line_to(cr, hull[i][1], hull[i][2])
+    end
+    Cairo.close_path(cr)
+    set_source_rgb(cr, 0.85, 0.85, 0.85) # Gray fill
+    Cairo.fill(cr)
+
+    # 2. Draw filled disks (20% opacity) and their circle boundaries centered at polar points
+    for (x_i, col) in stair_v_info
+        line_tan, _ = tangent_line(Q, x_i)
+        p_i = polar(line_tan)
+        r_i = norm(p_i)
+        set_source_rgba(cr, col[1], col[2], col[3], 0.20)
+        Cairo.new_path(cr)
+        Cairo.arc(cr, p_i[1], p_i[2], r_i, 0, 2pi)
+        Cairo.fill_preserve(cr)
+        set_source_rgb(cr, col...)
+        set_line_width(cr, 1.5)
+        Cairo.stroke(cr)
+    end
+
+    # 3. Stroke boundary of original polygon in Black
+    set_source_rgb(cr, 0.0, 0.0, 0.0)
+    set_line_width(cr, 2.0)
+    cairo_draw_polygon(cr, hull, true)
+
+    # 4. Draw polar points in their corresponding colors
+    for (x_i, col) in stair_v_info
+        line_tan, _ = tangent_line(Q, x_i)
+        p_i = polar(line_tan)
+        set_source_rgb(cr, col...)
+        cairo_draw_points(cr, [p_i], 7 / s)
+    end
+
+    # Draw a bigger circle around the point corresponding to x1 in its consistent fixed color
+    if !isempty(stair_v_info)
+        x1_val, col1 = stair_v_info[1]
+        line_tan1, _ = tangent_line(Q, x1_val)
+        p1_pt = polar(line_tan1)
+        set_source_rgb(cr, col1...)
+        set_line_width(cr, 2.5)
+        Cairo.new_path(cr)
+        Cairo.arc(cr, p1_pt[1], p1_pt[2], 16 / s, 0, 2pi)
+        Cairo.stroke(cr)
+    end
+
+    # 5. Draw origin point AFTER drawing everything else
+    set_source_rgb(cr, 0.0, 0.6, 0.0)
+    draw_origin(cr, s, 20)
 
     Cairo.restore(cr)
     Cairo.show_page(cr)
@@ -898,9 +1307,12 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         elseif idx > n_samples
             return u_vals[end], v_vals[end]
         end
+        f1, f2 = u_vals[idx-1], u_vals[idx]
+        g1, g2 = v_vals[idx-1], v_vals[idx]
+
         t_loc = (rel_x - alphas[idx-1]) / (alphas[idx] - alphas[idx-1])
-        f_x = (1 - t_loc) * u_vals[idx-1] + t_loc * u_vals[idx]
-        g_x = (1 - t_loc) * v_vals[idx-1] + t_loc * v_vals[idx]
+        f_x = abs(f2 - f1) > 0.5 ? (t_loc < 0.5 ? f1 : f2) : ((1 - t_loc) * f1 + t_loc * f2)
+        g_x = abs(g2 - g1) > 0.5 ? (t_loc < 0.5 ? g1 : g2) : ((1 - t_loc) * g1 + t_loc * g2)
         return f_x, g_x
     end
 
@@ -915,6 +1327,12 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
 
             f1 = u_vals[i1]
             f2 = u_vals[i2]
+
+            # Skip jump discontinuities (wrap-around jumps > 0.5)
+            if abs(f2 - f1) > 0.5
+                continue
+            end
+
             a1 = alphas[i1]
             a2 = i2 == 1 ? 2pi : alphas[i2]
 
@@ -927,8 +1345,8 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
                 a_cross = a1 + t_cross * (a2 - a1)
 
                 delta_a = mod(a_cross - x_curr_mod, 2pi)
-                if k == 1 && delta_a < 1e-6
-                    continue
+                if delta_a < 1e-6
+                    delta_a += 2pi
                 end
                 return x_curr + delta_a
             end
@@ -946,6 +1364,7 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
     x_curr = x1
     y_curr_top = g_x1
     max_steps = 100
+    self_intersection_pt = nothing
 
     for step = 1:max_steps
         x_next = ray_shoot_f(x_curr, y_curr_top)
@@ -979,6 +1398,7 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         push!(stair_h_segments, (y_curr_top, x_curr, earliest_intersection_x))
 
         if found_intersection
+            self_intersection_pt = (earliest_intersection_x, y_curr_top)
             break
         end
 
@@ -989,36 +1409,158 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         y_curr_top = g_next
     end
 
-    # Draw Staircase in Bold Crimson
-    set_source_rgb(cr, 0.8, 0.0, 0.0)
-    set_line_width(cr, 3.0)
+    # --- Verification of Staircase Vertices ---
+    function is_on_curve(x_val, y_val)
+        f_val, g_val = eval_fg(x_val)
+        if abs(y_val - f_val) < 5e-2 || abs(y_val - g_val) < 5e-2
+            return true
+        end
+        if abs(abs(y_val - f_val) - 1.0) < 5e-2 || abs(abs(y_val - g_val) - 1.0) < 5e-2
+            return true
+        end
+        # Check if x_val is near a jump in f or g
+        rel_x = mod(x_val, 2pi)
+        idx = searchsortedfirst(alphas, rel_x)
+        idx = clamp(idx, 2, n_samples)
+        if abs(u_vals[idx] - u_vals[idx-1]) > 0.3 || abs(v_vals[idx] - v_vals[idx-1]) > 0.3
+            return true
+        end
+        return false
+    end
 
     for (x_val, y_start, y_end) in stair_v_segments
-        x_draw = mod(x_val, 2pi)
-        if y_start <= y_end
-            x_p, y1_p = map_plot(x_draw, y_start)
-            _, y2_p = map_plot(x_draw, y_end)
-            Cairo.new_path(cr)
-            Cairo.move_to(cr, x_p, y1_p)
-            Cairo.line_to(cr, x_p, y2_p)
-            Cairo.stroke(cr)
-        else
-            x_p, y1_p = map_plot(x_draw, y_start)
-            _, y_top = map_plot(x_draw, 1.0)
-            Cairo.new_path(cr)
-            Cairo.move_to(cr, x_p, y1_p)
-            Cairo.line_to(cr, x_p, y_top)
-            Cairo.stroke(cr)
+        @assert is_on_curve(x_val, y_start) "Vertical start vertex ($x_val, $y_start) is not on top or bottom curve"
+        @assert is_on_curve(x_val, y_end) "Vertical end vertex ($x_val, $y_end) is not on top or bottom curve"
+    end
 
-            _, y_bot = map_plot(x_draw, 0.0)
-            _, y2_p = map_plot(x_draw, y_end)
-            Cairo.new_path(cr)
-            Cairo.move_to(cr, x_p, y_bot)
-            Cairo.line_to(cr, x_p, y2_p)
-            Cairo.stroke(cr)
+    for (i, (y_val, x_start, x_end)) in enumerate(stair_h_segments)
+        @assert is_on_curve(x_start, y_val) "Horizontal start vertex ($x_start, $y_val) is not on top or bottom curve"
+
+        if i < length(stair_h_segments)
+            @assert is_on_curve(x_end, y_val) "Horizontal end vertex ($x_end, $y_val) is not on top or bottom curve"
         end
     end
 
+    # Draw Staircase Vertical Segments in Alternating Colors
+    v_colors = [
+        (0.85, 0.15, 0.15),  # Crimson Red
+        (0.10, 0.45, 0.85),  # Cobalt Blue
+        (0.70, 0.10, 0.70),  # Purple
+        (0.95, 0.50, 0.00),  # Amber / Orange
+    ]
+
+    set_line_width(cr, 3.0)
+
+    for (i_v, (x_val, y_start, y_end)) in enumerate(stair_v_segments)
+        col = v_colors[mod1(i_v, length(v_colors))]
+        set_source_rgb(cr, col...)
+        x_draw = mod(x_val, 2pi)
+        is_intersect_v = (self_intersection_pt !== nothing) && abs(mod(x_val - self_intersection_pt[1], 2pi)) < 1e-5
+
+        if !is_intersect_v
+            # Normal vertical segment (drawn solid)
+            if y_start <= y_end
+                x_p, y1_p = map_plot(x_draw, y_start)
+                _, y2_p = map_plot(x_draw, y_end)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, x_p, y1_p)
+                Cairo.line_to(cr, x_p, y2_p)
+                Cairo.stroke(cr)
+            else
+                x_p, y1_p = map_plot(x_draw, y_start)
+                _, y_top = map_plot(x_draw, 1.0)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, x_p, y1_p)
+                Cairo.line_to(cr, x_p, y_top)
+                Cairo.stroke(cr)
+
+                _, y_bot = map_plot(x_draw, 0.0)
+                _, y2_p = map_plot(x_draw, y_end)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, x_p, y_bot)
+                Cairo.line_to(cr, x_p, y2_p)
+                Cairo.stroke(cr)
+            end
+        else
+            # Vertical segment containing the yellow self-intersection point
+            y_int = self_intersection_pt[2]
+
+            if y_start <= y_end
+                # Portion from bottom vertex (y_start) to yellow point (y_int): DOTTED
+                x_p, y1_p = map_plot(x_draw, y_start)
+                _, y_int_p = map_plot(x_draw, y_int)
+                Cairo.set_dash(cr, [3.0, 4.0], 0.0)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, x_p, y1_p)
+                Cairo.line_to(cr, x_p, y_int_p)
+                Cairo.stroke(cr)
+                Cairo.set_dash(cr, Float64[], 0.0)
+
+                # Portion from yellow point (y_int) to top vertex (y_end): SOLID
+                _, y2_p = map_plot(x_draw, y_end)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, x_p, y_int_p)
+                Cairo.line_to(cr, x_p, y2_p)
+                Cairo.stroke(cr)
+            else
+                # Wrap-around case: y_start > y_end
+                if y_int >= y_start
+                    # Dotted from y_start to y_int
+                    x_p, y1_p = map_plot(x_draw, y_start)
+                    _, y_int_p = map_plot(x_draw, y_int)
+                    Cairo.set_dash(cr, [3.0, 4.0], 0.0)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y1_p)
+                    Cairo.line_to(cr, x_p, y_int_p)
+                    Cairo.stroke(cr)
+                    Cairo.set_dash(cr, Float64[], 0.0)
+
+                    # Solid from y_int to 1.0
+                    _, y_top = map_plot(x_draw, 1.0)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y_int_p)
+                    Cairo.line_to(cr, x_p, y_top)
+                    Cairo.stroke(cr)
+
+                    # Solid from 0.0 to y_end
+                    _, y_bot = map_plot(x_draw, 0.0)
+                    _, y2_p = map_plot(x_draw, y_end)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y_bot)
+                    Cairo.line_to(cr, x_p, y2_p)
+                    Cairo.stroke(cr)
+                else
+                    # Dotted from y_start to 1.0, and from 0.0 to y_int
+                    x_p, y1_p = map_plot(x_draw, y_start)
+                    _, y_top = map_plot(x_draw, 1.0)
+                    Cairo.set_dash(cr, [3.0, 4.0], 0.0)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y1_p)
+                    Cairo.line_to(cr, x_p, y_top)
+                    Cairo.stroke(cr)
+
+                    _, y_bot = map_plot(x_draw, 0.0)
+                    _, y_int_p = map_plot(x_draw, y_int)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y_bot)
+                    Cairo.line_to(cr, x_p, y_int_p)
+                    Cairo.stroke(cr)
+                    Cairo.set_dash(cr, Float64[], 0.0)
+
+                    # Solid from y_int to y_end
+                    _, y2_p = map_plot(x_draw, y_end)
+                    Cairo.new_path(cr)
+                    Cairo.move_to(cr, x_p, y_int_p)
+                    Cairo.line_to(cr, x_p, y2_p)
+                    Cairo.stroke(cr)
+                end
+            end
+        end
+    end
+
+    # Draw Staircase Horizontal Segments in Bold Crimson
+    set_source_rgb(cr, 0.8, 0.0, 0.0)
+    set_line_width(cr, 3.0)
     for (y_val, x_start, x_end) in stair_h_segments
         k_start = floor(Int, x_start / (2pi))
         k_end = floor(Int, x_end / (2pi))
@@ -1056,13 +1598,38 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         end
     end
 
-    # Draw starting point (x1, f(x1)) as a red dot
+    # Print number of vertical segments to the right of the bottom of the curve in large red font
+    num_v_segs = length(stair_v_segments)
+    set_source_rgb(cr, 0.8, 0.0, 0.0)
+    Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_font_size(cr, 32.0)
+    x_bot_r, y_bot_r = map_plot(2pi, 0.0)
+    Cairo.move_to(cr, x_bot_r + 15, y_bot_r + 5)
+    Cairo.show_text(cr, string(num_v_segs))
+
+    # Draw starting point (x1, f(x1)) as a black dot
     x1_draw = mod(x1, 2pi)
     x1_p, y1_p = map_plot(x1_draw, f_x1)
-    set_source_rgb(cr, 1.0, 0.0, 0.0)
+    set_source_rgb(cr, 0.0, 0.0, 0.0) # Black dot
     Cairo.new_path(cr)
     Cairo.arc(cr, x1_p, y1_p, 6.0, 0, 2pi)
     Cairo.fill(cr)
+
+    # Draw self-intersection point as a yellow dot with outline
+    if self_intersection_pt !== nothing
+        x_int_draw = mod(self_intersection_pt[1], 2pi)
+        x_int_p, y_int_p = map_plot(x_int_draw, self_intersection_pt[2])
+        set_source_rgb(cr, 1.0, 0.9, 0.0) # Yellow fill
+        Cairo.new_path(cr)
+        Cairo.arc(cr, x_int_p, y_int_p, 7.0, 0, 2pi)
+        Cairo.fill_preserve(cr)
+
+        set_source_rgb(cr, 0.2, 0.2, 0.0) # Dark outline
+        set_line_width(cr, 1.5)
+        Cairo.stroke(cr)
+    end
+
+    return [(v[1], v_colors[mod1(i_v, length(v_colors))]) for (i_v, v) in enumerate(stair_v_segments)]
 end
 
 """
@@ -1133,7 +1700,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
     frames_dir = joinpath(outdir, "frames")
     mkpath(frames_dir)
 
-    alpha_list = range(0.0, 2pi, length=num_frames)
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
 
     println("Generating ", num_frames, " PNG frames in ", frames_dir, "...")
     for (idx, a1_val) in enumerate(alpha_list)
@@ -1169,7 +1736,670 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
     end
 end
 
-function main()
+"""
+    generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+
+Generate 200 PNG frames of Page 12 for alpha1 in [0, 2π], saved in output/frames_12/%06d.png,
+and render an MP4 movie output/staircase_12.mp4 using ffmpeg / convert at 10 fps.
+"""
+function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+    # Pre-calculate convex hull, CP, Q, and functions before/after
+    hull = convex_hull(ps)
+    n_hull = length(hull)
+
+    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    for i = 1:n_hull
+        p1 = hull[i] / 2.0
+        p2 = hull[mod1(i + 1, n_hull)] / 2.0
+        seg_half = Segment(p1, p2)
+        push!(inv_bisector_arcs, invert(seg_half))
+    end
+    CP = CurvePolygon2D(inv_bisector_arcs)
+
+    slines = supporting_lines(hull)
+    polar_pts = PntSeq([polar(l) for l in slines])
+    dual_hull = convex_hull(polar_pts)
+    Q = dual_hull
+
+    # Pre-sample f and g with 800 values
+    n_samples = 800
+    alphas = range(0.0, 2pi, length=n_samples)
+    u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
+    v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
+
+    bb5 = BBox(ps) + 0.2
+    bound!(bb5, polar_pts)
+    bound!(bb5, point(0.0, 0.0))
+    bound!(bb5, BBox(point(-1.0, -1.0), point(1.0, 1.0)))
+
+    for inv_obj in [invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for i=1:n_hull]
+        if inv_obj isa Circle2F
+            c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
+            c_max = inv_obj.center + point(inv_obj.radius, inv_obj.radius)
+            bound!(bb5, BBox(c_min, c_max))
+        end
+    end
+    bb5 = bb5 + 0.2
+
+    cw, ch = 1000, 1000
+    pad = 80.0
+    plot_w = cw - 2 * pad
+    plot_h = ch - 2 * pad
+
+    function map_plot(a_val, y_val)
+        x_px = pad + (a_val / 2pi) * plot_w
+        y_px = ch - (pad + y_val * plot_h)
+        return x_px, y_px
+    end
+    _, y_tr = map_plot(2pi, 1.0)
+
+    function draw_discontinuous_plot(cr, alphas, vals, color)
+        set_source_rgb(cr, color...)
+        set_line_width(cr, 2.5)
+        Cairo.new_path(cr)
+        x0, y0 = map_plot(alphas[1], vals[1])
+        Cairo.move_to(cr, x0, y0)
+        for i = 2:length(alphas)
+            xi, yi = map_plot(alphas[i], vals[i])
+            if abs(vals[i] - vals[i-1]) > 0.5
+                Cairo.stroke(cr)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, xi, yi)
+            else
+                Cairo.line_to(cr, xi, yi)
+            end
+        end
+        Cairo.stroke(cr)
+    end
+
+    x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
+
+    outdir = joinpath(@__DIR__, "..", "output")
+    frames_dir = joinpath(outdir, "frames_12")
+    mkpath(frames_dir)
+
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+
+    println("Generating ", num_frames, " PNG frames for Page 12 movie in ", frames_dir, "...")
+    for (idx, a1_val) in enumerate(alpha_list)
+        img_surface = CairoARGBSurface(cw, ch)
+        cr = CairoContext(img_surface)
+
+        # Compute staircase for a1_val via draw_page_10!
+        stair_v_info = draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+
+        # Now render Page 12
+        Cairo.destroy(cr)
+        img_surface = CairoARGBSurface(cw, ch)
+        cr = CairoContext(img_surface)
+
+        # Solid white background
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw, ch)
+        Cairo.fill(cr)
+
+        s = cairo_draw_setup(cr, bb5, cw, ch, 20)
+
+        # 1. Outer shape CP filled in light gray
+        Cairo.new_path(cr)
+        for c in CP.curves
+            if c isa CircleArc2F
+                Cairo.arc(cr, c.center[1], c.center[2], c.radius, c.theta1, c.theta2)
+            elseif c isa Segment2F
+                Cairo.line_to(cr, c.q[1], c.q[2])
+            end
+        end
+        Cairo.close_path(cr)
+        set_source_rgb(cr, 0.9, 0.9, 0.9)
+        Cairo.fill_preserve(cr)
+        set_source_rgb(cr, 0.15, 0.15, 0.5)
+        set_line_width(cr, 3.0)
+        Cairo.stroke(cr)
+
+        # 2. Inner polar polygon Q (dual_hull) filled in white
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, Q[1][1], Q[1][2])
+        for i = 2:length(Q)
+            Cairo.line_to(cr, Q[i][1], Q[i][2])
+        end
+        Cairo.close_path(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.fill(cr)
+
+        # 3. Draw origin in green square
+        set_source_rgb(cr, 0.0, 0.6, 0.0)
+        draw_origin(cr, s, 10)
+
+        # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
+        sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
+        unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+        for item in sorted_v_info
+            if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
+                push!(unique_v_info, item)
+            end
+        end
+
+        m_v = length(unique_v_info)
+        intersections = Point{2,Float64}[]
+        if m_v >= 3
+            lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+            for j = 1:m_v
+                l_curr = lines_and_cols[j][1]
+                l_next = lines_and_cols[mod1(j + 1, m_v)][1]
+                push!(intersections, line_intersection(l_curr, l_next))
+            end
+        end
+
+        # 4. Fill new polygon with 30% opacity yellow (drawn after Q fill)
+        if length(intersections) >= 3
+            set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30)
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, intersections[1][1], intersections[1][2])
+            for j = 2:length(intersections)
+                Cairo.line_to(cr, intersections[j][1], intersections[j][2])
+            end
+            Cairo.close_path(cr)
+            Cairo.fill(cr)
+        end
+
+        # 5. Draw boundary of inner polygon Q again (green stroke, 4.0pt)
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, Q[1][1], Q[1][2])
+        for i = 2:length(Q)
+            Cairo.line_to(cr, Q[i][1], Q[i][2])
+        end
+        Cairo.close_path(cr)
+        set_source_rgb(cr, 0.1, 0.75, 0.2)
+        set_line_width(cr, 4.0)
+        Cairo.stroke(cr)
+
+        # 6. Draw boundary of the new polygon (colored edges and vertices)
+        if m_v >= 3
+            lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+            for j = 1:m_v
+                p_start = intersections[mod1(j - 1, m_v)]
+                p_end = intersections[j]
+                col = lines_and_cols[j][2]
+
+                set_source_rgb(cr, col...)
+                set_line_width(cr, 3.5)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, p_start[1], p_start[2])
+                Cairo.line_to(cr, p_end[1], p_end[2])
+                Cairo.stroke(cr)
+            end
+
+            set_source_rgb(cr, 0.2, 0.2, 0.2)
+            cairo_draw_points(cr, intersections, 6 / s)
+        end
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    mp4_path = joinpath(outdir, "staircase_12.mp4")
+    gif_path = joinpath(outdir, "staircase_12.gif")
+    println("Assembling Page 12 movie (fps=", fps, ")...")
+
+    ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
+    try
+        run(ffmpeg_cmd)
+        println("Page 12 MP4 movie generated successfully at: ", mp4_path)
+    catch
+        try
+            delay_val = round(Int, 100 / fps)
+            frame_files = sort(readdir(frames_dir, join=true))
+            run(`convert -delay $delay_val $frame_files $gif_path`)
+            println("Page 12 Animated GIF movie generated at: ", gif_path)
+        catch e
+            println("Could not assemble Page 12 movie: ", e)
+        end
+    end
+end
+
+"""
+    generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+
+Generate 200 PNG frames of Page 13 for alpha1 in [0, 2π], saved in output/frames_cover/%06d.png,
+and render an MP4 movie output/staircase_cover.mp4 using ffmpeg / convert at 10 fps.
+"""
+function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+    # Pre-calculate convex hull, CP, Q, and functions before/after
+    hull = convex_hull(ps)
+    n_hull = length(hull)
+
+    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    for i = 1:n_hull
+        p1 = hull[i] / 2.0
+        p2 = hull[mod1(i + 1, n_hull)] / 2.0
+        seg_half = Segment(p1, p2)
+        push!(inv_bisector_arcs, invert(seg_half))
+    end
+    CP = CurvePolygon2D(inv_bisector_arcs)
+
+    slines = supporting_lines(hull)
+    polar_pts = PntSeq([polar(l) for l in slines])
+    dual_hull = convex_hull(polar_pts)
+    Q = dual_hull
+
+    # Pre-sample f and g with 800 values
+    n_samples = 800
+    alphas = range(0.0, 2pi, length=n_samples)
+    u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
+    v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
+
+    cw, ch = 1000, 1000
+    pad = 80.0
+    plot_w = cw - 2 * pad
+    plot_h = ch - 2 * pad
+
+    function map_plot(a_val, y_val)
+        x_px = pad + (a_val / 2pi) * plot_w
+        y_px = ch - (pad + y_val * plot_h)
+        return x_px, y_px
+    end
+    _, y_tr = map_plot(2pi, 1.0)
+
+    function draw_discontinuous_plot(cr, alphas, vals, color)
+        set_source_rgb(cr, color...)
+        set_line_width(cr, 2.5)
+        Cairo.new_path(cr)
+        x0, y0 = map_plot(alphas[1], vals[1])
+        Cairo.move_to(cr, x0, y0)
+        for i = 2:length(alphas)
+            xi, yi = map_plot(alphas[i], vals[i])
+            if abs(vals[i] - vals[i-1]) > 0.5
+                Cairo.stroke(cr)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, xi, yi)
+            else
+                Cairo.line_to(cr, xi, yi)
+            end
+        end
+        Cairo.stroke(cr)
+    end
+
+    x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
+
+    outdir = joinpath(@__DIR__, "..", "output")
+    frames_dir = joinpath(outdir, "frames_cover")
+    mkpath(frames_dir)
+
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+
+    println("Pre-computing global bounding box across all ", num_frames, " frames for movie_cover...")
+    bb_cover_global = BBox(ps) + 0.2
+    bound!(bb_cover_global, point(0.0, 0.0))
+
+    all_stair_v_info = Vector{Vector{Tuple{Float64, Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
+
+    for (idx, a1_val) in enumerate(alpha_list)
+        img_dummy = CairoARGBSurface(1, 1)
+        cr_dummy = CairoContext(img_dummy)
+        stair_v_info = draw_page_10!(cr_dummy, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        Cairo.destroy(cr_dummy)
+        Cairo.finish(img_dummy)
+
+        all_stair_v_info[idx] = stair_v_info
+
+        for (x_i, _) in stair_v_info
+            line_tan, _ = tangent_line(Q, x_i)
+            p_i = polar(line_tan)
+            r_i = norm(p_i)
+            bound!(bb_cover_global, p_i + point(r_i, r_i))
+            bound!(bb_cover_global, p_i - point(r_i, r_i))
+        end
+    end
+    bb_cover_global = bb_cover_global + 0.2
+
+    println("Generating ", num_frames, " PNG frames for Page 13 movie (movie_cover) in ", frames_dir, "...")
+    for (idx, a1_val) in enumerate(alpha_list)
+        stair_v_info = all_stair_v_info[idx]
+
+        img_surface = CairoARGBSurface(cw, ch)
+        cr = CairoContext(img_surface)
+
+        # Solid white background
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw, ch)
+        Cairo.fill(cr)
+
+        s = cairo_draw_setup(cr, bb_cover_global, cw, ch, 20)
+
+        # 1. Fill inner polygon (hull) in light gray FIRST
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, hull[1][1], hull[1][2])
+        for i = 2:length(hull)
+            Cairo.line_to(cr, hull[i][1], hull[i][2])
+        end
+        Cairo.close_path(cr)
+        set_source_rgb(cr, 0.85, 0.85, 0.85) # Gray fill
+        Cairo.fill(cr)
+
+        # 2. Draw filled disks (20% opacity) and circle boundaries centered at polar points
+        for (x_i, col) in stair_v_info
+            line_tan, _ = tangent_line(Q, x_i)
+            p_i = polar(line_tan)
+            r_i = norm(p_i)
+            set_source_rgba(cr, col[1], col[2], col[3], 0.20)
+            Cairo.new_path(cr)
+            Cairo.arc(cr, p_i[1], p_i[2], r_i, 0, 2pi)
+            Cairo.fill_preserve(cr)
+            set_source_rgb(cr, col...)
+            set_line_width(cr, 1.5)
+            Cairo.stroke(cr)
+        end
+
+        # 3. Stroke boundary of original polygon in Black
+        set_source_rgb(cr, 0.0, 0.0, 0.0)
+        set_line_width(cr, 2.0)
+        cairo_draw_polygon(cr, hull, true)
+
+        # 4. Draw polar points in their corresponding colors
+        for (x_i, col) in stair_v_info
+            line_tan, _ = tangent_line(Q, x_i)
+            p_i = polar(line_tan)
+            set_source_rgb(cr, col...)
+            cairo_draw_points(cr, [p_i], 7 / s)
+        end
+
+        # Draw a bigger circle around the point corresponding to x1 in its consistent fixed color
+        if !isempty(stair_v_info)
+            x1_val, col1 = stair_v_info[1]
+            line_tan1, _ = tangent_line(Q, x1_val)
+            p1_pt = polar(line_tan1)
+            set_source_rgb(cr, col1...)
+            set_line_width(cr, 2.5)
+            Cairo.new_path(cr)
+            Cairo.arc(cr, p1_pt[1], p1_pt[2], 16 / s, 0, 2pi)
+            Cairo.stroke(cr)
+        end
+
+        # 5. Draw origin point AFTER drawing everything else
+        set_source_rgb(cr, 0.0, 0.6, 0.0)
+        draw_origin(cr, s, 20)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    mp4_path = joinpath(outdir, "staircase_cover.mp4")
+    gif_path = joinpath(outdir, "staircase_cover.gif")
+    println("Assembling Page 13 movie (fps=", fps, ")...")
+
+    ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
+    try
+        run(ffmpeg_cmd)
+        println("Page 13 MP4 movie generated successfully at: ", mp4_path)
+    catch
+        try
+            delay_val = round(Int, 100 / fps)
+            frame_files = sort(readdir(frames_dir, join=true))
+            run(`convert -delay $delay_val $frame_files $gif_path`)
+            println("Page 13 Animated GIF movie generated at: ", gif_path)
+        catch e
+            println("Could not assemble Page 13 movie: ", e)
+        end
+    end
+end
+
+"""
+    generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+
+Generate a 1000-frame combined MP4 movie (output/staircase_all.mp4) at 2000x1000 resolution, consisting of 5 parts:
+  Part 1 (frames 1..200): Page 10 alone
+  Part 2 (frames 201..400): Page 10 & Page 12 side-by-side
+  Part 3 (frames 401..600): Page 12 alone
+  Part 4 (frames 601..800): Page 12 & Page 13 side-by-side
+  Part 5 (frames 801..1000): Page 13 alone
+"""
+function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+    hull = convex_hull(ps)
+    n_hull = length(hull)
+
+    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    for i = 1:n_hull
+        p1 = hull[i] / 2.0
+        p2 = hull[mod1(i + 1, n_hull)] / 2.0
+        seg_half = Segment(p1, p2)
+        push!(inv_bisector_arcs, invert(seg_half))
+    end
+    CP = CurvePolygon2D(inv_bisector_arcs)
+
+    slines = supporting_lines(hull)
+    polar_pts = PntSeq([polar(l) for l in slines])
+    dual_hull = convex_hull(polar_pts)
+    Q = dual_hull
+
+    n_samples = 800
+    alphas = range(0.0, 2pi, length=n_samples)
+    u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
+    v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
+
+    bb5 = BBox(ps) + 0.2
+    bound!(bb5, polar_pts)
+    bound!(bb5, point(0.0, 0.0))
+    bound!(bb5, BBox(point(-1.0, -1.0), point(1.0, 1.0)))
+
+    for inv_obj in [invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for i=1:n_hull]
+        if inv_obj isa Circle2F
+            c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
+            c_max = inv_obj.center + point(inv_obj.radius, inv_obj.radius)
+            bound!(bb5, BBox(c_min, c_max))
+        end
+    end
+    bb5 = bb5 + 0.2
+
+    cw, ch = 1000, 1000
+    pad = 80.0
+    plot_w = cw - 2 * pad
+    plot_h = ch - 2 * pad
+
+    function map_plot(a_val, y_val)
+        x_px = pad + (a_val / 2pi) * plot_w
+        y_px = ch - (pad + y_val * plot_h)
+        return x_px, y_px
+    end
+    _, y_tr = map_plot(2pi, 1.0)
+
+    function draw_discontinuous_plot(cr, alphas, vals, color)
+        set_source_rgb(cr, color...)
+        set_line_width(cr, 2.5)
+        Cairo.new_path(cr)
+        x0, y0 = map_plot(alphas[1], vals[1])
+        Cairo.move_to(cr, x0, y0)
+        for i = 2:length(alphas)
+            xi, yi = map_plot(alphas[i], vals[i])
+            if abs(vals[i] - vals[i-1]) > 0.5
+                Cairo.stroke(cr)
+                Cairo.new_path(cr)
+                Cairo.move_to(cr, xi, yi)
+            else
+                Cairo.line_to(cr, xi, yi)
+            end
+        end
+        Cairo.stroke(cr)
+    end
+
+    x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
+
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+
+    println("Pre-computing global bounding box for Page 13 panels across all frames...")
+    bb_cover_global = BBox(ps) + 0.2
+    bound!(bb_cover_global, point(0.0, 0.0))
+
+    all_stair_v_info = Vector{Vector{Tuple{Float64, Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
+
+    for (idx, a1_val) in enumerate(alpha_list)
+        img_dummy = CairoARGBSurface(1, 1)
+        cr_dummy = CairoContext(img_dummy)
+        stair_v_info = draw_page_10!(cr_dummy, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        Cairo.destroy(cr_dummy)
+        Cairo.finish(img_dummy)
+
+        all_stair_v_info[idx] = stair_v_info
+
+        for (x_i, _) in stair_v_info
+            line_tan, _ = tangent_line(Q, x_i)
+            p_i = polar(line_tan)
+            r_i = norm(p_i)
+            bound!(bb_cover_global, p_i + point(r_i, r_i))
+            bound!(bb_cover_global, p_i - point(r_i, r_i))
+        end
+    end
+    bb_cover_global = bb_cover_global + 0.2
+
+    cw_video, ch_video = 2000, 1000
+    outdir = joinpath(@__DIR__, "..", "output")
+    frames_dir = joinpath(outdir, "frames_all")
+    mkpath(frames_dir)
+
+    total_video_frames = 5 * num_frames
+    println("Generating ", total_video_frames, " PNG frames (2000x1000) for movie_all in ", frames_dir, "...")
+
+    global_frame_idx = 0
+
+    # Part 1: Page 10 alone (centered at x = 500)
+    for (idx, a1_val) in enumerate(alpha_list)
+        global_frame_idx += 1
+        img_surface = CairoARGBSurface(cw_video, ch_video)
+        cr = CairoContext(img_surface)
+        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+
+        Cairo.save(cr)
+        Cairo.translate(cr, 500.0, 0.0)
+        draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        Cairo.restore(cr)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    # Part 2: Page 10 (left, x=0) and Page 12 (right, x=1000) side-by-side
+    for (idx, a1_val) in enumerate(alpha_list)
+        global_frame_idx += 1
+        img_surface = CairoARGBSurface(cw_video, ch_video)
+        cr = CairoContext(img_surface)
+        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+
+        # Left: Page 10
+        Cairo.save(cr)
+        stair_v_info = draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        Cairo.restore(cr)
+
+        # Right: Page 12
+        Cairo.save(cr)
+        Cairo.translate(cr, 1000.0, 0.0)
+        render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
+        Cairo.restore(cr)
+
+        # Separator line
+        set_source_rgb(cr, 0.8, 0.8, 0.8); set_line_width(cr, 2.0)
+        Cairo.move_to(cr, 1000.0, 0.0); Cairo.line_to(cr, 1000.0, 1000.0); Cairo.stroke(cr)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    # Part 3: Page 12 alone (centered at x = 500)
+    for (idx, a1_val) in enumerate(alpha_list)
+        global_frame_idx += 1
+        stair_v_info = all_stair_v_info[idx]
+
+        img_surface = CairoARGBSurface(cw_video, ch_video)
+        cr = CairoContext(img_surface)
+        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+
+        Cairo.save(cr)
+        Cairo.translate(cr, 500.0, 0.0)
+        render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
+        Cairo.restore(cr)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    # Part 4: Page 12 (left, x=0) and Page 13 (right, x=1000) side-by-side
+    for (idx, a1_val) in enumerate(alpha_list)
+        global_frame_idx += 1
+        stair_v_info = all_stair_v_info[idx]
+
+        img_surface = CairoARGBSurface(cw_video, ch_video)
+        cr = CairoContext(img_surface)
+        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+
+        # Left: Page 12
+        Cairo.save(cr)
+        render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
+        Cairo.restore(cr)
+
+        # Right: Page 13
+        Cairo.save(cr)
+        Cairo.translate(cr, 1000.0, 0.0)
+        render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, ch)
+        Cairo.restore(cr)
+
+        # Separator line
+        set_source_rgb(cr, 0.8, 0.8, 0.8); set_line_width(cr, 2.0)
+        Cairo.move_to(cr, 1000.0, 0.0); Cairo.line_to(cr, 1000.0, 1000.0); Cairo.stroke(cr)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    # Part 5: Page 13 alone (centered at x = 500)
+    for (idx, a1_val) in enumerate(alpha_list)
+        global_frame_idx += 1
+        stair_v_info = all_stair_v_info[idx]
+
+        img_surface = CairoARGBSurface(cw_video, ch_video)
+        cr = CairoContext(img_surface)
+        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+
+        Cairo.save(cr)
+        Cairo.translate(cr, 500.0, 0.0)
+        render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, ch)
+        Cairo.restore(cr)
+
+        frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
+        write_to_png(img_surface, frame_file)
+        Cairo.finish(img_surface)
+    end
+
+    mp4_path = joinpath(outdir, "staircase_all.mp4")
+    gif_path = joinpath(outdir, "staircase_all.gif")
+    println("Assembling combined movie (fps=", fps, ")...")
+
+    ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
+    try
+        run(ffmpeg_cmd)
+        println("Combined MP4 movie generated successfully at: ", mp4_path)
+    catch
+        try
+            delay_val = round(Int, 100 / fps)
+            frame_files = sort(readdir(frames_dir, join=true))
+            run(`convert -delay $delay_val $frame_files $gif_path`)
+            println("Combined Animated GIF movie generated at: ", gif_path)
+        catch e
+            println("Could not assemble combined movie: ", e)
+        end
+    end
+end
+
+function main(args=ARGS)
+    do_all = "-all" in args || "--all" in args
+    do_movie12 = any(a -> a in ("movie_12", "-movie_12", "--movie_12", "movie12", "-movie12"), args)
+    do_cover = any(a -> a in ("movie_cover", "-movie_cover", "--movie_cover", "moviecover", "-moviecover"), args)
+    do_movieall = any(a -> a in ("movie_all", "-movie_all", "--movie_all", "movieall", "-movieall"), args)
+    do_movie = any(a -> a in ("movie", "-movie", "--movie", "staircase"), args) || (isempty(args) ? false : (!do_all && !do_movie12 && !do_cover && !do_movieall))
+
     # 1. Random points example (bisectory_random.pdf)
     n = 20
     pts = Point{2,Float64}[]
@@ -1183,24 +2413,43 @@ function main()
     ps_random = PntSeq(pts)
     generate_bisectory_pdf("bisectory_random.pdf", ps_random)
 
-    # 2. Square of sidelength 0.8 centered at origin (bisectory_square.pdf)
-    s_half = 0.8 / 2.0
-    sq_pts = [
-        point(-s_half, -s_half),
-        point( s_half, -s_half),
-        point( s_half,  s_half),
-        point(-s_half,  s_half),
-    ]
-    ps_square = PntSeq(sq_pts)
-    generate_bisectory_pdf("bisectory_square.pdf", ps_square)
+    if do_all
+        # 2. Square of sidelength 0.8 centered at origin (bisectory_square.pdf)
+        s_half = 0.8 / 2.0
+        sq_pts = [
+            point(-s_half, -s_half),
+            point( s_half, -s_half),
+            point( s_half,  s_half),
+            point(-s_half,  s_half),
+        ]
+        ps_square = PntSeq(sq_pts)
+        generate_bisectory_pdf("bisectory_square.pdf", ps_square)
 
-    # 3. Regular 20-gon on circle of radius 0.8 centered at origin (bisectory_20.pdf)
-    r20_pts = [point(0.8 * cos(2pi * i / 20), 0.8 * sin(2pi * i / 20)) for i = 0:19]
-    ps_20 = PntSeq(r20_pts)
-    generate_bisectory_pdf("bisectory_20.pdf", ps_20)
+        # 3. Regular 20-gon on circle of radius 0.8 centered at origin (bisectory_20.pdf)
+        r20_pts = [point(0.8 * cos(2pi * i / 20), 0.8 * sin(2pi * i / 20)) for i = 0:19]
+        ps_20 = PntSeq(r20_pts)
+        generate_bisectory_pdf("bisectory_20.pdf", ps_20)
+    end
 
     # 4. Generate PNG frames and MP4 movie of Page 10 for random points
-    generate_staircase_movie(ps_random; num_frames=200, fps=10)
+    if do_movie
+        generate_staircase_movie(ps_random; num_frames=200, fps=10)
+    end
+
+    # 5. Generate PNG frames and MP4 movie of Page 12 for random points
+    if do_movie12
+        generate_staircase_movie_12(ps_random; num_frames=200, fps=10)
+    end
+
+    # 6. Generate PNG frames and MP4 movie of Page 13 for random points (movie_cover)
+    if do_cover
+        generate_staircase_movie_cover(ps_random; num_frames=200, fps=10)
+    end
+
+    # 7. Generate 1000-frame combined movie for movie_all
+    if do_movieall
+        generate_staircase_movie_all(ps_random; num_frames=200, fps=10)
+    end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
