@@ -2393,12 +2393,36 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     end
 end
 
+function print_usage()
+    println("""
+Usage: julia --project=examples examples/polar_bisectory.jl [OPTION]
+
+Command Line Options:
+  default               Generate default 13-page PDF output (bisectory_random.pdf) for a random point set.
+  -all, --all           Generate all 3 PDF outputs:
+                          - bisectory_random.pdf (random point set)
+                          - bisectory_square.pdf (square centered at origin)
+                          - bisectory_20.pdf (regular 20-gon)
+  movie                 Generate 200-frame MP4 movie of Page 10 (output/staircase.mp4).
+  movie_12              Generate 200-frame MP4 movie of Page 12 (output/staircase_12.mp4).
+  movie_cover           Generate 200-frame MP4 movie of Page 13 (output/staircase_cover.mp4).
+  movie_all             Generate 1000-frame 5-part combined MP4 movie (output/staircase_all.mp4).
+  -h, --help            Display this detailed usage message.
+""")
+end
+
 function main(args=ARGS)
+    if isempty(args) || any(a -> a in ("-h", "--help", "help"), args)
+        print_usage()
+        return
+    end
+
+    do_default = any(a -> a in ("default", "-default", "--default"), args)
     do_all = "-all" in args || "--all" in args
     do_movie12 = any(a -> a in ("movie_12", "-movie_12", "--movie_12", "movie12", "-movie12"), args)
     do_cover = any(a -> a in ("movie_cover", "-movie_cover", "--movie_cover", "moviecover", "-moviecover"), args)
     do_movieall = any(a -> a in ("movie_all", "-movie_all", "--movie_all", "movieall", "-movieall"), args)
-    do_movie = any(a -> a in ("movie", "-movie", "--movie", "staircase"), args) || (isempty(args) ? false : (!do_all && !do_movie12 && !do_cover && !do_movieall))
+    do_movie = any(a -> a in ("movie", "-movie", "--movie", "staircase"), args)
 
     # 1. Random points example (bisectory_random.pdf)
     n = 20
@@ -2411,7 +2435,10 @@ function main(args=ARGS)
         push!(pts, p * 1.6)
     end
     ps_random = PntSeq(pts)
-    generate_bisectory_pdf("bisectory_random.pdf", ps_random)
+
+    if do_default || do_all
+        generate_bisectory_pdf("bisectory_random.pdf", ps_random)
+    end
 
     if do_all
         # 2. Square of sidelength 0.8 centered at origin (bisectory_square.pdf)
