@@ -2393,22 +2393,63 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     end
 end
 
-function print_usage()
-    println("""
-Usage: julia --project=examples examples/polar_bisectory.jl [OPTION]
+function wrap_text(text::String, width::Int, indent::Int)
+    words = split(text)
+    lines = String[]
+    current_line = ""
+    max_w = max(width - indent, 20)
+    for word in words
+        if isempty(current_line)
+            current_line = String(word)
+        elseif length(current_line) + 1 + length(word) <= max_w
+            current_line *= " " * word
+        else
+            push!(lines, current_line)
+            current_line = String(word)
+        end
+    end
+    if !isempty(current_line)
+        push!(lines, current_line)
+    end
+    return lines
+end
 
-Command Line Options:
-  default               Generate default 13-page PDF output (bisectory_random.pdf) for a random point set.
-  -all, --all           Generate all 3 PDF outputs:
-                          - bisectory_random.pdf (random point set)
-                          - bisectory_square.pdf (square centered at origin)
-                          - bisectory_20.pdf (regular 20-gon)
-  movie                 Generate 200-frame MP4 movie of Page 10 (output/staircase.mp4).
-  movie_12              Generate 200-frame MP4 movie of Page 12 (output/staircase_12.mp4).
-  movie_cover           Generate 200-frame MP4 movie of Page 13 (output/staircase_cover.mp4).
-  movie_all             Generate 1000-frame 5-part combined MP4 movie (output/staircase_all.mp4).
-  -h, --help            Display this detailed usage message.
-""")
+function print_option(cmd::String, desc::String, term_w::Int; desc_offset::Int=24)
+    cmd_colored = "\e[1m\e[36m" * cmd * "\e[0m" # Bold Cyan
+    pad_len = max(1, desc_offset - 2 - length(cmd))
+    
+    desc_lines = wrap_text(desc, term_w, desc_offset)
+    
+    print("  ", cmd_colored, " "^pad_len)
+    if !isempty(desc_lines)
+        println("\e[37m", desc_lines[1], "\e[0m")
+        for line in desc_lines[2:end]
+            println(" "^desc_offset, "\e[37m", line, "\e[0m")
+        end
+    else
+        println()
+    end
+end
+
+function print_usage()
+    term_w = try
+        w = displaysize(stdout)[2]
+        max(w, 40)
+    catch
+        80
+    end
+
+    println("\e[1m\e[33mUsage:\e[0m \e[1m\e[32mjulia --project=examples examples/polar_bisectory.jl\e[0m \e[1m\e[36m[OPTION]\e[0m\n")
+    println("\e[1m\e[33mCommand Line Options:\e[0m")
+    
+    print_option("default", "Generate default 13-page PDF output (bisectory_random.pdf) for a random point set.", term_w)
+    print_option("-all, --all", "Generate all 3 PDF outputs: bisectory_random.pdf (random point set), bisectory_square.pdf (square centered at origin), bisectory_20.pdf (regular 20-gon).", term_w)
+    print_option("movie", "Generate 200-frame MP4 movie of Page 10 (output/staircase.mp4).", term_w)
+    print_option("movie_12", "Generate 200-frame MP4 movie of Page 12 (output/staircase_12.mp4).", term_w)
+    print_option("movie_cover", "Generate 200-frame MP4 movie of Page 13 (output/staircase_cover.mp4).", term_w)
+    print_option("movie_all", "Generate 1000-frame 5-part combined MP4 movie (output/staircase_all.mp4).", term_w)
+    print_option("-h, --help", "Display this detailed usage message.", term_w)
+    println()
 end
 
 function main(args=ARGS)
