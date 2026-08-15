@@ -2,3 +2,5 @@ FrechtDist/
 docs/build/
 *.pdf
 output/
+.agents/
+opencode.json
