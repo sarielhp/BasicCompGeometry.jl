@@ -14,44 +14,27 @@ const LATEX_SNIPPET_CACHE = Dict{Tuple{String, Float64, Int, String, String}, Ca
 """
     BasicCompGeometry.read_latex_snippet(file_or_content; beg_marker=nothing, end_marker=nothing)
 
-Read a LaTeX snippet from a `.tex` file path or string.
-- If `beg_marker` is provided, text between `beg_marker` and `end_marker` is extracted.
-- If `beg_marker` is `nothing`, automatically detects standard IPE prelim markers
-  (`%%% IPE Prelim start` ... `%%% IPE Prelim end`) or `%%% MACROS BEG` ... `%%% MACROS END`.
-- If no markers are present, returns the entire string.
+Read text from a `.tex` file or string, optionally extracting the section between `beg_marker` and `end_marker`.
+If no markers are given, the entire content is returned.
 """
 function BasicCompGeometry.read_latex_snippet(
     file_or_content::AbstractString;
     beg_marker::Union{AbstractString, Regex, Nothing} = nothing,
     end_marker::Union{AbstractString, Regex, Nothing} = nothing
 )
-    content = isfile(file_or_content) ? read(file_or_content, String) : String(file_or_content)
+    text = isfile(file_or_content) ? read(file_or_content, String) : String(file_or_content)
+    isnothing(beg_marker) && return strip(text)
 
-    if isnothing(beg_marker)
-        # Auto-detect standard IPE or MACRO markers (case-insensitive)
-        m_beg = match(r"(?i)%%%\s*(?:ipe\s+prelim|macros?)\s*(?:start|beg[a-z]*)", content)
-        if m_beg !== nothing
-            idx_start = m_beg.offset + length(m_beg.match)
-            sub = content[idx_start:end]
-            m_end = match(r"(?i)%%%\s*(?:ipe\s+prelim|macros?)\s*end", sub)
-            return m_end !== nothing ? strip(sub[1:m_end.offset-1]) : strip(sub)
-        end
-        return strip(content)
-    end
+    r_beg = beg_marker isa Regex ? beg_marker : Regex(escape_string(String(beg_marker)))
+    m_beg = match(r_beg, text)
+    isnothing(m_beg) && return strip(text)
 
-    pattern_beg = beg_marker isa Regex ? beg_marker : Regex("(?i)" * escape_string(String(beg_marker)))
-    m_beg = match(pattern_beg, content)
-    m_beg === nothing && return strip(content)
+    sub = text[(m_beg.offset + length(m_beg.match)):end]
+    isnothing(end_marker) && return strip(sub)
 
-    idx_start = m_beg.offset + length(m_beg.match)
-    sub = content[idx_start:end]
-
-    if end_marker !== nothing
-        pattern_end = end_marker isa Regex ? end_marker : Regex("(?i)" * escape_string(String(end_marker)))
-        m_end = match(pattern_end, sub)
-        return m_end !== nothing ? strip(sub[1:m_end.offset-1]) : strip(sub)
-    end
-    return strip(sub)
+    r_end = end_marker isa Regex ? end_marker : Regex(escape_string(String(end_marker)))
+    m_end = match(r_end, sub)
+    return isnothing(m_end) ? strip(sub) : strip(sub[1:m_end.offset - 1])
 end
 
 """

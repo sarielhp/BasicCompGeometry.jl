@@ -53,8 +53,8 @@ function pdf_merge end
 """
     read_latex_snippet(file_or_content; beg_marker=nothing, end_marker=nothing)
 
-Read a LaTeX snippet from a file path or string. If `beg_marker` (e.g. `"%%% IPE Prelim start"`)
-is specified or auto-detected, extracts the portion between `beg_marker` and `end_marker`.
+Read text from a `.tex` file or string. If `beg_marker` is specified,
+extracts the portion between `beg_marker` and `end_marker`. If omitted, returns the whole text.
 Requires `Cairo` and `LaTeXStrings`.
 """
 function read_latex_snippet end

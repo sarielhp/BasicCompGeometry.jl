@@ -7,13 +7,13 @@ using LaTeXStrings
     temp_dir = mktempdir()
 
     try
-        # Test 1: Snippet extraction (IPE Prelim & custom markers)
+        # Prepare sample file with distinct sections
         tex_sample = """
         \\documentclass{article}
-        %%% IPE Prelim start
+        %%% SECTION 1 START
         \\newcommand{\\R}{\\mathbb{R}}
         \\DeclareMathOperator{\\Vor}{Vor}
-        %%% IPE Prelim end
+        %%% SECTION 1 END
         \\begin{document}
         %%% MACROS BEG
         \\newcommand{\\eps}{\\varepsilon}
@@ -24,21 +24,26 @@ using LaTeXStrings
         tex_file = joinpath(temp_dir, "sample.tex")
         write(tex_file, tex_sample)
 
-        # Auto-detect IPE prelims
-        snip_ipe = read_latex_snippet(tex_file)
-        @test occursin("\\newcommand{\\R}{\\mathbb{R}}", snip_ipe)
-        @test occursin("\\DeclareMathOperator{\\Vor}{Vor}", snip_ipe)
-        @test !occursin("\\newcommand{\\eps}{\\varepsilon}", snip_ipe)
+        # Whole file reading (no markers)
+        full_text = read_latex_snippet(tex_file)
+        @test occursin("\\documentclass{article}", full_text)
+        @test occursin("Hello", full_text)
 
-        # Custom markers
-        snip_custom = read_latex_snippet(tex_file; beg_marker="%%% MACROS BEG", end_marker="%%% MACROS END")
-        @test occursin("\\newcommand{\\eps}{\\varepsilon}", snip_custom)
-        @test !occursin("\\newcommand{\\R}{\\mathbb{R}}", snip_custom)
+        # Snippet extraction with user-defined markers
+        snip_section1 = read_latex_snippet(tex_file; beg_marker="%%% SECTION 1 START", end_marker="%%% SECTION 1 END")
+        @test occursin("\\newcommand{\\R}{\\mathbb{R}}", snip_section1)
+        @test occursin("\\DeclareMathOperator{\\Vor}{Vor}", snip_section1)
+        @test !occursin("\\newcommand{\\eps}{\\varepsilon}", snip_section1)
+
+        # Second snippet with custom markers
+        snip_section2 = read_latex_snippet(tex_file; beg_marker="%%% MACROS BEG", end_marker="%%% MACROS END")
+        @test occursin("\\newcommand{\\eps}{\\varepsilon}", snip_section2)
+        @test !occursin("\\newcommand{\\R}{\\mathbb{R}}", snip_section2)
 
         # Test 2: Global preamble management
         reset_latex_preamble!()
         add_latex_packages!("bm", "xcolor")
-        append_latex_preamble!(tex_file) # appends IPE prelims from file
+        append_latex_preamble!(tex_file; beg_marker="%%% SECTION 1 START", end_marker="%%% SECTION 1 END")
         append_latex_preamble!(raw"\newcommand{\Prophet}{\mathcal{P}}")
 
         preamble_str = get_latex_preamble()
