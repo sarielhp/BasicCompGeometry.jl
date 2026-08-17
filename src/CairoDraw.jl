@@ -50,4 +50,63 @@ Requires `Cairo` and `LaTeXStrings`.
 """
 function pdf_merge end
 
+"""
+    read_latex_snippet(file_or_content; beg_marker=nothing, end_marker=nothing)
+
+Read a LaTeX snippet from a file path or string. If `beg_marker` (e.g. `"%%% IPE Prelim start"`)
+is specified or auto-detected, extracts the portion between `beg_marker` and `end_marker`.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function read_latex_snippet end
+
+"""
+    append_latex_preamble!(source; beg_marker=nothing, end_marker=nothing)
+
+Append LaTeX packages or macros from a string or `.tex` file to the global session preamble.
+If `source` is a file path, extracts delimited snippet if markers are present.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function append_latex_preamble! end
+
+"""
+    set_latex_preamble!(source; beg_marker=nothing, end_marker=nothing)
+
+Set the global session LaTeX preamble from a string or `.tex` file.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function set_latex_preamble! end
+
+"""
+    add_latex_macros!(source; beg_marker=nothing, end_marker=nothing)
+
+Alias for `append_latex_preamble!`.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function add_latex_macros! end
+
+"""
+    add_latex_packages!(pkgs...)
+
+Add one or more LaTeX package names to the global session package list.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function add_latex_packages! end
+
+"""
+    reset_latex_preamble!()
+
+Reset session LaTeX packages and custom macros to library defaults.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function reset_latex_preamble! end
+
+"""
+    get_latex_preamble(; extra_packages=[], extra_preamble="")
+
+Retrieve the combined LaTeX preamble string for the active session.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function get_latex_preamble end
+
 export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, latex_to_pdf, pdf_merge
+export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble

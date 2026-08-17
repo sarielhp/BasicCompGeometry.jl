@@ -4,7 +4,146 @@ using BasicCompGeometry
 import Cairo
 import LaTeXStrings: LaTeXString
 
-const LATEX_SNIPPET_CACHE = Dict{Tuple{String, Float64, Int, String}, Cairo.CairoSurfaceBase{UInt32}}()
+# --- Global Session LaTeX State ---
+const DEFAULT_PACKAGES = ["amsmath", "amssymb", "amsfonts", "microtype"]
+const GLOBAL_PACKAGES = Set{String}(DEFAULT_PACKAGES)
+const GLOBAL_MACROS = Ref{String}("")
+
+const LATEX_SNIPPET_CACHE = Dict{Tuple{String, Float64, Int, String, String}, Cairo.CairoSurfaceBase{UInt32}}()
+
+"""
+    BasicCompGeometry.read_latex_snippet(file_or_content; beg_marker=nothing, end_marker=nothing)
+
+Read a LaTeX snippet from a `.tex` file path or string.
+- If `beg_marker` is provided, text between `beg_marker` and `end_marker` is extracted.
+- If `beg_marker` is `nothing`, automatically detects standard IPE prelim markers
+  (`%%% IPE Prelim start` ... `%%% IPE Prelim end`) or `%%% MACROS BEG` ... `%%% MACROS END`.
+- If no markers are present, returns the entire string.
+"""
+function BasicCompGeometry.read_latex_snippet(
+    file_or_content::AbstractString;
+    beg_marker::Union{AbstractString, Regex, Nothing} = nothing,
+    end_marker::Union{AbstractString, Regex, Nothing} = nothing
+)
+    content = isfile(file_or_content) ? read(file_or_content, String) : String(file_or_content)
+
+    if isnothing(beg_marker)
+        # Auto-detect standard IPE or MACRO markers (case-insensitive)
+        m_beg = match(r"(?i)%%%\s*(?:ipe\s+prelim|macros?)\s*(?:start|beg[a-z]*)", content)
+        if m_beg !== nothing
+            idx_start = m_beg.offset + length(m_beg.match)
+            sub = content[idx_start:end]
+            m_end = match(r"(?i)%%%\s*(?:ipe\s+prelim|macros?)\s*end", sub)
+            return m_end !== nothing ? strip(sub[1:m_end.offset-1]) : strip(sub)
+        end
+        return strip(content)
+    end
+
+    pattern_beg = beg_marker isa Regex ? beg_marker : Regex("(?i)" * escape_string(String(beg_marker)))
+    m_beg = match(pattern_beg, content)
+    m_beg === nothing && return strip(content)
+
+    idx_start = m_beg.offset + length(m_beg.match)
+    sub = content[idx_start:end]
+
+    if end_marker !== nothing
+        pattern_end = end_marker isa Regex ? end_marker : Regex("(?i)" * escape_string(String(end_marker)))
+        m_end = match(pattern_end, sub)
+        return m_end !== nothing ? strip(sub[1:m_end.offset-1]) : strip(sub)
+    end
+    return strip(sub)
+end
+
+"""
+    BasicCompGeometry.append_latex_preamble!(source; beg_marker=nothing, end_marker=nothing)
+
+Append LaTeX packages or macros from a string or `.tex` file to the global session preamble.
+If `source` is a file path, automatically extracts delimited snippets (e.g. `%%% IPE Prelim start`).
+"""
+function BasicCompGeometry.append_latex_preamble!(
+    source::Union{AbstractString, LaTeXString};
+    beg_marker::Union{AbstractString, Regex, Nothing} = nothing,
+    end_marker::Union{AbstractString, Regex, Nothing} = nothing
+)
+    snippet = BasicCompGeometry.read_latex_snippet(String(source); beg_marker=beg_marker, end_marker=end_marker)
+    if !isempty(snippet)
+        if isempty(GLOBAL_MACROS[])
+            GLOBAL_MACROS[] = snippet
+        else
+            GLOBAL_MACROS[] = GLOBAL_MACROS[] * "\n" * snippet
+        end
+    end
+    empty!(LATEX_SNIPPET_CACHE)
+    return GLOBAL_MACROS[]
+end
+
+BasicCompGeometry.add_latex_macros!(source; kwargs...) = BasicCompGeometry.append_latex_preamble!(source; kwargs...)
+
+"""
+    BasicCompGeometry.set_latex_preamble!(source; beg_marker=nothing, end_marker=nothing)
+
+Set the global session LaTeX preamble from a string or `.tex` file, replacing existing macros.
+"""
+function BasicCompGeometry.set_latex_preamble!(
+    source::Union{AbstractString, LaTeXString};
+    beg_marker::Union{AbstractString, Regex, Nothing} = nothing,
+    end_marker::Union{AbstractString, Regex, Nothing} = nothing
+)
+    snippet = BasicCompGeometry.read_latex_snippet(String(source); beg_marker=beg_marker, end_marker=end_marker)
+    GLOBAL_MACROS[] = snippet
+    empty!(LATEX_SNIPPET_CACHE)
+    return GLOBAL_MACROS[]
+end
+
+"""
+    BasicCompGeometry.add_latex_packages!(pkgs...)
+
+Add one or more LaTeX package names to the global session package list.
+"""
+function BasicCompGeometry.add_latex_packages!(pkgs...)
+    for p in pkgs
+        if p isa AbstractVector || p isa Tuple
+            for sub in p
+                push!(GLOBAL_PACKAGES, String(sub))
+            end
+        else
+            push!(GLOBAL_PACKAGES, String(p))
+        end
+    end
+    empty!(LATEX_SNIPPET_CACHE)
+    return collect(GLOBAL_PACKAGES)
+end
+
+"""
+    BasicCompGeometry.reset_latex_preamble!()
+
+Reset session LaTeX packages and custom macros to library defaults.
+"""
+function BasicCompGeometry.reset_latex_preamble!()
+    empty!(GLOBAL_PACKAGES)
+    for p in DEFAULT_PACKAGES
+        push!(GLOBAL_PACKAGES, p)
+    end
+    GLOBAL_MACROS[] = ""
+    empty!(LATEX_SNIPPET_CACHE)
+    return
+end
+
+"""
+    BasicCompGeometry.get_latex_preamble(; extra_packages=[], extra_preamble="")
+
+Retrieve the combined LaTeX preamble string for the active session.
+"""
+function BasicCompGeometry.get_latex_preamble(;
+    extra_packages::Vector{String} = String[],
+    extra_preamble::AbstractString = ""
+)
+    all_pkgs = unique(vcat(collect(GLOBAL_PACKAGES), extra_packages))
+    pkg_lines = join(["\\usepackage{$p}" for p in all_pkgs], "\n")
+    macros = GLOBAL_MACROS[]
+    combined = string(pkg_lines, "\n", macros, "\n", extra_preamble)
+    return strip(combined)
+end
 
 """
     BasicCompGeometry.cairo_draw_latex(cr, x, y, latex_str;
@@ -14,21 +153,10 @@ const LATEX_SNIPPET_CACHE = Dict{Tuple{String, Float64, Int, String}, Cairo.Cair
                                        dpi=300,
                                        scale=1.0,
                                        compiler="lualatex",
-                                       packages=["amsmath", "amssymb", "amsfonts"])
+                                       extra_packages=String[],
+                                       preamble="")
 
 Render a LaTeX snippet or mathematical formula `latex_str` onto the Cairo context `cr` at position `(x, y)`.
-
-# Arguments
-- `cr`: A `CairoContext`.
-- `x::Real`, `y::Real`: Insertion coordinate.
-- `latex_str::Union{AbstractString, LaTeXString}`: The LaTeX formula or text string (e.g. `L"\\sum_{i=1}^n x_i"` or `"\\textbf{Site } p_k"`).
-- `fontsize::Real`: Base font size in points (default: `12.0`).
-- `halign::Symbol`: Horizontal alignment: `:left` (default), `:center`, or `:right`.
-- `valign::Symbol`: Vertical alignment: `:baseline` (default), `:top`, `:center`, or `:bottom`.
-- `dpi::Int`: Rasterization DPI (default: `300`).
-- `scale::Real`: Additional scaling factor (default: `1.0`).
-- `compiler::String`: TeX engine to use (default: `"lualatex"`).
-- `packages::Vector{String}`: Additional LaTeX packages to include.
 """
 function BasicCompGeometry.cairo_draw_latex(
     cr,
@@ -41,10 +169,12 @@ function BasicCompGeometry.cairo_draw_latex(
     dpi::Int = 300,
     scale::Real = 1.0,
     compiler::String = "lualatex",
-    packages::Vector{String} = ["amsmath", "amssymb", "amsfonts"]
+    extra_packages::Vector{String} = String[],
+    preamble::AbstractString = ""
 )
     str = String(latex_str)
-    cache_key = (str, Float64(fontsize), dpi, compiler)
+    full_preamble = BasicCompGeometry.get_latex_preamble(extra_packages=extra_packages, extra_preamble=preamble)
+    cache_key = (str, Float64(fontsize), dpi, compiler, full_preamble)
 
     img = get!(LATEX_SNIPPET_CACHE, cache_key) do
         temp_dir = mktempdir()
@@ -53,16 +183,13 @@ function BasicCompGeometry.cairo_draw_latex(
         png_base = joinpath(temp_dir, "snippet")
         png_path = joinpath(temp_dir, "snippet.png")
 
-        pkg_lines = join(["\\usepackage{$p}" for p in packages], "\n")
-
-        # If math mode not explicitly enclosed, wrap math if contains math symbols
         content = strip(str)
         is_math = startswith(content, "\$") || startswith(content, "\\[") || startswith(content, "\\begin{equation")
         body = is_math ? content : "\\textbf{\\textnormal{$content}}"
 
         tex_doc = """
 \\documentclass[border=0pt,varwidth,12pt]{standalone}
-$pkg_lines
+$full_preamble
 \\begin{document}
 $body
 \\end{document}
@@ -119,24 +246,13 @@ end
                                   paperwidth=800,
                                   paperheight=800,
                                   margin=50,
-                                  packages=["amsmath", "amssymb", "amsfonts", "microtype"],
+                                  extra_packages=String[],
                                   compiler="lualatex",
                                   passes=2,
                                   preamble="")
 
 Compile one or more LaTeX pages into a multi-page PDF document.
 Page dimensions are specified in big points (bp) to match Cairo points.
-
-# Arguments
-- `pages`: Either a single LaTeX string or a `Vector{<:AbstractString}` where each entry represents one page.
-- `output_path::String`: Destination file path for the output PDF.
-- `paperwidth::Real`: Canvas/page width in bp (default: `800`).
-- `paperheight::Real`: Canvas/page height in bp (default: `800`).
-- `margin::Real`: Page margins in bp (default: `50`).
-- `packages::Vector{String}`: Standard packages to include in preamble.
-- `compiler::String`: LaTeX engine to invoke (`"lualatex"` or `"pdflatex"`, default: `"lualatex"`).
-- `passes::Int`: Number of compilation passes (default: `2`).
-- `preamble::String`: Additional LaTeX preamble definitions (e.g. macros).
 """
 function BasicCompGeometry.latex_to_pdf(
     pages::Union{AbstractVector{<:AbstractString}, AbstractString},
@@ -144,10 +260,10 @@ function BasicCompGeometry.latex_to_pdf(
     paperwidth::Real = 800,
     paperheight::Real = 800,
     margin::Real = 50,
-    packages::Vector{String} = ["amsmath", "amssymb", "amsfonts", "microtype"],
+    extra_packages::Vector{String} = String[],
     compiler::String = "lualatex",
     passes::Int = 2,
-    preamble::String = ""
+    preamble::AbstractString = ""
 )
     temp_dir = mktempdir()
     tex_path = joinpath(temp_dir, "document.tex")
@@ -159,13 +275,12 @@ function BasicCompGeometry.latex_to_pdf(
         String(pages)
     end
 
-    pkg_lines = join(["\\usepackage{$p}" for p in packages], "\n")
+    full_preamble = BasicCompGeometry.get_latex_preamble(extra_packages=extra_packages, extra_preamble=preamble)
 
     tex_content = """
 \\documentclass[12pt]{article}
 \\usepackage[paperwidth=$(paperwidth)bp,paperheight=$(paperheight)bp,margin=$(margin)bp]{geometry}
-$pkg_lines
-$preamble
+$full_preamble
 \\pagestyle{empty}
 \\begin{document}
 $body
@@ -194,16 +309,6 @@ end
     BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
 
 Merge multiple PDF files or specific pages into `output_pdf` using `qpdf`.
-
-Each element of `sources` can be:
-- A filename `String` (all pages of that file).
-- A `Tuple` or `Pair`: `(filename, page_spec)` where `page_spec` can be an `Int`, `String` (e.g. `"1-3"`), or `Vector{Int}`.
-- A raw command-line argument string for `qpdf`.
-
-# Example
-```julia
-pdf_merge("final.pdf", (diag_pdf, 1), (text_pdf, 1), (diag_pdf, 2), (text_pdf, "2-3"))
-```
 """
 function BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
     qpdf_args = String[]
@@ -217,7 +322,6 @@ function BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
                 push!(qpdf_args, string(spec))
             end
         elseif src isa AbstractString
-            # Check if source contains embedded space-separated args or just a filename
             tokens = split(String(src))
             append!(qpdf_args, tokens)
         else
