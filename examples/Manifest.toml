@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.6"
+julia_version = "1.12.7"
 manifest_format = "2.0"
-project_hash = "02d007192902d1b59151c2cd23904e32cc1fa421"
+project_hash = "e879acbecd383928d1946ee32e069cd7b835a3f4"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -19,10 +19,10 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
 [[deps.BasicCompGeometry]]
-deps = ["Cairo", "DataStructures", "DelimitedFiles", "Distances", "Distributions", "LinearAlgebra", "Parameters", "Printf", "Random", "StaticArrays", "Test"]
+deps = ["Cairo", "DataStructures", "DelimitedFiles", "Distances", "Distributions", "LaTeXStrings", "LinearAlgebra", "Parameters", "Printf", "Random", "StaticArrays", "Test"]
 path = ".."
 uuid = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
-version = "0.2.0"
+version = "0.2.3"
 weakdeps = ["Colors"]
 
     [deps.BasicCompGeometry.extensions]
@@ -66,7 +66,7 @@ version = "0.13.1"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.3.0+1"
+version = "1.3.1+2"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -230,6 +230,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "eb62a3deb62fc6d8822c0c4bef73e4412419c5d8"
 uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "18.1.8+0"
+
+[[deps.LaTeXStrings]]
+git-tree-sha1 = "f88f3ccef05a6a72a0cf0ed417c8fd68530f4ab2"
+uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+version = "1.4.1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"

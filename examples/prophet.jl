@@ -9,17 +9,18 @@ Pkg.activate(@__DIR__)
 Supported Modes:
   Mode 1: Prefix Voronoi sequence (starts from 4 points up to N points, default N = 100).
   Mode 2: Powers of 2 comparison (N = 2^3 ... 2^12, 10 pages) with ≤ 25% ink area calibration.
-  Mode 3: (Default) 2-page Prophet comparison:
-          - Page 1: Final Voronoi diagram of N = 1000 points, highlighting the prophet site p_k 
-                    with the maximum cell area.
-          - Page 2: Prefix Voronoi diagram of {p_1, ..., p_k} at the moment the prophet site p_k 
-                    arrived, with its cell highlighted in the same blue style.
+  Mode 3: (Default) 5-page Prophet comparison:
+          - Page 1: Final Voronoi diagram of N = 1000 points (Cairo, no text).
+          - Page 2: Text description of Page 1 (LuaLaTeX).
+          - Page 3: Prefix Voronoi diagram of {p_1, ..., p_k} at prophet arrival (Cairo, no text).
+          - Page 4: Text description of Page 3 (LuaLaTeX).
+          - Page 5: Mathematical formulations and prophet inequality background (LuaLaTeX).
 
 Usage:
-  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 2 pages)
+  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 5 pages)
   ./examples/prophet.jl 1 [N] [seed] # Mode 1: Prefix Voronoi sequence
   ./examples/prophet.jl 2 [seed]     # Mode 2: Powers of 2 (N = 2^3..2^12, 10 pages)
-  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 2-page Prophet comparison (default N = 1000)
+  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 5-page Prophet comparison (default N = 1000)
 """
 
 using BasicCompGeometry
@@ -27,6 +28,7 @@ using LinearAlgebra
 using Cairo
 using Printf
 using Random
+using LaTeXStrings
 
 """
     clip_polygon_halfplane(poly, M, n; eps=1e-11)
@@ -171,9 +173,10 @@ end
 
 """
     render_voronoi_page!(cr, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
-                         title_text, subtitle_text; highlight_k_star=true)
+                         title_text="", subtitle_text=""; highlight_k_star=true, show_text=false)
 
 Render a single page showing the Voronoi diagram with pink frame, gray fills, yellow unit square, and blue prophet site.
+When `show_text` is `false`, the title header and subtitle footer are skipped.
 """
 function render_voronoi_page!(
     cr::CairoContext,
@@ -185,9 +188,10 @@ function render_voronoi_page!(
     ch::Int,
     margin::Float64,
     scale_factor::Float64,
-    title_text::String,
-    subtitle_text::String;
-    highlight_k_star::Bool = true
+    title_text::String = "",
+    subtitle_text::String = "";
+    highlight_k_star::Bool = true,
+    show_text::Bool = false
 )
     N = length(pts)
     L = compute_total_unique_edge_length(cells)
@@ -209,18 +213,22 @@ function render_voronoi_page!(
     Cairo.fill(cr)
 
     # Header Title
-    set_source_rgb(cr, 0.12, 0.12, 0.2)
-    Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
-    Cairo.set_font_size(cr, 16.5)
-    Cairo.move_to(cr, margin, margin * 0.60)
-    Cairo.show_text(cr, title_text)
+    if show_text && !isempty(title_text)
+        set_source_rgb(cr, 0.12, 0.12, 0.2)
+        Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.set_font_size(cr, 16.5)
+        Cairo.move_to(cr, margin, margin * 0.60)
+        Cairo.show_text(cr, title_text)
+    end
 
     # Subtitle / Status Note
-    Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
-    Cairo.set_font_size(cr, 11.5)
-    Cairo.move_to(cr, margin, ch - margin * 0.45)
-    set_source_rgb(cr, 0.3, 0.3, 0.35)
-    Cairo.show_text(cr, subtitle_text)
+    if show_text && !isempty(subtitle_text)
+        Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+        Cairo.set_font_size(cr, 11.5)
+        Cairo.move_to(cr, margin, ch - margin * 0.45)
+        set_source_rgb(cr, 0.3, 0.3, 0.35)
+        Cairo.show_text(cr, subtitle_text)
+    end
 
     # Setup geometry transform: y-upwards, origin placed so [-0.1, 1.1]^2 is centered on canvas
     Cairo.translate(cr, margin + 0.1 * scale_factor, ch - margin - 0.1 * scale_factor)
@@ -384,7 +392,7 @@ function generate_mode1_pdf(
         end
 
         render_voronoi_page!(cr, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
-                             title, subtitle; highlight_k_star = has_prophet)
+                             title, subtitle; highlight_k_star = has_prophet, show_text = true)
     end
 
     Cairo.finish(surface)
@@ -444,7 +452,7 @@ function generate_mode2_pdf(
                             total_area_pct, r_pt, w_pt, k_star, max_area)
 
         render_voronoi_page!(cr, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
-                             title, subtitle; highlight_k_star = true)
+                             title, subtitle; highlight_k_star = true, show_text = true)
     end
 
     Cairo.finish(surface)
@@ -452,7 +460,189 @@ function generate_mode2_pdf(
 end
 
 # ==============================================================================
-# MODE 3: 2-Page Prophet Comparison (Default Mode)
+# LaTeX Text Generation Helpers
+# ==============================================================================
+
+"""
+    build_text_page2(N, k_star, max_area)
+
+Generate LaTeX string for Page 2 describing the Final Voronoi Diagram on Page 1.
+"""
+function build_text_page2(N::Int, k_star::Int, max_area::Float64)
+    expected_area = 1.0 / N
+    ratio = max_area / expected_area
+    pct_max = max_area * 100.0
+    pct_exp = expected_area * 100.0
+
+    return """
+\\section*{Page 1: Final Voronoi Diagram on the Flat Torus}
+
+\\noindent
+\\textbf{Configuration:} \$N = $N\$ points sampled independently and uniformly at random from the unit square \$[0, 1]^2\$:
+\\[
+p_1, p_2, \\dots, p_N \\stackrel{\\text{i.i.d.}}{\\sim} \\mathrm{Uniform}([0, 1]^2).
+\\]
+Periodic boundary conditions are enforced on the 2D flat torus \$\\mathbb{T}^2 \\cong [0, 1)^2\$ by replicating the unit square across a \$3 \\times 3\$ grid of adjacent domains.
+
+\\subsection*{The Prophet Site \$p_{k^*}\$}
+
+\\noindent
+An offline \\emph{prophet} with complete hindsight knowledge of all \$N\$ site coordinates identifies the site index \$k^*\$ whose final Voronoi cell achieves maximum area:
+\\[
+k^* = \\arg\\max_{1 \\le i \\le N} \\operatorname{Area}\\bigl(V_N(p_i)\\bigr).
+\\]
+
+\\begin{itemize}
+  \\item \\textbf{Prophet Site Index:} \$k^* = $k_star\$
+  \\item \\textbf{Final Cell Area:} \$\\operatorname{Area}(V_N(p_{k^*})) = $(round(max_area, digits=6))\$ ($(round(pct_max, digits=4))\\% of total torus area)
+  \\item \\textbf{Expected Cell Area:} \$\\mathbb{E}[\\operatorname{Area}(V_N)] = 1/N = $(round(expected_area, digits=6))\$ ($(round(pct_exp, digits=4))\\%)
+  \\item \\textbf{Ratio over Mean:} \$\\operatorname{Area}(V_N(p_{k^*})) / (1/N) = $(round(ratio, digits=2))\\times\$
+\\end{itemize}
+
+\\subsection*{Visual Encoding}
+\\begin{itemize}
+  \\item \\textbf{Golden Boundary:} Outlines the fundamental unit domain \$[0, 1]^2\$.
+  \\item \\textbf{Pink Margin:} Outlines the rendered \$[-0.1, 1.1]^2\$ bounding region for periodic boundary continuity.
+  \\item \\textbf{Gray Polygons:} The \$N\$ periodic Voronoi cells \$V_N(p_1), \\dots, V_N(p_N)\$.
+  \\item \\textbf{Blue Highlight:} The prophet cell \$V_N(p_{k^*})\$ with highlighted site marker.
+\\end{itemize}
+"""
+end
+
+"""
+    build_text_page4(k_star, area_at_arrival, N, max_area_final)
+
+Generate LaTeX string for Page 4 describing the Prefix Voronoi Diagram on Page 3.
+"""
+function build_text_page4(k_star::Int, area_at_arrival::Float64, N::Int, max_area_final::Float64)
+    pct_arrival = area_at_arrival * 100.0
+    pct_final = max_area_final * 100.0
+    retention_pct = (max_area_final / area_at_arrival) * 100.0
+    shrink_pct = 100.0 - retention_pct
+    k_prev = k_star - 1
+
+    return """
+\\section*{Page 3: Prefix Voronoi Diagram at Arrival Step \$k^*\$ }
+
+\\noindent
+\\textbf{Prefix Configuration:} At step \$k = $k_star\$, the prophet site \$p_{k^*}\$ arrives into the stream of sites \$\\{p_1, \\dots, p_{$k_prev}\\}\$. The diagram on Page 3 illustrates the state of the Voronoi partition on the torus \$\\mathbb{T}^2\$ using only the first \$k^*\$ points:
+\\[
+\\mathcal{P}_{k^*} = \\{p_1, p_2, \\dots, p_{k^*}\\}.
+\\]
+
+\\subsection*{Cell Evolution and Shrinkage}
+
+\\noindent
+When site \$p_{k^*}\$ is first inserted, it only competes with the preceding \$k^* - 1\$ points. As subsequent points \$p_{k^*+1}, \\dots, p_N\$ arrive, each new site clips existing cells via bisecting halfplanes:
+\\[
+V_m(p_{k^*}) = V_{m-1}(p_{k^*}) \\cap H(p_{k^*}, p_m), \\quad \\text{for } m = k^*+1, \\dots, N.
+\\]
+
+\\begin{itemize}
+  \\item \\textbf{Arrival Step:} \$k^* = $k_star\$ of \$N = $N\$
+  \\item \\textbf{Cell Area at Arrival:} \$\\operatorname{Area}(V_{k^*}(p_{k^*})) = $(round(area_at_arrival, digits=6))\$ ($(round(pct_arrival, digits=4))\\% of torus)
+  \\item \\textbf{Final Cell Area:} \$\\operatorname{Area}(V_N(p_{k^*})) = $(round(max_area_final, digits=6))\$ ($(round(pct_final, digits=4))\\% of torus)
+  \\item \\textbf{Area Retention Ratio:} \$\\rho = \\frac{\\operatorname{Area}(V_N(p_{k^*}))}{\\operatorname{Area}(V_{k^*}(p_{k^*}))} = $(round(retention_pct, digits=2))\\%\$
+\\end{itemize}
+
+\\subsection*{Key Geometric Insights}
+\\begin{itemize}
+  \\item The cell area sequence \$m \\mapsto \\operatorname{Area}(V_m(p_{k^*}))\$ is monotonically non-increasing.
+  \\item Despite losing $(round(shrink_pct, digits=2))\\% of its initial area to later arrivals, \$p_{k^*}\$ retains sufficient volume to emerge as the maximum-area cell across the entire final configuration.
+\\end{itemize}
+"""
+end
+
+"""
+    build_text_page5()
+
+Generate LaTeX string for Page 5 containing mathematical formulations and prophet inequality foundations.
+"""
+function build_text_page5()
+    return """
+\\section*{Theoretical Background \\& Mathematical Foundations}
+
+\\subsection*{1. Classical Prophet Inequality}
+\\noindent
+Let \$X_1, X_2, \\dots, X_N\$ be independent non-negative random variables drawn from known distributions \$D_1, \\dots, D_N\$. 
+An offline prophet with complete foresight achieves reward \$\\mathbb{E}[\\max_{1 \\le i \\le N} X_i]\$. 
+A sequential gambler selecting an online stopping time \$\\tau\$ with threshold strategies satisfies the classic Krengel-Sucheston theorem (1977):
+\\[
+\\mathbb{E}\\left[ \\max_{1 \\le i \\le N} X_i \\right] \\le 2 \\cdot \\mathbb{E}[X_\\tau].
+\\]
+
+\\subsection*{2. Poisson-Voronoi Cell Area Distribution}
+\\noindent
+For a homogeneous Poisson point process in \$\\mathbb{R}^2\$ with intensity \$\\lambda\$, the mean cell area is \$\\mathbb{E}[A] = 1/\\lambda\$.
+The normalized cell area \$S = A / \\mathbb{E}[A]\$ closely follows a generalized Gamma distribution:
+\\[
+f_S(s) = \\frac{c \\, b^a}{\\Gamma(a)} s^{a c - 1} \\exp\\left(-b s^c\\right), \\quad a \\approx 3.5, \\; b \\approx 3.5, \\; c \\approx 1.07.
+\\]
+
+\\subsection*{3. Extremal Statistics of Voronoi Cells}
+\\noindent
+For \$N\$ uniform random points in the 2D torus \$[0, 1)^2\$, the maximum cell area satisfies:
+\\[
+\\max_{1 \\le i \\le N} \\operatorname{Area}(V_N(p_i)) = \\Theta\\left( \\frac{\\ln N}{N} \\right) \\quad \\text{with high probability as } N \\to \\infty.
+\\]
+
+\\subsection*{4. Geometric Online Selection}
+\\noindent
+In geometric prophet settings, sites arrive sequentially, and the decision-maker must select or irrevocably evaluate geometric functionals (e.g., Voronoi territory, nearest neighbor distance, Delaunay edge length) in an online fashion under unknown future arrivals.
+"""
+end
+
+"""
+    generate_text_pdf(text_pages, output_path, cw, ch; margin=50.0)
+
+Generate a multi-page PDF containing the given LaTeX strings using `lualatex`.
+Page dimensions are set to match `(cw, ch)` in big points (bp).
+"""
+function generate_text_pdf(
+    text_pages::Vector{String},
+    output_path::String,
+    cw::Int,
+    ch::Int;
+    margin::Float64 = 50.0
+)
+    temp_dir = mktempdir()
+    tex_path = joinpath(temp_dir, "document.tex")
+    pdf_path = joinpath(temp_dir, "document.pdf")
+
+    body = join(text_pages, "\n\\clearpage\n")
+
+    tex_content = """
+\\documentclass[12pt]{article}
+\\usepackage[paperwidth=$(cw)bp,paperheight=$(ch)bp,margin=$(margin)bp]{geometry}
+\\usepackage{amsmath,amssymb,amsfonts}
+\\usepackage{microtype}
+\\pagestyle{empty}
+\\begin{document}
+$body
+\\end{document}
+"""
+
+    open(tex_path, "w") do io
+        write(io, tex_content)
+    end
+
+    # Run lualatex twice for stability
+    for _ in 1:2
+        run(Cmd(`lualatex -interaction=nonstopmode -output-directory=$temp_dir $tex_path`, dir=temp_dir))
+    end
+
+    if !isfile(pdf_path)
+        error("LuaLaTeX compilation failed to produce $pdf_path")
+    end
+
+    mkpath(dirname(output_path))
+    cp(pdf_path, output_path, force=true)
+    rm(temp_dir, recursive=true, force=true)
+    return output_path
+end
+
+# ==============================================================================
+# MODE 3: 5-Page Prophet Comparison (Default Mode)
 # ==============================================================================
 function generate_mode3_pdf(
     filename::String;
@@ -493,31 +683,46 @@ function generate_mode3_pdf(
             k_star, k_star, area_at_arrival, area_at_arrival * 100)
 
     mkpath(dirname(filename))
-    surface = CairoPDFSurface(filename, cw, ch)
-    cr = CairoContext(surface)
 
     usable_w = cw - 2 * margin
     usable_h = ch - 2 * margin
     scale_factor = min(usable_w, usable_h) / 1.2
 
-    # --- Page 1: Final Voronoi diagram of N points ---
-    println("Rendering Page 1 / 2: Final Voronoi diagram of N = $N points...")
-    title_p1 = @sprintf("Page 1 / 2: Final Voronoi Diagram of N = %d Points (3x3 Grid)", N)
-    subtitle_p1 = @sprintf("Prophet Site p_%d (blue) has the Maximum Final Cell Area: %.6f (%.2f%% of torus)",
-                           k_star, max_area_final, max_area_final * 100)
-    render_voronoi_page!(cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor,
-                         title_p1, subtitle_p1; highlight_k_star = true)
+    temp_dir = mktempdir()
+    temp_diag = joinpath(temp_dir, "diag.pdf")
+    temp_text = joinpath(temp_dir, "text.pdf")
 
-    # --- Page 2: Prefix Voronoi diagram of the first k points ---
-    println("Rendering Page 2 / 2: Prefix Voronoi diagram of k = $k_star points...")
-    title_p2 = @sprintf("Page 2 / 2: Voronoi Diagram of Prefix p_1 ... p_%d at Arrival Step", k_star)
-    subtitle_p2 = @sprintf("Prophet Site p_%d Cell Area at Arrival: %.6f (%.2f%%) vs Final Area at Step %d: %.6f (%.2f%%)",
-                           k_star, area_at_arrival, area_at_arrival * 100, N, max_area_final, max_area_final * 100)
-    render_voronoi_page!(cr, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor,
-                         title_p2, subtitle_p2; highlight_k_star = true)
+    try
+        # --- Diagram Pages (Cairo) ---
+        diag_surface = CairoPDFSurface(temp_diag, cw, ch)
+        diag_cr = CairoContext(diag_surface)
 
-    Cairo.finish(surface)
-    println("Successfully generated Mode 3 PDF (2 pages): $filename")
+        println("Rendering Diagram 1 / 2: Final Voronoi diagram of N = $N points (no text)...")
+        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                             highlight_k_star = true, show_text = false)
+
+        println("Rendering Diagram 2 / 2: Prefix Voronoi diagram of k = $k_star points (no text)...")
+        render_voronoi_page!(diag_cr, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
+                             highlight_k_star = true, show_text = false)
+
+        Cairo.finish(diag_surface)
+
+        # --- Text Pages (LuaLaTeX) ---
+        println("Generating 3 text pages with LuaLaTeX...")
+        text_pages = [
+            build_text_page2(N, k_star, max_area_final),
+            build_text_page4(k_star, area_at_arrival, N, max_area_final),
+            build_text_page5()
+        ]
+        generate_text_pdf(text_pages, temp_text, cw, ch; margin = margin)
+
+        # --- Merge Pages with qpdf (5 pages total) ---
+        println("Merging diagram and text pages with qpdf into $filename...")
+        run(`qpdf --empty --pages $temp_diag 1 $temp_text 1 $temp_diag 2 $temp_text 2-3 -- $filename`)
+        println("Successfully generated Mode 3 PDF (5 pages): $filename")
+    finally
+        rm(temp_dir, recursive=true, force=true)
+    end
 end
 
 # ==============================================================================
@@ -545,7 +750,7 @@ function main(args=ARGS)
     elseif mode_str in ["3", "mode3", "prophet"] || isempty(args)
         N = length(args) >= 2 ? parse(Int, args[2]) : 1000
         seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
-        println("Prophet Voronoi Diagram - Mode 3 [Default] (2-Page Prophet Comparison, N = $N)")
+        println("Prophet Voronoi Diagram - Mode 3 [Default] (5-Page Prophet Comparison, N = $N)")
         println("="^70)
         generate_mode3_pdf(pdf_path; N=N, seed=seed)
     else

@@ -1,5 +1,6 @@
 [deps]
 BasicCompGeometry = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
