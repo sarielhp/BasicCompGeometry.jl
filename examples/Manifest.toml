@@ -19,15 +19,16 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
 [[deps.BasicCompGeometry]]
-deps = ["Cairo", "DataStructures", "DelimitedFiles", "Distances", "Distributions", "LaTeXStrings", "LinearAlgebra", "Parameters", "Printf", "Random", "StaticArrays", "Test"]
+deps = ["Cairo", "DataStructures", "DelimitedFiles", "Distances", "Distributions", "LinearAlgebra", "Parameters", "Printf", "Random", "StaticArrays", "Test"]
 path = ".."
 uuid = "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
 version = "0.2.3"
-weakdeps = ["Colors"]
+weakdeps = ["Colors", "LaTeXStrings"]
 
     [deps.BasicCompGeometry.extensions]
     BBTCairoExt = ["Cairo", "Colors"]
     CairoExt = ["Cairo"]
+    LaTeXCairoExt = ["Cairo", "LaTeXStrings"]
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]

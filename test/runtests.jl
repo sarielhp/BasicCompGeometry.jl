@@ -354,4 +354,8 @@ using BasicCompGeometry
     include("test_spheres.jl")
     include("test_curve_polygon.jl")
 
+    if Base.find_package("LaTeXStrings") !== nothing && Base.find_package("Cairo") !== nothing
+        include("test_latex_cairo.jl")
+    end
+
 end

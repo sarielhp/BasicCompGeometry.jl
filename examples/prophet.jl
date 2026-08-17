@@ -592,55 +592,6 @@ In geometric prophet settings, sites arrive sequentially, and the decision-maker
 """
 end
 
-"""
-    generate_text_pdf(text_pages, output_path, cw, ch; margin=50.0)
-
-Generate a multi-page PDF containing the given LaTeX strings using `lualatex`.
-Page dimensions are set to match `(cw, ch)` in big points (bp).
-"""
-function generate_text_pdf(
-    text_pages::Vector{String},
-    output_path::String,
-    cw::Int,
-    ch::Int;
-    margin::Float64 = 50.0
-)
-    temp_dir = mktempdir()
-    tex_path = joinpath(temp_dir, "document.tex")
-    pdf_path = joinpath(temp_dir, "document.pdf")
-
-    body = join(text_pages, "\n\\clearpage\n")
-
-    tex_content = """
-\\documentclass[12pt]{article}
-\\usepackage[paperwidth=$(cw)bp,paperheight=$(ch)bp,margin=$(margin)bp]{geometry}
-\\usepackage{amsmath,amssymb,amsfonts}
-\\usepackage{microtype}
-\\pagestyle{empty}
-\\begin{document}
-$body
-\\end{document}
-"""
-
-    open(tex_path, "w") do io
-        write(io, tex_content)
-    end
-
-    # Run lualatex twice for stability
-    for _ in 1:2
-        run(Cmd(`lualatex -interaction=nonstopmode -output-directory=$temp_dir $tex_path`, dir=temp_dir))
-    end
-
-    if !isfile(pdf_path)
-        error("LuaLaTeX compilation failed to produce $pdf_path")
-    end
-
-    mkpath(dirname(output_path))
-    cp(pdf_path, output_path, force=true)
-    rm(temp_dir, recursive=true, force=true)
-    return output_path
-end
-
 # ==============================================================================
 # MODE 3: 5-Page Prophet Comparison (Default Mode)
 # ==============================================================================
@@ -707,18 +658,18 @@ function generate_mode3_pdf(
 
         Cairo.finish(diag_surface)
 
-        # --- Text Pages (LuaLaTeX) ---
-        println("Generating 3 text pages with LuaLaTeX...")
+        # --- Text Pages (LuaLaTeX) via BasicCompGeometry ---
+        println("Generating 3 text pages with LuaLaTeX (via BasicCompGeometry.latex_to_pdf)...")
         text_pages = [
             build_text_page2(N, k_star, max_area_final),
             build_text_page4(k_star, area_at_arrival, N, max_area_final),
             build_text_page5()
         ]
-        generate_text_pdf(text_pages, temp_text, cw, ch; margin = margin)
+        latex_to_pdf(text_pages, temp_text; paperwidth = cw, paperheight = ch, margin = margin)
 
-        # --- Merge Pages with qpdf (5 pages total) ---
+        # --- Merge Pages with qpdf (5 pages total) via BasicCompGeometry ---
         println("Merging diagram and text pages with qpdf into $filename...")
-        run(`qpdf --empty --pages $temp_diag 1 $temp_text 1 $temp_diag 2 $temp_text 2-3 -- $filename`)
+        pdf_merge(filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"))
         println("Successfully generated Mode 3 PDF (5 pages): $filename")
     finally
         rm(temp_dir, recursive=true, force=true)
