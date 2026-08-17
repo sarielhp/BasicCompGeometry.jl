@@ -30,6 +30,16 @@ using Printf
 using Random
 using LaTeXStrings
 
+# Register session LaTeX macros for figures and documentation pages
+add_latex_packages!("amsmath", "amssymb", "amsfonts", "microtype")
+add_latex_macros!(raw"""
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\eps}{\varepsilon}
+\DeclareMathOperator{\Vor}{Vor}
+\DeclareMathOperator{\Area}{Area}
+""")
+
 """
     clip_polygon_halfplane(poly, M, n; eps=1e-11)
 
@@ -322,6 +332,14 @@ function render_voronoi_page!(
     end
 
     Cairo.restore(cr)
+
+    # Draw LaTeX math label for prophet site if highlighted
+    if highlight_k_star && k_star <= N
+        px_canvas = margin + 0.1 * scale_factor + p_star[1] * scale_factor
+        py_canvas = ch - margin - 0.1 * scale_factor - p_star[2] * scale_factor
+        cairo_draw_latex(cr, px_canvas + 8.0, py_canvas - 4.0, "\$p^*\$"; fontsize=13.0, halign=:left, valign=:bottom)
+    end
+
     Cairo.show_page(cr)
 end
 
