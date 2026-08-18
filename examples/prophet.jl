@@ -9,18 +9,20 @@ Pkg.activate(@__DIR__)
 Supported Modes:
   Mode 1: Prefix Voronoi sequence (starts from 4 points up to N points, default N = 100).
   Mode 2: Powers of 2 comparison (N = 2^3 ... 2^12, 10 pages) with ≤ 25% ink area calibration.
-  Mode 3: (Default) 5-page Prophet comparison:
+  Mode 3: (Default) 7-page Prophet comparison:
           - Page 1: Final Voronoi diagram of N = 1000 points (Cairo, no text).
           - Page 2: Text description of Page 1 (LuaLaTeX).
           - Page 3: Prefix Voronoi diagram of {p_1, ..., p_k} at prophet arrival (Cairo, no text).
           - Page 4: Text description of Page 3 (LuaLaTeX).
           - Page 5: Mathematical formulations and prophet inequality background (LuaLaTeX).
+          - Page 6: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/2 max area (Cairo).
+          - Page 7: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/4 max area (Cairo).
 
 Usage:
-  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 5 pages)
+  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 7 pages)
   ./examples/prophet.jl 1 [N] [seed] # Mode 1: Prefix Voronoi sequence
   ./examples/prophet.jl 2 [seed]     # Mode 2: Powers of 2 (N = 2^3..2^12, 10 pages)
-  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 5-page Prophet comparison (default N = 1000)
+  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 7-page Prophet comparison (default N = 1000)
 """
 
 using BasicCompGeometry
@@ -201,7 +203,11 @@ function render_voronoi_page!(
     title_text::String = "",
     subtitle_text::String = "";
     highlight_k_star::Bool = true,
-    show_text::Bool = false
+    show_text::Bool = false,
+    show_points::Bool = true,
+    highlight_cells::Vector{Int} = Int[],
+    highlight_color::NTuple{4, Float64} = (0.92, 0.22, 0.22, 0.55),
+    highlight_stroke_color::NTuple{3, Float64} = (0.80, 0.10, 0.10)
 )
     N = length(pts)
     L = compute_total_unique_edge_length(cells)
@@ -263,8 +269,22 @@ function render_voronoi_page!(
         Cairo.fill(cr)
     end
 
-    # 3. Highlight prophet site cell in soft blue (if requested and present)
-    if highlight_k_star && k_star <= length(cells)
+    # 3. Highlight specific cells (if provided) or single prophet cell
+    if !isempty(highlight_cells)
+        set_source_rgba(cr, highlight_color[1], highlight_color[2], highlight_color[3], highlight_color[4])
+        for idx in highlight_cells
+            (idx < 1 || idx > length(cells)) && continue
+            cell = cells[idx]
+            length(cell) < 3 && continue
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, cell[1][1], cell[1][2])
+            for v in cell[2:end]
+                Cairo.line_to(cr, v[1], v[2])
+            end
+            Cairo.close_path(cr)
+            Cairo.fill(cr)
+        end
+    elseif highlight_k_star && k_star <= length(cells)
         largest_cell = cells[k_star]
         if length(largest_cell) >= 3
             set_source_rgba(cr, 0.35, 0.65, 0.95, 0.50)
@@ -302,39 +322,41 @@ function render_voronoi_page!(
     Cairo.rectangle(cr, 0.0, 0.0, 1.0, 1.0)
     Cairo.stroke(cr)
 
-    # 6. Draw only the points in the middle square with calibrated radius
-    for j in 1:N
-        (highlight_k_star && j == k_star) && continue
-        pj = pts[j]
-        set_source_rgb(cr, 0.85, 0.15, 0.15)
-        Cairo.new_path(cr)
-        Cairo.arc(cr, pj[1], pj[2], r_unit, 0.0, 2pi)
-        Cairo.fill(cr)
-    end
-
-    # Draw prophet point p* in blue if present
-    if highlight_k_star && k_star <= N
-        if r_pt >= 1.5
-            set_source_rgba(cr, 0.1, 0.4, 0.9, 0.30)
+    # 6. Draw points in the middle square (if show_points is true)
+    if show_points
+        for j in 1:N
+            (highlight_k_star && j == k_star) && continue
+            pj = pts[j]
+            set_source_rgb(cr, 0.85, 0.15, 0.15)
             Cairo.new_path(cr)
-            Cairo.arc(cr, p_star[1], p_star[2], (r_blue_halo_pt / scale_factor), 0.0, 2pi)
+            Cairo.arc(cr, pj[1], pj[2], r_unit, 0.0, 2pi)
             Cairo.fill(cr)
         end
 
-        set_source_rgb(cr, 0.0, 0.3, 0.9)
-        Cairo.new_path(cr)
-        Cairo.arc(cr, p_star[1], p_star[2], (r_blue_pt / scale_factor), 0.0, 2pi)
-        Cairo.fill_preserve(cr)
+        # Draw prophet point p* in blue if present
+        if highlight_k_star && k_star <= N
+            if r_pt >= 1.5
+                set_source_rgba(cr, 0.1, 0.4, 0.9, 0.30)
+                Cairo.new_path(cr)
+                Cairo.arc(cr, p_star[1], p_star[2], (r_blue_halo_pt / scale_factor), 0.0, 2pi)
+                Cairo.fill(cr)
+            end
 
-        set_source_rgb(cr, 0.0, 0.15, 0.6)
-        Cairo.set_line_width(cr, max(w_pt, 1.0))
-        Cairo.stroke(cr)
+            set_source_rgb(cr, 0.0, 0.3, 0.9)
+            Cairo.new_path(cr)
+            Cairo.arc(cr, p_star[1], p_star[2], (r_blue_pt / scale_factor), 0.0, 2pi)
+            Cairo.fill_preserve(cr)
+
+            set_source_rgb(cr, 0.0, 0.15, 0.6)
+            Cairo.set_line_width(cr, max(w_pt, 1.0))
+            Cairo.stroke(cr)
+        end
     end
 
     Cairo.restore(cr)
 
-    # Draw LaTeX math label for prophet site if highlighted
-    if highlight_k_star && k_star <= N
+    # Draw LaTeX math label for prophet site if highlighted and points are shown
+    if show_points && highlight_k_star && k_star <= N
         px_canvas = margin + 0.1 * scale_factor + p_star[1] * scale_factor
         py_canvas = ch - margin - 0.1 * scale_factor - p_star[2] * scale_factor
         cairo_draw_latex(cr, px_canvas + 8.0, py_canvas - 4.0, "\$p^*\$"; fontsize=13.0, halign=:left, valign=:bottom)
@@ -651,6 +673,15 @@ function generate_mode3_pdf(
     @printf("Cell area of prophet site p_%d at arrival (k = %d): %.6f (%.2f%% of torus)\n",
             k_star, k_star, area_at_arrival, area_at_arrival * 100)
 
+    # 3. Identify cells by area threshold
+    threshold_half = 0.5 * max_area_final
+    large_cells_half = findall(a -> a >= threshold_half, areas_N)
+    @printf("Mode 3: Found %d cells with area >= 1/2 max area (>= %.6f)\n", length(large_cells_half), threshold_half)
+
+    threshold_quarter = 0.25 * max_area_final
+    large_cells_quarter = findall(a -> a >= threshold_quarter, areas_N)
+    @printf("Mode 3: Found %d cells with area >= 1/4 max area (>= %.6f)\n", length(large_cells_quarter), threshold_quarter)
+
     mkpath(dirname(filename))
 
     usable_w = cw - 2 * margin
@@ -666,13 +697,25 @@ function generate_mode3_pdf(
         diag_surface = CairoPDFSurface(temp_diag, cw, ch)
         diag_cr = CairoContext(diag_surface)
 
-        println("Rendering Diagram 1 / 2: Final Voronoi diagram of N = $N points (no text)...")
+        println("Rendering Diagram 1 / 4: Final Voronoi diagram of N = $N points (no text)...")
         render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                              highlight_k_star = true, show_text = false)
 
-        println("Rendering Diagram 2 / 2: Prefix Voronoi diagram of k = $k_star points (no text)...")
+        println("Rendering Diagram 2 / 4: Prefix Voronoi diagram of k = $k_star points (no text)...")
         render_voronoi_page!(diag_cr, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
                              highlight_k_star = true, show_text = false)
+
+        println("Rendering Diagram 3 / 4: Final Voronoi diagram without sites (cells >= 1/2 max area in red)...")
+        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                             highlight_k_star = false, show_text = false, show_points = false,
+                             highlight_cells = large_cells_half,
+                             highlight_color = (0.92, 0.22, 0.22, 0.55))
+
+        println("Rendering Diagram 4 / 4: Final Voronoi diagram without sites (cells >= 1/4 max area in red)...")
+        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                             highlight_k_star = false, show_text = false, show_points = false,
+                             highlight_cells = large_cells_quarter,
+                             highlight_color = (0.92, 0.22, 0.22, 0.55))
 
         Cairo.finish(diag_surface)
 
@@ -685,10 +728,10 @@ function generate_mode3_pdf(
         ]
         latex_to_pdf(text_pages, temp_text; paperwidth = cw, paperheight = ch, margin = margin)
 
-        # --- Merge Pages with qpdf (5 pages total) via BasicCompGeometry ---
-        println("Merging diagram and text pages with qpdf into $filename...")
-        pdf_merge(filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"))
-        println("Successfully generated Mode 3 PDF (5 pages): $filename")
+        # --- Merge Pages (7 pages total) via BasicCompGeometry ---
+        println("Merging diagram and text pages with pdf_merge into $filename...")
+        pdf_merge(filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"), (temp_diag, 3), (temp_diag, 4))
+        println("Successfully generated Mode 3 PDF (7 pages): $filename")
     finally
         rm(temp_dir, recursive=true, force=true)
     end
@@ -719,7 +762,7 @@ function main(args=ARGS)
     elseif mode_str in ["3", "mode3", "prophet"] || isempty(args)
         N = length(args) >= 2 ? parse(Int, args[2]) : 1000
         seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
-        println("Prophet Voronoi Diagram - Mode 3 [Default] (5-Page Prophet Comparison, N = $N)")
+        println("Prophet Voronoi Diagram - Mode 3 [Default] (7-Page Prophet Comparison, N = $N)")
         println("="^70)
         generate_mode3_pdf(pdf_path; N=N, seed=seed)
     else

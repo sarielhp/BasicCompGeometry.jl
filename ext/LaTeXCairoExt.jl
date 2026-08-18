@@ -294,27 +294,53 @@ end
 Merge multiple PDF files or specific pages into `output_pdf` using `qpdf`.
 """
 function BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
-    qpdf_args = String[]
-    for src in sources
-        if src isa Pair || src isa Tuple
-            file, spec = src
-            push!(qpdf_args, String(file))
-            if spec isa AbstractVector{<:Integer}
-                push!(qpdf_args, join(spec, ","))
-            else
-                push!(qpdf_args, string(spec))
-            end
-        elseif src isa AbstractString
-            tokens = split(String(src))
-            append!(qpdf_args, tokens)
-        else
-            push!(qpdf_args, string(src))
-        end
-    end
-
     mkpath(dirname(output_pdf))
-    run(`qpdf --empty --pages $qpdf_args -- $output_pdf`)
+    has_qpdf = Sys.which("qpdf") !== nothing
+    has_mutool = Sys.which("mutool") !== nothing
+
+    if has_qpdf
+        qpdf_args = String[]
+        for src in sources
+            if src isa Pair || src isa Tuple
+                file, spec = src
+                push!(qpdf_args, String(file))
+                if spec isa AbstractVector{<:Integer}
+                    push!(qpdf_args, join(spec, ","))
+                else
+                    push!(qpdf_args, string(spec))
+                end
+            elseif src isa AbstractString
+                tokens = split(String(src))
+                append!(qpdf_args, tokens)
+            else
+                push!(qpdf_args, string(src))
+            end
+        end
+        run(`qpdf --empty --pages $qpdf_args -- $output_pdf`)
+    elseif has_mutool
+        mutool_args = String["merge", "-o", output_pdf]
+        for src in sources
+            if src isa Pair || src isa Tuple
+                file, spec = src
+                push!(mutool_args, String(file))
+                if spec isa AbstractVector{<:Integer}
+                    push!(mutool_args, join(spec, ","))
+                else
+                    push!(mutool_args, string(spec))
+                end
+            elseif src isa AbstractString
+                tokens = split(String(src))
+                append!(mutool_args, tokens)
+            else
+                push!(mutool_args, string(src))
+            end
+        end
+        run(`mutool $mutool_args`)
+    else
+        error("pdf_merge requires 'qpdf' or 'mutool' to be installed and in PATH.")
+    end
     return output_pdf
 end
 
 end # module
+
