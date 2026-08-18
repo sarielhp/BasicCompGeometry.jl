@@ -478,6 +478,7 @@ function generate_mode1(
     end
     println("Generated $total_pages SVG slides in: $svg_dir")
     println("HTML Presentation: ", get_file_path(c_html))
+    return k_star
 end
 
 # ==============================================================================
@@ -490,6 +491,7 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
     total_pages = length(powers)
 
+    last_k_star = 0
     for (page_idx, p) in enumerate(powers)
         N = 2^p
         pts = [point(rand(), rand()) for _ in 1:N]
@@ -499,6 +501,7 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
         k_star = argmax(areas)
         p_star = pts[k_star]
         max_area = areas[k_star]
+        last_k_star = k_star
         L = compute_total_unique_edge_length(cells)
 
         r_unit = sqrt(0.10 / (pi * N))
@@ -534,6 +537,7 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
             Cairo.show_page(canvas)
         end
     end
+    return last_k_star
 end
 
 function generate_mode2(
@@ -554,8 +558,9 @@ function generate_mode2(
 
     # 1. Multi-page PDF via Canvas
     println("Mode 2: Rendering $total_pages powers-of-2 pages into PDF via Canvas: $pdf_filename...")
+    last_k = 0
     open_canvas(pdf_filename, cw, ch) do canvas
-        _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
+        last_k = _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     end
     println("Successfully generated Mode 2 PDF ($total_pages pages): $pdf_filename")
 
@@ -567,6 +572,7 @@ function generate_mode2(
     end
     println("Generated $total_pages SVG slides in: $svg_dir")
     println("HTML Presentation: ", get_file_path(c_html))
+    return last_k
 end
 
 # ==============================================================================
@@ -844,6 +850,7 @@ function generate_mode3(
     end
     println("Generated 8 SVG slides in: $svg_dir")
     println("HTML Presentation: ", get_file_path(c_html))
+    return k_star
 end
 
 # Backward compatibility aliases
@@ -928,11 +935,12 @@ Examples:
     end
 
     println("="^70)
+    largest_idx = nothing
     if mode_str in ["1", "mode1", "prefix"]
         N = !isnothing(N_arg) ? N_arg : 100
         println("Prophet Voronoi Diagram - Mode 1 (Prefix Sequence, N = $N)")
         println("="^70)
-        generate_mode1(pdf_path, svg_dir; N=N, seed=seed_arg)
+        largest_idx = generate_mode1(pdf_path, svg_dir; N=N, seed=seed_arg)
     elseif mode_str in ["2", "mode2", "powers"]
         println("Prophet Voronoi Diagram - Mode 2 (Powers of 2: N = 2^3..2^12)")
         println("="^70)
@@ -941,15 +949,18 @@ Examples:
         N = !isnothing(N_arg) ? N_arg : 100
         println("Prophet Voronoi Diagram - Mode 3 [Default] (8-Page Prophet Comparison, N = $N)")
         println("="^70)
-        generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
+        largest_idx = generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
     else
         N = !isnothing(N_arg) ? N_arg : 100
         println("Unknown mode: '$mode_str'. Available modes: 1 (prefix), 2 (powers), 3 (default prophet comparison).")
         println("Falling back to default Mode 3 (N = $N)...")
         println("="^70)
-        generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
+        largest_idx = generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
     end
     println("="^70)
+    if !isnothing(largest_idx)
+        println("Largest cell index: $largest_idx")
+    end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
