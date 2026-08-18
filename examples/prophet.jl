@@ -361,8 +361,6 @@ function render_voronoi_page!(
         py_canvas = ch - margin - 0.1 * scale_factor - p_star[2] * scale_factor
         cairo_draw_latex(cr, px_canvas + 8.0, py_canvas - 4.0, "\$p^*\$"; fontsize=13.0, halign=:left, valign=:bottom)
     end
-
-    Cairo.show_page(cr)
 end
 
 # ==============================================================================
@@ -400,6 +398,9 @@ function _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area
         render_voronoi_page!(canvas, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
                              title, subtitle; highlight_k_star = has_prophet, show_text = true)
         description(canvas, subtitle)
+        if i < N
+            Cairo.show_page(canvas)
+        end
     end
 end
 
@@ -491,6 +492,9 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
         render_voronoi_page!(canvas, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
                              title, subtitle; highlight_k_star = true, show_text = true)
         description(canvas, subtitle)
+        if page_idx < total_pages
+            Cairo.show_page(canvas)
+        end
     end
 end
 

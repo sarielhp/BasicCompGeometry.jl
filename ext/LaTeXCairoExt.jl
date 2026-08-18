@@ -284,11 +284,11 @@ $(String(latex_str))
         raw_h = Float64(Cairo.height(img))
         scale = min(cw / raw_w, ch / raw_h)
 
-        Cairo.save(actual_cr)
-        Cairo.scale(actual_cr, scale, scale)
-        Cairo.set_source_surface(actual_cr, img, 0, 0)
-        Cairo.paint(actual_cr)
-        Cairo.restore(actual_cr)
+        Cairo.save(cr)
+        Cairo.scale(cr, scale, scale)
+        Cairo.set_source_surface(cr, img, 0, 0)
+        Cairo.paint(cr)
+        Cairo.restore(cr)
     finally
         rm(temp_dir, recursive=true, force=true)
     end

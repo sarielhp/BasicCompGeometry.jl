@@ -129,19 +129,22 @@ end
 
 function _ensure_surface!(c::Canvas)
     !c.needs_new_surface && return
+    c.needs_new_surface = false
     if c.fmt == :svg
         next_file = _svg_page_filename(c.path, c.page)
-        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
-        c.cr = Cairo.CairoContext(c.surface)
+        surf = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
+        c.surface = surf
+        c.cr = Cairo.CairoContext(surf)
     elseif c.fmt == :html
         next_file = joinpath(c.htmldir, @sprintf("page_%03d.svg", c.page))
-        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
-        c.cr = Cairo.CairoContext(c.surface)
+        surf = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
+        c.surface = surf
+        c.cr = Cairo.CairoContext(surf)
     elseif c.fmt in (:png, :gif)
-        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
-        c.cr = Cairo.CairoContext(c.surface)
+        surf = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
+        c.surface = surf
+        c.cr = Cairo.CairoContext(surf)
     end
-    c.needs_new_surface = false
     return
 end
 
@@ -558,6 +561,13 @@ function BasicCompGeometry.open_canvas(f::Function, path::String, cw::Real, ch::
     return c
 end
 
+function Base.getproperty(c::Canvas, s::Symbol)
+    if s === :cr || s === :surface
+        _ensure_surface!(c)
+    end
+    return getfield(c, s)
+end
+
 Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 
@@ -571,13 +581,11 @@ BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close))
 
 # Cairo drawing primitives forwarding
-for fn in (:save, :restore, :new_path, :close_path, :stroke, :fill, :fill_preserve)
+for fn in (:save, :restore, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
-for fn in (:set_line_width, :paint)
-    @eval Cairo.$fn(c::Canvas, a) = (_ensure_surface!(c); Cairo.$fn(c.cr, a))
-end
+Cairo.set_line_width(c::Canvas, a) = (_ensure_surface!(c); Cairo.set_line_width(c.cr, a))
 
 for fn in (:move_to, :line_to, :translate, :scale)
     @eval Cairo.$fn(c::Canvas, a, b) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b))
