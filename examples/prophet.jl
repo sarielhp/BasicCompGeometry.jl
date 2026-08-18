@@ -264,8 +264,8 @@ function render_voronoi_page!(
     Cairo.translate(cr, margin + 0.1 * scale_factor, ch - margin - 0.1 * scale_factor)
     Cairo.scale(cr, scale_factor, -scale_factor)
 
-    # 1. Draw outer square boundary around [-0.1, 1.1]^2 in light pink
-    set_source_rgb(cr, 1.0, 0.72, 0.80)
+    # 1. Draw outer square boundary around [-0.1, 1.1]^2 in white
+    set_source_rgb(cr, 1.0, 1.0, 1.0)
     Cairo.set_line_width(cr, 3.0)
     Cairo.rectangle(cr, -0.1, -0.1, 1.2, 1.2)
     Cairo.stroke(cr)
@@ -612,7 +612,6 @@ k^* = \\arg\\max_{1 \\le i \\le N} \\operatorname{Area}\\bigl(V_N(p_i)\\bigr).
 \\subsection*{Visual Encoding}
 \\begin{itemize}
   \\item \\textbf{Golden Boundary:} Outlines the fundamental unit domain \$[0, 1]^2\$.
-  \\item \\textbf{Pink Margin:} Outlines the rendered \$[-0.1, 1.1]^2\$ bounding region for periodic boundary continuity.
   \\item \\textbf{Gray Polygons:} The \$N\$ periodic Voronoi cells \$V_N(p_1), \\dots, V_N(p_N)\$.
   \\item \\textbf{Blue Highlight:} The prophet cell \$V_N(p_{k^*})\$ with highlighted site marker.
 \\end{itemize}
