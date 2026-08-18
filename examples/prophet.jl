@@ -362,13 +362,6 @@ function render_voronoi_page!(
     end
 
     Cairo.restore(cr)
-
-    # Draw LaTeX math label for prophet site if highlighted and points are shown
-    if show_points && highlight_k_star && k_star <= N
-        px_canvas = margin + 0.1 * scale_factor + p_star[1] * scale_factor
-        py_canvas = ch - margin - 0.1 * scale_factor - p_star[2] * scale_factor
-        cairo_draw_latex(cr, px_canvas + 8.0, py_canvas - 4.0, "\$p^*\$"; fontsize=13.0, halign=:left, valign=:bottom)
-    end
 end
 
 # ==============================================================================
