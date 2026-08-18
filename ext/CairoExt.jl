@@ -201,12 +201,41 @@ function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20,
     end
 end
 
+function _embed_svg_description(svg_path::String, text::String)
+    isempty(strip(text)) && return
+    !isfile(svg_path) && return
+    content = read(svg_path, String)
+    occursin("<desc>", content) && return
+
+    xml_clean_text = replace(text, "&" => "&amp;", "<" => "&lt;", ">" => "&gt;")
+    comment_clean_text = replace(text, "--" => "- -")
+
+    injection = "\n<!-- $(comment_clean_text) -->\n<desc>$(xml_clean_text)</desc>\n"
+    m = match(r"(<svg[^>]*>)", content)
+    if m !== nothing
+        pos = m.offset + length(m.match)
+        new_content = content[1:pos] * injection * content[(pos + 1):end]
+        write(svg_path, new_content)
+    end
+end
+
 function Cairo.show_page(c::Canvas)
     if c.fmt == :pdf
         Cairo.show_page(c.cr)
         c.page += 1
     elseif c.fmt in (:svg, :html)
         Cairo.finish(c.surface)
+        if c.fmt == :svg
+            cur_file = _svg_page_filename(c.path, c.page)
+            if haskey(c.descriptions, c.page)
+                _embed_svg_description(cur_file, c.descriptions[c.page])
+            end
+        elseif c.fmt == :html
+            cur_file = joinpath(c.htmldir, @sprintf("page_%03d.svg", c.page))
+            if haskey(c.descriptions, c.page)
+                _embed_svg_description(cur_file, c.descriptions[c.page])
+            end
+        end
         c.page += 1
         c.needs_new_surface = true
     elseif c.fmt == :png
@@ -463,15 +492,27 @@ function Cairo.finish(c::Canvas)
             Cairo.finish(c.surface)
         end
         total_pages = c.needs_new_surface ? c.page - 1 : c.page
+        if !c.needs_new_surface && haskey(c.descriptions, total_pages)
+            cur_file = _svg_page_filename(c.path, total_pages)
+            _embed_svg_description(cur_file, c.descriptions[total_pages])
+        end
         if total_pages == 1 && !occursin("%", c.path)
             orig_page1 = _svg_page_filename(c.path, 1)
             if isfile(orig_page1) && orig_page1 != c.path
                 mv(orig_page1, c.path, force=true)
             end
+            if haskey(c.descriptions, 1)
+                _embed_svg_description(c.path, c.descriptions[1])
+            end
         end
     elseif c.fmt == :html
         if !c.needs_new_surface
             Cairo.finish(c.surface)
+        end
+        total_pages = c.needs_new_surface ? c.page - 1 : c.page
+        for (p, desc) in c.descriptions
+            f = joinpath(c.htmldir, @sprintf("page_%03d.svg", p))
+            _embed_svg_description(f, desc)
         end
         _write_html_presentation(c)
     elseif c.fmt == :png

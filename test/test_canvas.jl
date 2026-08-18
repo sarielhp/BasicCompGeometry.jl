@@ -117,12 +117,25 @@ using Cairo
         @test get_file_path(c_res) == abspath(expected_html)
         @test isfile(expected_html)
         @test isfile(joinpath(temp_dir, "my_slides", "page_001.svg"))
-        @test isfile(joinpath(temp_dir, "my_slides", "page_002.svg"))
+        # Check embedded comments in SVG slides
+        svg1_txt = read(joinpath(temp_dir, "my_slides", "page_001.svg"), String)
+        svg2_txt = read(joinpath(temp_dir, "my_slides", "page_002.svg"), String)
+        @test occursin("<!-- Initial point configuration. -->", svg1_txt)
+        @test occursin("<desc>Initial point configuration.</desc>", svg1_txt)
+        @test occursin("<!-- Convex hull / polygon boundary. -->", svg2_txt)
+        @test occursin("<desc>Convex hull / polygon boundary.</desc>", svg2_txt)
 
-        html_txt = read(expected_html, String)
-        @test occursin("my_slides", html_txt)
-        @test occursin("Initial point configuration.", html_txt)
-        @test occursin("Convex hull / polygon boundary.", html_txt)
+        # Test 8: Standalone SVG with embedded description
+        svg_comment_file = joinpath(temp_dir, "commented.svg")
+        open_canvas(svg_comment_file, 400, 400) do canvas
+            cairo_draw_setup(canvas, bb, 400, 400)
+            cairo_draw_points(canvas, pts, 3.0)
+            description(canvas, "Standalone Voronoi site embedding")
+        end
+        @test isfile(svg_comment_file)
+        c_txt = read(svg_comment_file, String)
+        @test occursin("<!-- Standalone Voronoi site embedding -->", c_txt)
+        @test occursin("<desc>Standalone Voronoi site embedding</desc>", c_txt)
 
     finally
         rm(temp_dir, recursive=true, force=true)
