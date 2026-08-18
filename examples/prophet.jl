@@ -206,7 +206,7 @@ function render_voronoi_page!(
     show_text::Bool = false,
     show_points::Bool = true,
     highlight_cells::Vector{Int} = Int[],
-    highlight_color::NTuple{4, Float64} = (0.92, 0.22, 0.22, 0.55),
+    highlight_color::Union{NTuple{3, Float64}, NTuple{4, Float64}} = (0.95, 0.60, 0.60),
     highlight_stroke_color::NTuple{3, Float64} = (0.80, 0.10, 0.10)
 )
     N = length(pts)
@@ -265,7 +265,7 @@ function render_voronoi_page!(
     Cairo.stroke(cr)
 
     # 2. Fill all Voronoi cells of the middle square points in light gray
-    set_source_rgba(cr, 0.88, 0.88, 0.91, 0.55)
+    set_source_rgb(cr, 0.90, 0.90, 0.93)
     for cell in cells
         length(cell) < 3 && continue
         Cairo.new_path(cr)
@@ -277,9 +277,13 @@ function render_voronoi_page!(
         Cairo.fill(cr)
     end
 
-    # 3. Highlight specific cells (if provided)
+    # 3. Highlight specific cells (if provided) with solid uniform highlight color
     if !isempty(highlight_cells)
-        set_source_rgba(cr, highlight_color[1], highlight_color[2], highlight_color[3], highlight_color[4])
+        if length(highlight_color) == 4
+            set_source_rgba(cr, highlight_color[1], highlight_color[2], highlight_color[3], highlight_color[4])
+        else
+            set_source_rgb(cr, highlight_color[1], highlight_color[2], highlight_color[3])
+        end
         for idx in highlight_cells
             (idx < 1 || idx > length(cells)) && continue
             cell = cells[idx]
@@ -290,11 +294,7 @@ function render_voronoi_page!(
                 Cairo.line_to(cr, v[1], v[2])
             end
             Cairo.close_path(cr)
-            Cairo.fill_preserve(cr)
-
-            set_source_rgb(cr, highlight_stroke_color[1], highlight_stroke_color[2], highlight_stroke_color[3])
-            Cairo.set_line_width(cr, max(w_pt * 1.2, 1.2))
-            Cairo.stroke(cr)
+            Cairo.fill(cr)
         end
     end
 
@@ -302,18 +302,14 @@ function render_voronoi_page!(
     if highlight_k_star && k_star <= length(cells)
         largest_cell = cells[k_star]
         if length(largest_cell) >= 3
-            set_source_rgba(cr, 0.35, 0.65, 0.95, 0.50)
+            set_source_rgb(cr, 0.45, 0.72, 0.98)
             Cairo.new_path(cr)
             Cairo.move_to(cr, largest_cell[1][1], largest_cell[1][2])
             for v in largest_cell[2:end]
                 Cairo.line_to(cr, v[1], v[2])
             end
             Cairo.close_path(cr)
-            Cairo.fill_preserve(cr)
-
-            set_source_rgb(cr, 0.1, 0.4, 0.85)
-            Cairo.set_line_width(cr, max(w_pt * 1.5, 1.5))
-            Cairo.stroke(cr)
+            Cairo.fill(cr)
         end
     end
 
@@ -331,7 +327,23 @@ function render_voronoi_page!(
         Cairo.stroke(cr)
     end
 
-    # 5. Draw the boundary of the unit square [0, 1]^2 in light yellow (after diagram is drawn)
+    # 6. If prophet cell is highlighted, stroke its boundary with a distinct blue line
+    if highlight_k_star && k_star <= length(cells)
+        largest_cell = cells[k_star]
+        if length(largest_cell) >= 3
+            set_source_rgb(cr, 0.05, 0.35, 0.85)
+            Cairo.set_line_width(cr, max(w_pt * 1.6, 1.8))
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, largest_cell[1][1], largest_cell[1][2])
+            for v in largest_cell[2:end]
+                Cairo.line_to(cr, v[1], v[2])
+            end
+            Cairo.close_path(cr)
+            Cairo.stroke(cr)
+        end
+    end
+
+    # 7. Draw the boundary of the unit square [0, 1]^2 in light yellow (after diagram is drawn)
     set_source_rgb(cr, 0.98, 0.86, 0.20)
     Cairo.set_line_width(cr, max(w_pt * 1.5, 2.0))
     Cairo.rectangle(cr, 0.0, 0.0, 1.0, 1.0)
@@ -710,14 +722,13 @@ function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_sta
     description(canvas, "Page 3: Prefix Voronoi diagram of the first k = $k_star points when prophet site p_$k_star arrived.")
     Cairo.show_page(canvas)
 
-    # Page 4: Diagram 3 (NEW: Prefix cells larger in area than blue cell in green)
-    println("  Rendering Page 4 / 8: Prefix Voronoi Diagram (cells larger than prophet cell in green)...")
+    # Page 4: Diagram 3 (NEW: Prefix cells larger in area than blue cell in light green)
+    println("  Rendering Page 4 / 8: Prefix Voronoi Diagram (cells larger than prophet cell in light green)...")
     render_voronoi_page!(canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = true, show_text = false, show_points = true,
                          highlight_cells = larger_cells_k,
-                         highlight_color = (0.20, 0.75, 0.30, 0.55),
-                         highlight_stroke_color = (0.10, 0.60, 0.20))
-    description(canvas, "Page 4: Prefix Voronoi diagram at step k = $k_star highlighting $(num_larger) cells with area larger than the prophet cell (green).")
+                         highlight_color = (0.65, 0.92, 0.65))
+    description(canvas, "Page 4: Prefix Voronoi diagram at step k = $k_star highlighting $(num_larger) cells with area larger than the prophet cell (light green).")
     Cairo.show_page(canvas)
 
     # Page 5: Text 2
@@ -737,7 +748,7 @@ function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_sta
     render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = false, show_text = false, show_points = false,
                          highlight_cells = large_cells_half,
-                         highlight_color = (0.92, 0.22, 0.22, 0.55))
+                         highlight_color = (0.95, 0.60, 0.60))
     description(canvas, "Page 7: Final Voronoi diagram highlighting $(length(large_cells_half)) cells with area ≥ 1/2 of maximum area (red).")
     Cairo.show_page(canvas)
 
@@ -746,7 +757,7 @@ function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_sta
     render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = false, show_text = false, show_points = false,
                          highlight_cells = large_cells_quarter,
-                         highlight_color = (0.92, 0.22, 0.22, 0.55))
+                         highlight_color = (0.95, 0.60, 0.60))
     description(canvas, "Page 8: Final Voronoi diagram highlighting $(length(large_cells_quarter)) cells with area ≥ 1/4 of maximum area (red).")
 end
 
