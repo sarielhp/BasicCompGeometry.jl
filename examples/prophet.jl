@@ -770,7 +770,7 @@ function generate_mode3(
                                  highlight_k_star = true, show_text = false)
         end
         # Page 2: Text Page 1 (LaTeX)
-        run(`pdftocairo -svg -f 1 -l 1 $temp_text $(joinpath(svg_dir, "page_002.svg"))`)
+        run(pipeline(`pdftocairo -svg -f 1 -l 1 $temp_text $(joinpath(svg_dir, "page_002.svg"))`, stdout=devnull, stderr=devnull))
 
         # Page 3: Diagram 2 (Canvas SVG)
         open_canvas(joinpath(svg_dir, "page_003.svg"), cw, ch) do c
@@ -778,10 +778,10 @@ function generate_mode3(
                                  highlight_k_star = true, show_text = false)
         end
         # Page 4: Text Page 2 (LaTeX)
-        run(`pdftocairo -svg -f 2 -l 2 $temp_text $(joinpath(svg_dir, "page_004.svg"))`)
+        run(pipeline(`pdftocairo -svg -f 2 -l 2 $temp_text $(joinpath(svg_dir, "page_004.svg"))`, stdout=devnull, stderr=devnull))
 
         # Page 5: Text Page 3 (LaTeX)
-        run(`pdftocairo -svg -f 3 -l 3 $temp_text $(joinpath(svg_dir, "page_005.svg"))`)
+        run(pipeline(`pdftocairo -svg -f 3 -l 3 $temp_text $(joinpath(svg_dir, "page_005.svg"))`, stdout=devnull, stderr=devnull))
 
         # Page 6: Diagram 3 (Canvas SVG)
         open_canvas(joinpath(svg_dir, "page_006.svg"), cw, ch) do c

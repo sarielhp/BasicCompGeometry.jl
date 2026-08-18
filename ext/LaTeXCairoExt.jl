@@ -141,6 +141,17 @@ end
 
 Render a LaTeX snippet or mathematical formula `latex_str` onto the Cairo context `cr` at position `(x, y)`.
 """
+function _run_silent(cmd::Cmd)
+    buf = IOBuffer()
+    try
+        run(pipeline(cmd, stdout=buf, stderr=buf))
+    catch e
+        output = String(take!(buf))
+        !isempty(output) && println(stderr, output)
+        rethrow(e)
+    end
+end
+
 function BasicCompGeometry.cairo_draw_latex(
     cr,
     x::Real,
@@ -183,8 +194,8 @@ $body
         end
 
         try
-            run(Cmd(`$compiler -interaction=nonstopmode snippet.tex`, dir=temp_dir))
-            run(`pdftocairo -png -r $dpi -singlefile $pdf_path $png_base`)
+            _run_silent(Cmd(`$compiler -interaction=nonstopmode snippet.tex`, dir=temp_dir))
+            _run_silent(`pdftocairo -png -r $dpi -singlefile $pdf_path $png_base`)
             return Cairo.read_from_png(png_path)
         finally
             rm(temp_dir, recursive=true, force=true)
@@ -276,11 +287,13 @@ $body
     end
 
     for _ in 1:max(1, passes)
-        run(Cmd(`$compiler -interaction=nonstopmode -output-directory=$temp_dir $tex_path`, dir=temp_dir))
+        _run_silent(Cmd(`$compiler -interaction=nonstopmode -output-directory=$temp_dir $tex_path`, dir=temp_dir))
     end
 
     if !isfile(pdf_path)
-        error("LaTeX compilation failed to produce $pdf_path using $compiler")
+        log_file = joinpath(temp_dir, "document.log")
+        log_msg = isfile(log_file) ? "\n" * read(log_file, String) : ""
+        error("LaTeX compilation failed to produce $pdf_path using $compiler$log_msg")
     end
 
     mkpath(dirname(output_path))
@@ -317,7 +330,7 @@ function BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
                 push!(qpdf_args, string(src))
             end
         end
-        run(`qpdf --empty --pages $qpdf_args -- $output_pdf`)
+        _run_silent(`qpdf --empty --pages $qpdf_args -- $output_pdf`)
     elseif has_mutool
         mutool_args = String["merge", "-o", output_pdf]
         for src in sources
@@ -336,7 +349,7 @@ function BasicCompGeometry.pdf_merge(output_pdf::String, sources...)
                 push!(mutool_args, string(src))
             end
         end
-        run(`mutool $mutool_args`)
+        _run_silent(`mutool $mutool_args`)
     else
         error("pdf_merge requires 'qpdf' or 'mutool' to be installed and in PATH.")
     end
