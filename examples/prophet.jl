@@ -815,7 +815,7 @@ function main(args=ARGS)
     # Check for help
     if any(a -> a in ("-h", "--help", "help"), args)
         println("""
-Usage: prophet.jl [mode] [N] [seed]
+Usage: prophet.jl [mode] [N]
        prophet.jl [N]
 
 Arguments:
@@ -823,17 +823,33 @@ Arguments:
            3 or 'prophet' : 7-page prophet comparison (default)
            1 or 'prefix'  : Prefix Voronoi sequence
            2 or 'powers'  : Powers of 2 sequence (N = 2^3..2^12)
-  N      Number of points (default: 100 for Modes 1 and 3)
-  seed   Random seed (optional integer)
+  N      Number of points (default: 100)
 
 Examples:
   julia --project=examples examples/prophet.jl
   julia --project=examples examples/prophet.jl 50
-  julia --project=examples examples/prophet.jl 3 200 42
   julia --project=examples examples/prophet.jl 1 50
-  julia --project=examples examples/prophet.jl 2 42
+  julia --project=examples examples/prophet.jl 2
 """)
         return
+    end
+
+    # Extract optional --seed / -s flag if specified
+    seed_arg = nothing
+    filtered_args = String[]
+    i = 1
+    while i <= length(args)
+        arg = args[i]
+        if (arg == "--seed" || arg == "-s") && i < length(args)
+            seed_arg = tryparse(Int, args[i+1])
+            i += 2
+        elseif startswith(arg, "--seed=")
+            seed_arg = tryparse(Int, split(arg, '=', limit=2)[2])
+            i += 1
+        else
+            push!(filtered_args, arg)
+            i += 1
+        end
     end
 
     outdir = normpath(joinpath(@__DIR__, "..", "output"))
@@ -841,29 +857,28 @@ Examples:
     pdf_path = joinpath(outdir, "prophet.pdf")
     svg_dir = joinpath(outdir, "svg")
 
-    first_arg = length(args) >= 1 ? args[1] : ""
+    first_arg = length(filtered_args) >= 1 ? filtered_args[1] : ""
     mode_str = "3"
     N_arg = nothing
-    seed_arg = nothing
 
-    if isempty(args)
+    if isempty(filtered_args)
         mode_str = "3"
     elseif tryparse(Int, first_arg) !== nothing && parse(Int, first_arg) > 3
         # e.g. prophet.jl 200
         mode_str = "3"
         N_arg = parse(Int, first_arg)
-        if length(args) >= 2
-            seed_arg = tryparse(Int, args[2])
+        if length(filtered_args) >= 2 && isnothing(seed_arg)
+            seed_arg = tryparse(Int, filtered_args[2])
         end
     else
         mode_str = lowercase(first_arg)
-        if length(args) >= 2
-            if mode_str in ("2", "mode2", "powers")
-                seed_arg = tryparse(Int, args[2])
+        if length(filtered_args) >= 2
+            if mode_str in ("2", "mode2", "powers") && isnothing(seed_arg)
+                seed_arg = tryparse(Int, filtered_args[2])
             else
-                N_arg = tryparse(Int, args[2])
-                if length(args) >= 3
-                    seed_arg = tryparse(Int, args[3])
+                N_arg = tryparse(Int, filtered_args[2])
+                if length(filtered_args) >= 3 && isnothing(seed_arg)
+                    seed_arg = tryparse(Int, filtered_args[3])
                 end
             end
         end
