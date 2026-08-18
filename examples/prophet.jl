@@ -738,6 +738,232 @@ function generate_mode3_pdf(
 end
 
 # ==============================================================================
+# SVG & HTML Presentation Export
+# ==============================================================================
+function export_pdf_to_svg_presentation(pdf_path::String, svg_dir::String)
+    mkpath(svg_dir)
+
+    # Clean old files in output/svg
+    for f in readdir(svg_dir)
+        if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
+            rm(joinpath(svg_dir, f), force=true)
+        end
+    end
+
+    # Determine total pages in the PDF
+    page_count = 1
+    try
+        info_out = read(`pdfinfo $pdf_path`, String)
+        m = match(r"Pages:\s+(\d+)", info_out)
+        if m !== nothing
+            page_count = parse(Int, m.captures[1])
+        end
+    catch
+        # Fallback if pdfinfo is not installed
+        page_count = 1
+    end
+
+    println("Exporting $page_count PDF page(s) to SVG in $svg_dir via pdftocairo...")
+    svg_files = String[]
+    for p in 1:page_count
+        svg_name = @sprintf("page_%03d.svg", p)
+        svg_path = joinpath(svg_dir, svg_name)
+        run(`pdftocairo -svg -f $p -l $p $pdf_path $svg_path`)
+        push!(svg_files, svg_name)
+    end
+
+    slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
+    html_content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prophet Voronoi Presentation</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header {
+      width: 100%;
+      padding: 12px 24px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { font-size: 1.1rem; font-weight: 600; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    button, select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+    }
+    button:hover:not(:disabled) {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .slide-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 20px;
+    }
+    .slide-wrapper {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .slide-wrapper img {
+      width: 100%;
+      height: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+      display: block;
+    }
+    footer {
+      width: 100%;
+      padding: 10px 24px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .kbd {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Prophet Voronoi Presentation</h1>
+    <div class="controls">
+      <button id="prevBtn" onclick="prevSlide()">← Prev</button>
+      <select id="slideSelect" onchange="jumpSlide(parseInt(this.value))"></select>
+      <button id="nextBtn" onclick="nextSlide()">Next →</button>
+      <button id="fullscreenBtn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+  </header>
+
+  <main class="slide-container" id="mainContainer">
+    <div class="slide-wrapper" id="slideWrapper">
+      <img id="slideImg" src="" alt="Slide">
+    </div>
+  </main>
+
+  <footer>
+    <span id="pageStatus">Slide 1 of $(length(svg_files))</span>
+    <span>Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> to navigate</span>
+  </footer>
+
+  <script>
+    const slides = $slides_json;
+    let currentIdx = 0;
+
+    const img = document.getElementById('slideImg');
+    const select = document.getElementById('slideSelect');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageStatus = document.getElementById('pageStatus');
+
+    slides.forEach((s, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `Slide \${idx + 1} (\${s})`;
+      select.appendChild(opt);
+    });
+
+    function showSlide(idx) {
+      if (idx < 0 || idx >= slides.length) return;
+      currentIdx = idx;
+      img.src = slides[currentIdx];
+      select.value = currentIdx;
+      prevBtn.disabled = currentIdx === 0;
+      nextBtn.disabled = currentIdx === slides.length - 1;
+      pageStatus.textContent = `Slide \${currentIdx + 1} of \${slides.length}`;
+    }
+
+    function prevSlide() { showSlide(currentIdx - 1); }
+    function nextSlide() { showSlide(currentIdx + 1); }
+    function jumpSlide(idx) { showSlide(idx); }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key === 'Home') {
+        showSlide(0);
+      } else if (e.key === 'End') {
+        showSlide(slides.length - 1);
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      }
+    });
+
+    showSlide(0);
+  </script>
+</body>
+</html>
+"""
+    index_path = joinpath(svg_dir, "index.html")
+    write(index_path, html_content)
+    println("Generated $(length(svg_files)) SVG slides in: $svg_dir")
+    println("HTML Presentation: ", abspath(index_path))
+end
+
+# ==============================================================================
 # CLI Entrypoint
 # ==============================================================================
 function main(args=ARGS)
@@ -746,6 +972,7 @@ function main(args=ARGS)
     outdir = normpath(joinpath(@__DIR__, "..", "output"))
     mkpath(outdir)
     pdf_path = joinpath(outdir, "prophet.pdf")
+    svg_dir = joinpath(outdir, "svg")
 
     println("="^70)
     if mode_str in ["1", "mode1", "prefix"]
@@ -771,6 +998,10 @@ function main(args=ARGS)
         println("="^70)
         generate_mode3_pdf(pdf_path; N=1000)
     end
+    println("="^70)
+
+    # Generate SVGs and HTML presentation index
+    export_pdf_to_svg_presentation(pdf_path, svg_dir)
     println("="^70)
 end
 

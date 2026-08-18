@@ -155,6 +155,7 @@ function BasicCompGeometry.cairo_draw_latex(
     extra_packages::Vector{String} = String[],
     preamble::AbstractString = ""
 )
+    actual_cr = cr isa Cairo.CairoContext ? cr : (hasproperty(cr, :cr) ? cr.cr : cr)
     str = String(latex_str)
     full_preamble = BasicCompGeometry.get_latex_preamble(extra_packages=extra_packages, extra_preamble=preamble)
     cache_key = (str, Float64(fontsize), dpi, compiler, full_preamble)
@@ -215,12 +216,12 @@ $body
         -draw_h * 0.80
     end
 
-    Cairo.save(cr)
-    Cairo.translate(cr, x + x_offset, y + y_offset)
-    Cairo.scale(cr, pt_scale, pt_scale)
-    Cairo.set_source_surface(cr, img, 0, 0)
-    Cairo.paint(cr)
-    Cairo.restore(cr)
+    Cairo.save(actual_cr)
+    Cairo.translate(actual_cr, x + x_offset, y + y_offset)
+    Cairo.scale(actual_cr, pt_scale, pt_scale)
+    Cairo.set_source_surface(actual_cr, img, 0, 0)
+    Cairo.paint(actual_cr)
+    Cairo.restore(actual_cr)
     return
 end
 

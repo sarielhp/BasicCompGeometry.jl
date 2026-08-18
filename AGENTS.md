@@ -25,10 +25,12 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
 The library uses Julia's package extension mechanism (`[weakdeps]` and `[extensions]`) to keep the core dependency footprint lightweight while providing rich visualization and documentation capabilities.
 
 ### A. `CairoExt` (Activated via `using Cairo`)
-Defined in [`ext/CairoExt.jl`](ext/CairoExt.jl). Provides core 2D vector canvas transformations and primitives:
-- `cairo_draw_setup(cr, bb, cw, ch, margin=20)`: Auto-scales and flips the y-axis (y-upwards mathematical orientation) to fit a bounding box onto a canvas.
-- `cairo_draw_points(cr, points, radius=2)`: Draws point sequences as filled circles.
-- `cairo_draw_polygon(cr, poly, close=true)`: Draws and strokes polygon boundaries.
+Defined in [`ext/CairoExt.jl`](ext/CairoExt.jl). Provides core 2D vector canvas transformations, primitives, and unified multi-page/animated output:
+- `Canvas(path, cw, ch; fps=20)`: Unified canvas supporting `.pdf` (multi-page PDF), `.svg` (multi-page SVG sequence), `.png` (multi-frame PNG sequence), and `.gif` (animated GIF via `ffmpeg`).
+- `open_canvas(f, path, cw, ch; fps=20)`: Opens canvas, passes to `f(canvas)`, and automatically finalizes on exit.
+- `cairo_draw_setup(cr_or_canvas, bb, cw, ch, margin=20)`: Auto-scales and flips the y-axis (y-upwards mathematical orientation) to fit a bounding box onto a canvas.
+- `cairo_draw_points(cr_or_canvas, points, radius=2)`: Draws point sequences as filled circles.
+- `cairo_draw_polygon(cr_or_canvas, poly, close=true)`: Draws and strokes polygon boundaries.
 
 ### B. `BBTCairoExt` (Activated via `using Cairo, Colors`)
 Defined in [`ext/BBTCairoExt.jl`](ext/BBTCairoExt.jl).

@@ -108,5 +108,23 @@ Requires `Cairo` and `LaTeXStrings`.
 """
 function get_latex_preamble end
 
+"""
+    Canvas(filename, canvas_width, canvas_height; fps=20)
+
+Create a unified 2D vector/raster canvas supporting `.pdf`, `.svg`, `.png`, and `.gif`.
+Allows drawing and multi-page / animated transitions (`Cairo.show_page`) with identical syntax.
+Requires `Cairo`.
+"""
+function Canvas end
+
+"""
+    open_canvas(f::Function, filename, canvas_width, canvas_height; kwargs...)
+
+Execute function `f(canvas)` and automatically finalize and flush with `Cairo.finish`.
+Requires `Cairo`.
+"""
+function open_canvas end
+
 export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, latex_to_pdf, pdf_merge
 export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
+export Canvas, open_canvas

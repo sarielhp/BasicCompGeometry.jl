@@ -2,6 +2,8 @@ module CairoExt
 
 using BasicCompGeometry
 import Cairo
+import Cairo: show_page, finish
+using Printf
 
 """
     cairo_draw_setup(cr, bb, canvas_width, canvas_height, margin=20)
@@ -69,5 +71,164 @@ function BasicCompGeometry.cairo_draw_polygon(cr, poly, close::Bool=true)
     C.stroke(cr)
     return
 end
+
+# --- Unified Multi-Page / Animated Canvas ---
+
+"""
+    Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
+
+Create a unified 2D vector / raster canvas supporting:
+- `.pdf`: Multi-page PDF document
+- `.svg`: Multi-page SVG sequence (e.g. `slide_001.svg`, `slide_002.svg`, ...)
+- `.png`: Multi-frame PNG sequence (e.g. `frame_0001.png`, `frame_0002.png`, ...)
+- `.gif`: High-quality animated GIF (via `ffmpeg` on finish)
+
+Advance pages or animation frames with `Cairo.show_page(canvas)`.
+Finalize and flush to disk with `Cairo.finish(canvas)`.
+"""
+mutable struct Canvas
+    path::String
+    cw::Float64
+    ch::Float64
+    fmt::Symbol             # :pdf, :svg, :png, :gif
+    page::Int
+    fps::Int
+    tempdir::String
+    surface::Cairo.CairoSurfaceBase
+    cr::Cairo.CairoContext
+end
+
+function _svg_page_filename(pattern::String, page::Int)
+    if occursin("%", pattern)
+        return Printf.format(Printf.Format(pattern), page)
+    end
+    base, ext = splitext(pattern)
+    return "$(base)_$(lpad(page, 3, '0'))$(ext)"
+end
+
+function _png_page_filename(pattern::String, page::Int)
+    if occursin("%", pattern)
+        return Printf.format(Printf.Format(pattern), page)
+    end
+    base, ext = splitext(pattern)
+    return "$(base)_$(lpad(page, 4, '0'))$(ext)"
+end
+
+function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
+    ext = lowercase(splitext(path)[2])
+    w = Float64(cw)
+    h = Float64(ch)
+
+    if ext == ".pdf"
+        surf = Cairo.CairoPDFSurface(path, w, h)
+        cr = Cairo.CairoContext(surf)
+        return Canvas(path, w, h, :pdf, 1, fps, "", surf, cr)
+    elseif ext == ".svg"
+        fmt_path = _svg_page_filename(path, 1)
+        surf = Cairo.CairoSVGSurface(fmt_path, w, h)
+        cr = Cairo.CairoContext(surf)
+        return Canvas(path, w, h, :svg, 1, fps, "", surf, cr)
+    elseif ext == ".png"
+        surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
+        cr = Cairo.CairoContext(surf)
+        return Canvas(path, w, h, :png, 1, fps, "", surf, cr)
+    elseif ext == ".gif"
+        tmp = mktempdir()
+        surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
+        cr = Cairo.CairoContext(surf)
+        return Canvas(path, w, h, :gif, 1, fps, tmp, surf, cr)
+    else
+        error("Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, or .gif")
+    end
+end
+
+function Cairo.show_page(c::Canvas)
+    if c.fmt == :pdf
+        Cairo.show_page(c.cr)
+        c.page += 1
+    elseif c.fmt == :svg
+        Cairo.finish(c.surface)
+        c.page += 1
+        next_file = _svg_page_filename(c.path, c.page)
+        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
+        c.cr = Cairo.CairoContext(c.surface)
+    elseif c.fmt == :png
+        cur_file = _png_page_filename(c.path, c.page)
+        Cairo.write_to_png(c.surface, cur_file)
+        Cairo.finish(c.surface)
+        c.page += 1
+        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
+        c.cr = Cairo.CairoContext(c.surface)
+    elseif c.fmt == :gif
+        frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
+        Cairo.write_to_png(c.surface, frame_file)
+        Cairo.finish(c.surface)
+        c.page += 1
+        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
+        c.cr = Cairo.CairoContext(c.surface)
+    end
+    return c
+end
+
+function Cairo.finish(c::Canvas)
+    if c.fmt == :pdf
+        Cairo.finish(c.surface)
+    elseif c.fmt == :svg
+        Cairo.finish(c.surface)
+        if c.page == 1 && !occursin("%", c.path)
+            orig_page1 = _svg_page_filename(c.path, 1)
+            if isfile(orig_page1) && orig_page1 != c.path
+                mv(orig_page1, c.path, force=true)
+            end
+        end
+    elseif c.fmt == :png
+        cur_file = _png_page_filename(c.path, c.page)
+        Cairo.write_to_png(c.surface, cur_file)
+        Cairo.finish(c.surface)
+        if c.page == 1 && !occursin("%", c.path)
+            orig_page1 = _png_page_filename(c.path, 1)
+            if isfile(orig_page1) && orig_page1 != c.path
+                mv(orig_page1, c.path, force=true)
+            end
+        end
+    elseif c.fmt == :gif
+        frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
+        Cairo.write_to_png(c.surface, frame_file)
+        Cairo.finish(c.surface)
+        try
+            if Sys.which("ffmpeg") !== nothing
+                cmd = `ffmpeg -y -loglevel error -framerate $(c.fps) -i $(joinpath(c.tempdir, "frame_%05d.png")) -filter_complex "split[a][b];[a]palettegen[p];[b][p]paletteuse" $(c.path)`
+                run(cmd)
+            else
+                @warn "ffmpeg not found in PATH; GIF was not generated at $(c.path)"
+            end
+        finally
+            rm(c.tempdir, recursive=true, force=true)
+        end
+    end
+    return
+end
+
+function BasicCompGeometry.open_canvas(f::Function, path::String, cw::Real, ch::Real; kwargs...)
+    c = BasicCompGeometry.Canvas(path, cw, ch; kwargs...)
+    try
+        f(c)
+    finally
+        Cairo.finish(c)
+    end
+    return c
+end
+
+Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = c.cr.ptr
+Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = c.cr.ptr
+
+BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20) where {T} =
+    BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin)
+
+BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
+    BasicCompGeometry.cairo_draw_points(c.cr, points, radius)
+
+BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
+    BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close)
 
 end # module
