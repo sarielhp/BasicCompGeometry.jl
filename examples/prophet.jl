@@ -226,6 +226,12 @@ function render_voronoi_page!(
         r_unit = r_pt / scale_factor
     end
 
+    # Linewidth should never exceed the radius of the points
+    if w_pt > r_pt
+        w_pt = r_pt
+        w_unit = w_pt / scale_factor
+    end
+
     r_blue_pt = min(1.35 * r_pt, max_radius_pt * 1.35)
     r_blue_halo_pt = min(2.0 * r_pt, max_radius_pt * 2.0)
 
@@ -332,7 +338,7 @@ function render_voronoi_page!(
         largest_cell = cells[k_star]
         if length(largest_cell) >= 3
             set_source_rgb(cr, 0.05, 0.35, 0.85)
-            Cairo.set_line_width(cr, max(w_pt * 1.6, 1.8))
+            Cairo.set_line_width(cr, min(max(w_pt * 1.6, 1.8), r_pt))
             Cairo.new_path(cr)
             Cairo.move_to(cr, largest_cell[1][1], largest_cell[1][2])
             for v in largest_cell[2:end]
@@ -504,6 +510,11 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
         if r_pt > max_radius_pt
             r_pt = max_radius_pt
             r_unit = r_pt / scale_factor
+        end
+
+        if w_pt > r_pt
+            w_pt = r_pt
+            w_unit = w_pt / scale_factor
         end
 
         total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
