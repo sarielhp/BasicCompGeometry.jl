@@ -109,10 +109,11 @@ Requires `Cairo` and `LaTeXStrings`.
 function get_latex_preamble end
 
 """
-    Canvas(filename, canvas_width, canvas_height; fps=20)
+    Canvas(filename, canvas_width, canvas_height; fps=20, title=nothing)
 
-Create a unified 2D vector/raster canvas supporting `.pdf`, `.svg`, `.png`, and `.gif`.
+Create a unified 2D vector/raster canvas supporting `.pdf`, `.svg`, `.png`, `.gif`, and `.html`.
 Allows drawing and multi-page / animated transitions (`Cairo.show_page`) with identical syntax.
+For `.html`, generates an interactive presentation directory containing the SVGs and `index.html`.
 Requires `Cairo`.
 """
 function Canvas end
@@ -125,6 +126,23 @@ Requires `Cairo`.
 """
 function open_canvas end
 
+"""
+    description(canvas_or_cr, text)
+
+Attach a descriptive text note to the current page/slide.
+For HTML canvas output, this description is displayed beneath the figure in the generated interactive presentation.
+For other formats, this call is a no-op unless embedded comments are supported.
+"""
+function description end
+
+"""
+    get_file_path(canvas_or_path)
+
+Retrieve the full absolute path of the generated output file.
+For HTML canvas output, returns the absolute path to `index.html`.
+"""
+function get_file_path end
+
 export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, latex_to_pdf, pdf_merge
 export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
-export Canvas, open_canvas
+export Canvas, open_canvas, description, get_file_path

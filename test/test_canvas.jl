@@ -94,7 +94,35 @@ using Cairo
             end
             @test isfile(gif_file)
             @test filesize(gif_file) > 0
+            @test get_file_path(gif_file) == abspath(gif_file)
         end
+
+        # Test 7: HTML Presentation Canvas
+        html_out = joinpath(temp_dir, "my_slides.html")
+        c_res = open_canvas(html_out, 400, 400) do canvas
+            # Page 1
+            cairo_draw_setup(canvas, bb, 400, 400)
+            cairo_draw_points(canvas, pts, 3.0)
+            description(canvas, "Initial point configuration.")
+            Cairo.show_page(canvas)
+
+            # Page 2
+            cairo_draw_setup(canvas, bb, 400, 400)
+            cairo_draw_polygon(canvas, pts)
+            description(canvas, "Convex hull / polygon boundary.")
+            Cairo.show_page(canvas)
+        end
+
+        expected_html = joinpath(temp_dir, "my_slides", "index.html")
+        @test get_file_path(c_res) == abspath(expected_html)
+        @test isfile(expected_html)
+        @test isfile(joinpath(temp_dir, "my_slides", "page_001.svg"))
+        @test isfile(joinpath(temp_dir, "my_slides", "page_002.svg"))
+
+        html_txt = read(expected_html, String)
+        @test occursin("my_slides", html_txt)
+        @test occursin("Initial point configuration.", html_txt)
+        @test occursin("Convex hull / polygon boundary.", html_txt)
 
     finally
         rm(temp_dir, recursive=true, force=true)

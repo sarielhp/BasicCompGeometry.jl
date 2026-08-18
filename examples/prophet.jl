@@ -399,6 +399,7 @@ function _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area
 
         render_voronoi_page!(canvas, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
                              title, subtitle; highlight_k_star = has_prophet, show_text = true)
+        description(canvas, subtitle)
     end
 end
 
@@ -433,7 +434,6 @@ function generate_mode1(
             k_star, p_star[1], p_star[2], max_area, max_area * 100)
 
     mkpath(dirname(pdf_filename))
-    _clean_svg_dir(svg_dir)
     total_pages = N - 3
 
     # 1. Multi-page PDF via Canvas
@@ -443,15 +443,14 @@ function generate_mode1(
     end
     println("Successfully generated Mode 1 PDF ($total_pages pages): $pdf_filename")
 
-    # 2. Multi-page SVG sequence natively via Canvas
-    svg_pattern = joinpath(svg_dir, "page_%03d.svg")
-    println("Mode 1: Rendering $total_pages SVG slides natively via Canvas: $svg_pattern...")
-    open_canvas(svg_pattern, cw, ch) do canvas
+    # 2. HTML Presentation via Canvas
+    html_target = joinpath(svg_dir, "index.html")
+    println("Mode 1: Rendering $total_pages HTML presentation slides via Canvas: $html_target...")
+    c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Sequence (Mode 1)") do canvas
         _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
     end
-
-    # 3. HTML Presentation
-    generate_presentation_html(svg_dir)
+    println("Generated $total_pages SVG slides in: $svg_dir")
+    println("HTML Presentation: ", get_file_path(c_html))
 end
 
 # ==============================================================================
@@ -491,6 +490,7 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
 
         render_voronoi_page!(canvas, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
                              title, subtitle; highlight_k_star = true, show_text = true)
+        description(canvas, subtitle)
     end
 end
 
@@ -508,7 +508,6 @@ function generate_mode2(
     end
 
     mkpath(dirname(pdf_filename))
-    _clean_svg_dir(svg_dir)
     total_pages = length(powers)
 
     # 1. Multi-page PDF via Canvas
@@ -518,15 +517,14 @@ function generate_mode2(
     end
     println("Successfully generated Mode 2 PDF ($total_pages pages): $pdf_filename")
 
-    # 2. Multi-page SVG sequence natively via Canvas
-    svg_pattern = joinpath(svg_dir, "page_%03d.svg")
-    println("Mode 2: Rendering $total_pages SVG slides natively via Canvas: $svg_pattern...")
-    open_canvas(svg_pattern, cw, ch) do canvas
+    # 2. HTML Presentation via Canvas
+    html_target = joinpath(svg_dir, "index.html")
+    println("Mode 2: Rendering $total_pages HTML presentation slides via Canvas: $html_target...")
+    c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Powers of 2 (Mode 2)") do canvas
         _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     end
-
-    # 3. HTML Presentation
-    generate_presentation_html(svg_dir)
+    println("Generated $total_pages SVG slides in: $svg_dir")
+    println("HTML Presentation: ", get_file_path(c_html))
 end
 
 # ==============================================================================
@@ -799,7 +797,16 @@ function generate_mode3(
         end
 
         # --- 5. Generate HTML Presentation ---
-        generate_presentation_html(svg_dir)
+        desc_map = Dict{Int, String}(
+            1 => "Final Voronoi diagram on the flat torus for N = $N points. Prophet site p_$k_star achieves maximum cell area $(round(max_area_final, digits=4)).",
+            2 => "LaTeX text documentation for Page 1: Final Voronoi Diagram.",
+            3 => "Prefix Voronoi diagram of the first k = $k_star points when prophet site p_$k_star arrived.",
+            4 => "LaTeX text documentation for Page 3: Prefix Voronoi Diagram.",
+            5 => "Mathematical background on prophet inequalities and extremal Voronoi statistics.",
+            6 => "Final Voronoi diagram highlighting cells with area ≥ 1/2 of maximum area (red).",
+            7 => "Final Voronoi diagram highlighting cells with area ≥ 1/4 of maximum area (red)."
+        )
+        generate_presentation_html(svg_dir; title="Prophet Voronoi Presentation (Mode 3)", descriptions=desc_map)
     finally
         rm(temp_dir, recursive=true, force=true)
     end
@@ -825,7 +832,11 @@ end
 # ==============================================================================
 # HTML Presentation Generator
 # ==============================================================================
-function generate_presentation_html(svg_dir::String)
+function generate_presentation_html(
+    svg_dir::String;
+    title::String = "Prophet Voronoi Presentation",
+    descriptions::Dict{Int, String} = Dict{Int, String}()
+)
     svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(svg_dir))
     sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
 
@@ -835,13 +846,16 @@ function generate_presentation_html(svg_dir::String)
     end
 
     slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
+    desc_array = [get(descriptions, i, "") for i in 1:length(svg_files)]
+    desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
+
     html_content = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prophet Voronoi Presentation</title>
+  <title>$(title)</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -895,17 +909,19 @@ function generate_presentation_html(svg_dir::String)
     .slide-container {
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
       padding: 20px;
+      gap: 14px;
     }
     .slide-wrapper {
       background: white;
       border-radius: 8px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
       max-width: 90vw;
-      max-height: 80vh;
+      max-height: 72vh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -914,9 +930,23 @@ function generate_presentation_html(svg_dir::String)
     .slide-wrapper img {
       width: 100%;
       height: 100%;
-      max-height: 80vh;
+      max-height: 72vh;
       object-fit: contain;
       display: block;
+    }
+    .slide-description {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 18px;
+      max-width: 90vw;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+      white-space: pre-wrap;
     }
     footer {
       width: 100%;
@@ -941,7 +971,7 @@ function generate_presentation_html(svg_dir::String)
 </head>
 <body>
   <header>
-    <h1>Prophet Voronoi Presentation</h1>
+    <h1>$(title)</h1>
     <div class="controls">
       <button id="prevBtn" onclick="prevSlide()">← Prev</button>
       <select id="slideSelect" onchange="jumpSlide(parseInt(this.value))"></select>
@@ -954,6 +984,7 @@ function generate_presentation_html(svg_dir::String)
     <div class="slide-wrapper" id="slideWrapper">
       <img id="slideImg" src="" alt="Slide">
     </div>
+    <div class="slide-description" id="slideDesc" style="display: none;"></div>
   </main>
 
   <footer>
@@ -963,9 +994,11 @@ function generate_presentation_html(svg_dir::String)
 
   <script>
     const slides = $slides_json;
+    const descriptions = $desc_json;
     let currentIdx = 0;
 
     const img = document.getElementById('slideImg');
+    const desc = document.getElementById('slideDesc');
     const select = document.getElementById('slideSelect');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -986,6 +1019,15 @@ function generate_presentation_html(svg_dir::String)
       prevBtn.disabled = currentIdx === 0;
       nextBtn.disabled = currentIdx === slides.length - 1;
       pageStatus.textContent = `Slide \${currentIdx + 1} of \${slides.length}`;
+
+      const d = descriptions[currentIdx];
+      if (d && d.trim().length > 0) {
+        desc.textContent = d;
+        desc.style.display = 'block';
+      } else {
+        desc.textContent = '';
+        desc.style.display = 'none';
+      }
     }
 
     function prevSlide() { showSlide(currentIdx - 1); }
@@ -1022,7 +1064,7 @@ function generate_presentation_html(svg_dir::String)
     index_path = joinpath(svg_dir, "index.html")
     write(index_path, html_content)
     println("Generated $(length(svg_files)) SVG slides in: $svg_dir")
-    println("HTML Presentation: ", abspath(index_path))
+    println("HTML Presentation: ", get_file_path(index_path))
 end
 
 # ==============================================================================

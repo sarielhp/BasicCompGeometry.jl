@@ -26,8 +26,10 @@ The library uses Julia's package extension mechanism (`[weakdeps]` and `[extensi
 
 ### A. `CairoExt` (Activated via `using Cairo`)
 Defined in [`ext/CairoExt.jl`](ext/CairoExt.jl). Provides core 2D vector canvas transformations, primitives, and unified multi-page/animated output:
-- `Canvas(path, cw, ch; fps=20)`: Unified canvas supporting `.pdf` (multi-page PDF), `.svg` (multi-page SVG sequence), `.png` (multi-frame PNG sequence), and `.gif` (animated GIF via `ffmpeg`).
-- `open_canvas(f, path, cw, ch; fps=20)`: Opens canvas, passes to `f(canvas)`, and automatically finalizes on exit.
+- `Canvas(path, cw, ch; fps=20, title=nothing)`: Unified canvas supporting `.pdf` (multi-page PDF), `.svg` (multi-page SVG sequence), `.png` (multi-frame PNG sequence), `.gif` (animated GIF via `ffmpeg`), and `.html` (interactive slide deck presentation directory with SVG slides and `index.html`).
+- `open_canvas(f, path, cw, ch; fps=20, title=nothing)`: Opens canvas, passes to `f(canvas)`, and automatically finalizes on exit.
+- `description(cr_or_canvas, text)`: Attaches a text caption to the active slide/page (rendered beneath the figure in HTML output).
+- `get_file_path(canvas_or_path)`: Returns the absolute file path to the generated document (e.g. `.../index.html` for HTML canvas).
 - `cairo_draw_setup(cr_or_canvas, bb, cw, ch, margin=20)`: Auto-scales and flips the y-axis (y-upwards mathematical orientation) to fit a bounding box onto a canvas.
 - `cairo_draw_points(cr_or_canvas, points, radius=2)`: Draws point sequences as filled circles.
 - `cairo_draw_polygon(cr_or_canvas, poly, close=true)`: Draws and strokes polygon boundaries.

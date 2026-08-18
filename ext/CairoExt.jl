@@ -75,13 +75,14 @@ end
 # --- Unified Multi-Page / Animated Canvas ---
 
 """
-    Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
+    Canvas(path::String, cw::Real, ch::Real; fps::Int=20, title=nothing)
 
-Create a unified 2D vector / raster canvas supporting:
+Create a unified 2D vector / raster / web canvas supporting:
 - `.pdf`: Multi-page PDF document
 - `.svg`: Multi-page SVG sequence (e.g. `slide_001.svg`, `slide_002.svg`, ...)
 - `.png`: Multi-frame PNG sequence (e.g. `frame_0001.png`, `frame_0002.png`, ...)
 - `.gif`: High-quality animated GIF (via `ffmpeg` on finish)
+- `.html`: Interactive presentation directory with SVG slides and `index.html`
 
 Advance pages or animation frames with `Cairo.show_page(canvas)`.
 Finalize and flush to disk with `Cairo.finish(canvas)`.
@@ -90,14 +91,25 @@ mutable struct Canvas
     path::String
     cw::Float64
     ch::Float64
-    fmt::Symbol             # :pdf, :svg, :png, :gif
+    fmt::Symbol             # :pdf, :svg, :png, :gif, :html
     page::Int
     fps::Int
     tempdir::String
+    htmldir::String
+    index_html_path::String
+    title::String
+    descriptions::Dict{Int, String}
     needs_new_surface::Bool
     surface::Cairo.CairoSurfaceBase
     cr::Cairo.CairoContext
 end
+
+BasicCompGeometry.description(c::Canvas, text::AbstractString) = (c.descriptions[c.page] = String(text); text)
+BasicCompGeometry.description(cr::Cairo.CairoContext, text::AbstractString) = text
+BasicCompGeometry.description(any, text::AbstractString) = text
+
+BasicCompGeometry.get_file_path(c::Canvas) = (c.fmt == :html ? abspath(c.index_html_path) : abspath(c.path))
+BasicCompGeometry.get_file_path(path::AbstractString) = abspath(path)
 
 function _svg_page_filename(pattern::String, page::Int)
     if occursin("%", pattern)
@@ -121,6 +133,10 @@ function _ensure_surface!(c::Canvas)
         next_file = _svg_page_filename(c.path, c.page)
         c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
         c.cr = Cairo.CairoContext(c.surface)
+    elseif c.fmt == :html
+        next_file = joinpath(c.htmldir, @sprintf("page_%03d.svg", c.page))
+        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
+        c.cr = Cairo.CairoContext(c.surface)
     elseif c.fmt in (:png, :gif)
         c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
         c.cr = Cairo.CairoContext(c.surface)
@@ -129,7 +145,7 @@ function _ensure_surface!(c::Canvas)
     return
 end
 
-function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
+function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20, title::Union{String, Nothing}=nothing)
     ext = lowercase(splitext(path)[2])
     w = Float64(cw)
     h = Float64(ch)
@@ -137,23 +153,51 @@ function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
     if ext == ".pdf"
         surf = Cairo.CairoPDFSurface(path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :pdf, 1, fps, "", false, surf, cr)
+        return Canvas(path, w, h, :pdf, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
     elseif ext == ".svg"
         fmt_path = _svg_page_filename(path, 1)
         surf = Cairo.CairoSVGSurface(fmt_path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :svg, 1, fps, "", false, surf, cr)
+        return Canvas(path, w, h, :svg, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
     elseif ext == ".png"
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :png, 1, fps, "", false, surf, cr)
+        return Canvas(path, w, h, :png, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
     elseif ext == ".gif"
         tmp = mktempdir()
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :gif, 1, fps, tmp, false, surf, cr)
+        return Canvas(path, w, h, :gif, 1, fps, tmp, "", "", "", Dict{Int, String}(), false, surf, cr)
+    elseif ext in (".html", ".htm")
+        title_str = isnothing(title) ? "" : title
+        if basename(lowercase(path)) in ("index.html", "index.htm")
+            htmldir = dirname(abspath(path))
+            index_html_path = abspath(path)
+            if isempty(title_str)
+                title_str = basename(htmldir)
+            end
+        else
+            base = splitext(path)[1]
+            htmldir = abspath(base)
+            index_html_path = joinpath(htmldir, "index.html")
+            if isempty(title_str)
+                title_str = basename(base)
+            end
+        end
+
+        mkpath(htmldir)
+        for f in readdir(htmldir)
+            if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
+                rm(joinpath(htmldir, f), force=true)
+            end
+        end
+
+        first_svg = joinpath(htmldir, "page_001.svg")
+        surf = Cairo.CairoSVGSurface(first_svg, w, h)
+        cr = Cairo.CairoContext(surf)
+        return Canvas(path, w, h, :html, 1, fps, "", htmldir, index_html_path, title_str, Dict{Int, String}(), false, surf, cr)
     else
-        error("Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, or .gif")
+        error("Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, .gif, or .html")
     end
 end
 
@@ -161,7 +205,7 @@ function Cairo.show_page(c::Canvas)
     if c.fmt == :pdf
         Cairo.show_page(c.cr)
         c.page += 1
-    elseif c.fmt == :svg
+    elseif c.fmt in (:svg, :html)
         Cairo.finish(c.surface)
         c.page += 1
         c.needs_new_surface = true
@@ -181,6 +225,236 @@ function Cairo.show_page(c::Canvas)
     return c
 end
 
+function _write_html_presentation(c::Canvas)
+    svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(c.htmldir))
+    sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
+
+    if isempty(svg_files)
+        @warn "No SVG files found in $(c.htmldir) to generate HTML presentation"
+        return
+    end
+
+    slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
+    desc_array = [get(c.descriptions, i, "") for i in 1:length(svg_files)]
+    desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
+
+    page_title = isempty(c.title) ? "Presentation" : c.title
+
+    html_content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$(page_title)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header {
+      width: 100%;
+      padding: 12px 24px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { font-size: 1.1rem; font-weight: 600; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    button, select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+    }
+    button:hover:not(:disabled) {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .slide-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 20px;
+      gap: 14px;
+    }
+    .slide-wrapper {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      max-width: 90vw;
+      max-height: 72vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .slide-wrapper img {
+      width: 100%;
+      height: 100%;
+      max-height: 72vh;
+      object-fit: contain;
+      display: block;
+    }
+    .slide-description {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 18px;
+      max-width: 90vw;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+    }
+    footer {
+      width: 100%;
+      padding: 10px 24px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .kbd {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>$(page_title)</h1>
+    <div class="controls">
+      <button id="prevBtn" onclick="prevSlide()">← Prev</button>
+      <select id="slideSelect" onchange="jumpSlide(parseInt(this.value))"></select>
+      <button id="nextBtn" onclick="nextSlide()">Next →</button>
+      <button id="fullscreenBtn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+  </header>
+
+  <main class="slide-container" id="mainContainer">
+    <div class="slide-wrapper" id="slideWrapper">
+      <img id="slideImg" src="" alt="Slide">
+    </div>
+    <div class="slide-description" id="slideDesc" style="display: none;"></div>
+  </main>
+
+  <footer>
+    <span id="pageStatus">Slide 1 of $(length(svg_files))</span>
+    <span>Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> to navigate</span>
+  </footer>
+
+  <script>
+    const slides = $slides_json;
+    const descriptions = $desc_json;
+    let currentIdx = 0;
+
+    const img = document.getElementById('slideImg');
+    const desc = document.getElementById('slideDesc');
+    const select = document.getElementById('slideSelect');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageStatus = document.getElementById('pageStatus');
+
+    slides.forEach((s, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `Slide \${idx + 1} (\${s})`;
+      select.appendChild(opt);
+    });
+
+    function showSlide(idx) {
+      if (idx < 0 || idx >= slides.length) return;
+      currentIdx = idx;
+      img.src = slides[currentIdx];
+      select.value = currentIdx;
+      prevBtn.disabled = currentIdx === 0;
+      nextBtn.disabled = currentIdx === slides.length - 1;
+      pageStatus.textContent = `Slide \${currentIdx + 1} of \${slides.length}`;
+
+      const d = descriptions[currentIdx];
+      if (d && d.trim().length > 0) {
+        desc.textContent = d;
+        desc.style.display = 'block';
+      } else {
+        desc.textContent = '';
+        desc.style.display = 'none';
+      }
+    }
+
+    function prevSlide() { showSlide(currentIdx - 1); }
+    function nextSlide() { showSlide(currentIdx + 1); }
+    function jumpSlide(idx) { showSlide(idx); }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key === 'Home') {
+        showSlide(0);
+      } else if (e.key === 'End') {
+        showSlide(slides.length - 1);
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      }
+    });
+
+    showSlide(0);
+  </script>
+</body>
+</html>
+"""
+    write(c.index_html_path, html_content)
+end
+
 function Cairo.finish(c::Canvas)
     if c.fmt == :pdf
         Cairo.finish(c.surface)
@@ -195,6 +469,11 @@ function Cairo.finish(c::Canvas)
                 mv(orig_page1, c.path, force=true)
             end
         end
+    elseif c.fmt == :html
+        if !c.needs_new_surface
+            Cairo.finish(c.surface)
+        end
+        _write_html_presentation(c)
     elseif c.fmt == :png
         if !c.needs_new_surface
             cur_file = _png_page_filename(c.path, c.page)
