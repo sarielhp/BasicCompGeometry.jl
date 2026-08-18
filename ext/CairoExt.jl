@@ -94,6 +94,7 @@ mutable struct Canvas
     page::Int
     fps::Int
     tempdir::String
+    needs_new_surface::Bool
     surface::Cairo.CairoSurfaceBase
     cr::Cairo.CairoContext
 end
@@ -114,6 +115,20 @@ function _png_page_filename(pattern::String, page::Int)
     return "$(base)_$(lpad(page, 4, '0'))$(ext)"
 end
 
+function _ensure_surface!(c::Canvas)
+    !c.needs_new_surface && return
+    if c.fmt == :svg
+        next_file = _svg_page_filename(c.path, c.page)
+        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
+        c.cr = Cairo.CairoContext(c.surface)
+    elseif c.fmt in (:png, :gif)
+        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
+        c.cr = Cairo.CairoContext(c.surface)
+    end
+    c.needs_new_surface = false
+    return
+end
+
 function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
     ext = lowercase(splitext(path)[2])
     w = Float64(cw)
@@ -122,21 +137,21 @@ function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20)
     if ext == ".pdf"
         surf = Cairo.CairoPDFSurface(path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :pdf, 1, fps, "", surf, cr)
+        return Canvas(path, w, h, :pdf, 1, fps, "", false, surf, cr)
     elseif ext == ".svg"
         fmt_path = _svg_page_filename(path, 1)
         surf = Cairo.CairoSVGSurface(fmt_path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :svg, 1, fps, "", surf, cr)
+        return Canvas(path, w, h, :svg, 1, fps, "", false, surf, cr)
     elseif ext == ".png"
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :png, 1, fps, "", surf, cr)
+        return Canvas(path, w, h, :png, 1, fps, "", false, surf, cr)
     elseif ext == ".gif"
         tmp = mktempdir()
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :gif, 1, fps, tmp, surf, cr)
+        return Canvas(path, w, h, :gif, 1, fps, tmp, false, surf, cr)
     else
         error("Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, or .gif")
     end
@@ -149,23 +164,19 @@ function Cairo.show_page(c::Canvas)
     elseif c.fmt == :svg
         Cairo.finish(c.surface)
         c.page += 1
-        next_file = _svg_page_filename(c.path, c.page)
-        c.surface = Cairo.CairoSVGSurface(next_file, c.cw, c.ch)
-        c.cr = Cairo.CairoContext(c.surface)
+        c.needs_new_surface = true
     elseif c.fmt == :png
         cur_file = _png_page_filename(c.path, c.page)
         Cairo.write_to_png(c.surface, cur_file)
         Cairo.finish(c.surface)
         c.page += 1
-        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
-        c.cr = Cairo.CairoContext(c.surface)
+        c.needs_new_surface = true
     elseif c.fmt == :gif
         frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
         Cairo.write_to_png(c.surface, frame_file)
         Cairo.finish(c.surface)
         c.page += 1
-        c.surface = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
-        c.cr = Cairo.CairoContext(c.surface)
+        c.needs_new_surface = true
     end
     return c
 end
@@ -174,27 +185,35 @@ function Cairo.finish(c::Canvas)
     if c.fmt == :pdf
         Cairo.finish(c.surface)
     elseif c.fmt == :svg
-        Cairo.finish(c.surface)
-        if c.page == 1 && !occursin("%", c.path)
+        if !c.needs_new_surface
+            Cairo.finish(c.surface)
+        end
+        total_pages = c.needs_new_surface ? c.page - 1 : c.page
+        if total_pages == 1 && !occursin("%", c.path)
             orig_page1 = _svg_page_filename(c.path, 1)
             if isfile(orig_page1) && orig_page1 != c.path
                 mv(orig_page1, c.path, force=true)
             end
         end
     elseif c.fmt == :png
-        cur_file = _png_page_filename(c.path, c.page)
-        Cairo.write_to_png(c.surface, cur_file)
-        Cairo.finish(c.surface)
-        if c.page == 1 && !occursin("%", c.path)
+        if !c.needs_new_surface
+            cur_file = _png_page_filename(c.path, c.page)
+            Cairo.write_to_png(c.surface, cur_file)
+            Cairo.finish(c.surface)
+        end
+        total_pages = c.needs_new_surface ? c.page - 1 : c.page
+        if total_pages == 1 && !occursin("%", c.path)
             orig_page1 = _png_page_filename(c.path, 1)
             if isfile(orig_page1) && orig_page1 != c.path
                 mv(orig_page1, c.path, force=true)
             end
         end
     elseif c.fmt == :gif
-        frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
-        Cairo.write_to_png(c.surface, frame_file)
-        Cairo.finish(c.surface)
+        if !c.needs_new_surface
+            frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
+            Cairo.write_to_png(c.surface, frame_file)
+            Cairo.finish(c.surface)
+        end
         try
             if Sys.which("ffmpeg") !== nothing
                 cmd = `ffmpeg -y -loglevel error -framerate $(c.fps) -i $(joinpath(c.tempdir, "frame_%05d.png")) -filter_complex "split[a][b];[a]palettegen[p];[b][p]paletteuse" $(c.path)`
@@ -219,47 +238,47 @@ function BasicCompGeometry.open_canvas(f::Function, path::String, cw::Real, ch::
     return c
 end
 
-Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = c.cr.ptr
-Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = c.cr.ptr
+Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
+Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 
 BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20) where {T} =
-    BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin)
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin))
 
 BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
-    BasicCompGeometry.cairo_draw_points(c.cr, points, radius)
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_points(c.cr, points, radius))
 
 BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
-    BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close)
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close))
 
 # Cairo drawing primitives forwarding
 for fn in (:save, :restore, :new_path, :close_path, :stroke, :fill, :fill_preserve)
-    @eval Cairo.$fn(c::Canvas) = Cairo.$fn(c.cr)
+    @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
 for fn in (:set_line_width, :paint)
-    @eval Cairo.$fn(c::Canvas, a) = Cairo.$fn(c.cr, a)
+    @eval Cairo.$fn(c::Canvas, a) = (_ensure_surface!(c); Cairo.$fn(c.cr, a))
 end
 
 for fn in (:move_to, :line_to, :translate, :scale)
-    @eval Cairo.$fn(c::Canvas, a, b) = Cairo.$fn(c.cr, a, b)
+    @eval Cairo.$fn(c::Canvas, a, b) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b))
 end
 
 for fn in (:set_source_rgb, :rotate)
-    @eval Cairo.$fn(c::Canvas, a, b, d...) = Cairo.$fn(c.cr, a, b, d...)
+    @eval Cairo.$fn(c::Canvas, a, b, d...) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d...))
 end
 
 for fn in (:set_source_rgba, :rectangle)
-    @eval Cairo.$fn(c::Canvas, a, b, d, e) = Cairo.$fn(c.cr, a, b, d, e)
+    @eval Cairo.$fn(c::Canvas, a, b, d, e) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d, e))
 end
 
-Cairo.arc(c::Canvas, x, y, r, a1, a2) = Cairo.arc(c.cr, x, y, r, a1, a2)
-Cairo.set_source_surface(c::Canvas, s, x, y) = Cairo.set_source_surface(c.cr, s, x, y)
+Cairo.arc(c::Canvas, x, y, r, a1, a2) = (_ensure_surface!(c); Cairo.arc(c.cr, x, y, r, a1, a2))
+Cairo.set_source_surface(c::Canvas, s, x, y) = (_ensure_surface!(c); Cairo.set_source_surface(c.cr, s, x, y))
 
 # Cairo text primitives forwarding
 Cairo.select_font_face(c::Canvas, family::AbstractString, slant, weight) =
-    Cairo.select_font_face(c.cr, family, slant, weight)
-Cairo.set_font_size(c::Canvas, size) = Cairo.set_font_size(c.cr, size)
-Cairo.show_text(c::Canvas, text::AbstractString) = Cairo.show_text(c.cr, text)
-Cairo.text_extents(c::Canvas, text::AbstractString) = Cairo.text_extents(c.cr, text)
+    (_ensure_surface!(c); Cairo.select_font_face(c.cr, family, slant, weight))
+Cairo.set_font_size(c::Canvas, size) = (_ensure_surface!(c); Cairo.set_font_size(c.cr, size))
+Cairo.show_text(c::Canvas, text::AbstractString) = (_ensure_surface!(c); Cairo.show_text(c.cr, text))
+Cairo.text_extents(c::Canvas, text::AbstractString) = (_ensure_surface!(c); Cairo.text_extents(c.cr, text))
 
 end # module

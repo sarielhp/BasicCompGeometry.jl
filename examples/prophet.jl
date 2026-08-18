@@ -368,8 +368,43 @@ end
 # ==============================================================================
 # MODE 1: Prefix Voronoi Sequence
 # ==============================================================================
-function generate_mode1_pdf(
-    filename::String;
+function _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
+    usable_w = cw - 2 * margin
+    usable_h = ch - 2 * margin
+    scale_factor = min(usable_w, usable_h) / 1.2
+
+    for i in 4:N
+        page_num = i - 3
+        prefix_pts = pts[1:i]
+        prefix_cells = compute_voronoi_cells_periodic(prefix_pts, outer_box)
+        has_prophet = (i >= k_star)
+
+        title = if i == N
+            @sprintf("Page %d / %d: Final Voronoi Diagram (%d Points, Largest Cell: p_%d, Area: %.4f)",
+                     page_num, total_pages, N, k_star, max_area)
+        else
+            @sprintf("Page %d / %d: Voronoi Diagram of Prefix p_1 ... p_%d (3x3 Grid)",
+                     page_num, total_pages, i)
+        end
+
+        subtitle = if i < k_star
+            @sprintf("Prophet target p_%d arrives at step %d", k_star, k_star)
+        elseif i == k_star
+            @sprintf("★ Prophet target p_%d arrived at this step (drawn in blue, current area: %.4f)",
+                     k_star, polygon_area(prefix_cells[k_star]))
+        else
+            @sprintf("Prophet target p_%d is present (drawn in blue, current area: %.4f)",
+                     k_star, polygon_area(prefix_cells[k_star]))
+        end
+
+        render_voronoi_page!(canvas, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
+                             title, subtitle; highlight_k_star = has_prophet, show_text = true)
+    end
+end
+
+function generate_mode1(
+    pdf_filename::String,
+    svg_dir::String;
     N::Int = 100,
     seed::Union{Int, Nothing} = nothing,
     cw::Int = 800,
@@ -397,51 +432,71 @@ function generate_mode1_pdf(
     @printf("Prophet site identified: p_%d = (%.4f, %.4f) with final cell area = %.6f (%.2f%% of torus)\n",
             k_star, p_star[1], p_star[2], max_area, max_area * 100)
 
-    mkpath(dirname(filename))
+    mkpath(dirname(pdf_filename))
+    _clean_svg_dir(svg_dir)
     total_pages = N - 3
 
-    println("Mode 1: Rendering $total_pages prefix pages (from 4 to $N points) into $filename...")
-    open_canvas(filename, cw, ch) do canvas
-        usable_w = cw - 2 * margin
-        usable_h = ch - 2 * margin
-        scale_factor = min(usable_w, usable_h) / 1.2
-
-        for i in 4:N
-            page_num = i - 3
-            prefix_pts = pts[1:i]
-            prefix_cells = compute_voronoi_cells_periodic(prefix_pts, outer_box)
-            has_prophet = (i >= k_star)
-
-            title = if i == N
-                @sprintf("Page %d / %d: Final Voronoi Diagram (%d Points, Largest Cell: p_%d, Area: %.4f)",
-                         page_num, total_pages, N, k_star, max_area)
-            else
-                @sprintf("Page %d / %d: Voronoi Diagram of Prefix p_1 ... p_%d (3x3 Grid)",
-                         page_num, total_pages, i)
-            end
-
-            subtitle = if i < k_star
-                @sprintf("Prophet target p_%d arrives at step %d", k_star, k_star)
-            elseif i == k_star
-                @sprintf("★ Prophet target p_%d arrived at this step (drawn in blue, current area: %.4f)",
-                         k_star, polygon_area(prefix_cells[k_star]))
-            else
-                @sprintf("Prophet target p_%d is present (drawn in blue, current area: %.4f)",
-                         k_star, polygon_area(prefix_cells[k_star]))
-            end
-
-            render_voronoi_page!(canvas, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
-                                 title, subtitle; highlight_k_star = has_prophet, show_text = true)
-        end
+    # 1. Multi-page PDF via Canvas
+    println("Mode 1: Rendering $total_pages prefix pages into PDF via Canvas: $pdf_filename...")
+    open_canvas(pdf_filename, cw, ch) do canvas
+        _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
     end
-    println("Successfully generated Mode 1 PDF ($total_pages pages): $filename")
+    println("Successfully generated Mode 1 PDF ($total_pages pages): $pdf_filename")
+
+    # 2. Multi-page SVG sequence natively via Canvas
+    svg_pattern = joinpath(svg_dir, "page_%03d.svg")
+    println("Mode 1: Rendering $total_pages SVG slides natively via Canvas: $svg_pattern...")
+    open_canvas(svg_pattern, cw, ch) do canvas
+        _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
+    end
+
+    # 3. HTML Presentation
+    generate_presentation_html(svg_dir)
 end
 
 # ==============================================================================
 # MODE 2: Powers of 2 Calibrated Diagrams
 # ==============================================================================
-function generate_mode2_pdf(
-    filename::String;
+function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
+    usable_w = cw - 2 * margin
+    usable_h = ch - 2 * margin
+    scale_factor = min(usable_w, usable_h) / 1.2
+    outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
+    total_pages = length(powers)
+
+    for (page_idx, p) in enumerate(powers)
+        N = 2^p
+        pts = [point(rand(), rand()) for _ in 1:N]
+        cells = compute_voronoi_cells_periodic(pts, outer_box)
+        areas = [polygon_area(c) for c in cells]
+
+        k_star = argmax(areas)
+        p_star = pts[k_star]
+        max_area = areas[k_star]
+        L = compute_total_unique_edge_length(cells)
+
+        r_unit = sqrt(0.10 / (pi * N))
+        w_unit = 0.15 / L
+        r_pt = r_unit * scale_factor
+        w_pt = w_unit * scale_factor
+        total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
+
+        @printf("  Page %2d / %2d: N = %4d (2^%2d) | L = %5.1f | r = %4.1f pt, w = %4.2f pt | Prophet: p_%d (Area: %.4f)\n",
+                page_idx, total_pages, N, p, L, r_pt, w_pt, k_star, max_area)
+
+        title = @sprintf("Page %d / %d: Final Voronoi Diagram (N = 2^%d = %d Points, 3x3 Grid)",
+                         page_idx, total_pages, p, N)
+        subtitle = @sprintf("Calibrated Styling (Ink Area = %.1f%% ≤ 25%%): Point Radius = %.1f pt, Boundary Width = %.2f pt | Largest Cell: p_%d (Area = %.4f)",
+                            total_area_pct, r_pt, w_pt, k_star, max_area)
+
+        render_voronoi_page!(canvas, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
+                             title, subtitle; highlight_k_star = true, show_text = true)
+    end
+end
+
+function generate_mode2(
+    pdf_filename::String,
+    svg_dir::String;
     powers::UnitRange{Int} = 3:12,
     seed::Union{Int, Nothing} = nothing,
     cw::Int = 800,
@@ -452,46 +507,26 @@ function generate_mode2_pdf(
         Random.seed!(seed)
     end
 
-    mkpath(dirname(filename))
+    mkpath(dirname(pdf_filename))
+    _clean_svg_dir(svg_dir)
     total_pages = length(powers)
-    println("Mode 2: Rendering $total_pages powers-of-2 pages (N = 2^$(first(powers))..2^$(last(powers))) into $filename...")
 
-    open_canvas(filename, cw, ch) do canvas
-        usable_w = cw - 2 * margin
-        usable_h = ch - 2 * margin
-        scale_factor = min(usable_w, usable_h) / 1.2
-        outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
-
-        for (page_idx, p) in enumerate(powers)
-            N = 2^p
-            pts = [point(rand(), rand()) for _ in 1:N]
-            cells = compute_voronoi_cells_periodic(pts, outer_box)
-            areas = [polygon_area(c) for c in cells]
-
-            k_star = argmax(areas)
-            p_star = pts[k_star]
-            max_area = areas[k_star]
-            L = compute_total_unique_edge_length(cells)
-
-            r_unit = sqrt(0.10 / (pi * N))
-            w_unit = 0.15 / L
-            r_pt = r_unit * scale_factor
-            w_pt = w_unit * scale_factor
-            total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
-
-            @printf("  Page %2d / %2d: N = %4d (2^%2d) | L = %5.1f | r = %4.1f pt, w = %4.2f pt | Prophet: p_%d (Area: %.4f)\n",
-                    page_idx, total_pages, N, p, L, r_pt, w_pt, k_star, max_area)
-
-            title = @sprintf("Page %d / %d: Final Voronoi Diagram (N = 2^%d = %d Points, 3x3 Grid)",
-                             page_idx, total_pages, p, N)
-            subtitle = @sprintf("Calibrated Styling (Ink Area = %.1f%% ≤ 25%%): Point Radius = %.1f pt, Boundary Width = %.2f pt | Largest Cell: p_%d (Area = %.4f)",
-                                total_area_pct, r_pt, w_pt, k_star, max_area)
-
-            render_voronoi_page!(canvas, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
-                                 title, subtitle; highlight_k_star = true, show_text = true)
-        end
+    # 1. Multi-page PDF via Canvas
+    println("Mode 2: Rendering $total_pages powers-of-2 pages into PDF via Canvas: $pdf_filename...")
+    open_canvas(pdf_filename, cw, ch) do canvas
+        _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     end
-    println("Successfully generated Mode 2 PDF ($total_pages pages): $filename")
+    println("Successfully generated Mode 2 PDF ($total_pages pages): $pdf_filename")
+
+    # 2. Multi-page SVG sequence natively via Canvas
+    svg_pattern = joinpath(svg_dir, "page_%03d.svg")
+    println("Mode 2: Rendering $total_pages SVG slides natively via Canvas: $svg_pattern...")
+    open_canvas(svg_pattern, cw, ch) do canvas
+        _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
+    end
+
+    # 3. HTML Presentation
+    generate_presentation_html(svg_dir)
 end
 
 # ==============================================================================
@@ -628,10 +663,11 @@ In geometric prophet settings, sites arrive sequentially, and the decision-maker
 end
 
 # ==============================================================================
-# MODE 3: 5-Page Prophet Comparison (Default Mode)
+# MODE 3: 7-Page Prophet Comparison (Default Mode)
 # ==============================================================================
-function generate_mode3_pdf(
-    filename::String;
+function generate_mode3(
+    pdf_filename::String,
+    svg_dir::String;
     N::Int = 1000,
     seed::Union{Int, Nothing} = nothing,
     cw::Int = 800,
@@ -677,7 +713,8 @@ function generate_mode3_pdf(
     large_cells_quarter = findall(a -> a >= threshold_quarter, areas_N)
     @printf("Mode 3: Found %d cells with area >= 1/4 max area (>= %.6f)\n", length(large_cells_quarter), threshold_quarter)
 
-    mkpath(dirname(filename))
+    mkpath(dirname(pdf_filename))
+    _clean_svg_dir(svg_dir)
 
     usable_w = cw - 2 * margin
     usable_h = ch - 2 * margin
@@ -688,7 +725,7 @@ function generate_mode3_pdf(
     temp_text = joinpath(temp_dir, "text.pdf")
 
     try
-        # --- Diagram Pages (Canvas) ---
+        # --- 1. Render Diagram Pages to PDF Canvas ---
         open_canvas(temp_diag, cw, ch) do diag_canvas
             println("Rendering Diagram 1 / 4: Final Voronoi diagram of N = $N points (no text)...")
             render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
@@ -711,7 +748,7 @@ function generate_mode3_pdf(
                                  highlight_color = (0.92, 0.22, 0.22, 0.55))
         end
 
-        # --- Text Pages (LuaLaTeX) via BasicCompGeometry ---
+        # --- 2. Render Text Pages with LaTeX ---
         println("Generating 3 text pages with LuaLaTeX (via BasicCompGeometry.latex_to_pdf)...")
         text_pages = [
             build_text_page2(N, k_star, max_area_final),
@@ -720,48 +757,81 @@ function generate_mode3_pdf(
         ]
         latex_to_pdf(text_pages, temp_text; paperwidth = cw, paperheight = ch, margin = margin)
 
-        # --- Merge Pages (7 pages total) via BasicCompGeometry ---
-        println("Merging diagram and text pages with pdf_merge into $filename...")
-        pdf_merge(filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"), (temp_diag, 3), (temp_diag, 4))
-        println("Successfully generated Mode 3 PDF (7 pages): $filename")
+        # --- 3. Merge into multi-page PDF ---
+        println("Merging diagram and text pages with pdf_merge into $pdf_filename...")
+        pdf_merge(pdf_filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"), (temp_diag, 3), (temp_diag, 4))
+        println("Successfully generated Mode 3 PDF (7 pages): $pdf_filename")
+
+        # --- 4. Render SVG Slide Sequence Natively via Canvas ---
+        println("Mode 3: Generating SVG slides in $svg_dir (geometric figures via Canvas SVG backend)...")
+        # Page 1: Diagram 1 (Canvas SVG)
+        open_canvas(joinpath(svg_dir, "page_001.svg"), cw, ch) do c
+            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = true, show_text = false)
+        end
+        # Page 2: Text Page 1 (LaTeX)
+        run(`pdftocairo -svg -f 1 -l 1 $temp_text $(joinpath(svg_dir, "page_002.svg"))`)
+
+        # Page 3: Diagram 2 (Canvas SVG)
+        open_canvas(joinpath(svg_dir, "page_003.svg"), cw, ch) do c
+            render_voronoi_page!(c, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = true, show_text = false)
+        end
+        # Page 4: Text Page 2 (LaTeX)
+        run(`pdftocairo -svg -f 2 -l 2 $temp_text $(joinpath(svg_dir, "page_004.svg"))`)
+
+        # Page 5: Text Page 3 (LaTeX)
+        run(`pdftocairo -svg -f 3 -l 3 $temp_text $(joinpath(svg_dir, "page_005.svg"))`)
+
+        # Page 6: Diagram 3 (Canvas SVG)
+        open_canvas(joinpath(svg_dir, "page_006.svg"), cw, ch) do c
+            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = false, show_text = false, show_points = false,
+                                 highlight_cells = large_cells_half,
+                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
+        end
+        # Page 7: Diagram 4 (Canvas SVG)
+        open_canvas(joinpath(svg_dir, "page_007.svg"), cw, ch) do c
+            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = false, show_text = false, show_points = false,
+                                 highlight_cells = large_cells_quarter,
+                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
+        end
+
+        # --- 5. Generate HTML Presentation ---
+        generate_presentation_html(svg_dir)
     finally
         rm(temp_dir, recursive=true, force=true)
     end
 end
 
-# ==============================================================================
-# SVG & HTML Presentation Export
-# ==============================================================================
-function export_pdf_to_svg_presentation(pdf_path::String, svg_dir::String)
-    mkpath(svg_dir)
+# Backward compatibility aliases
+const generate_mode1_pdf = (f; kwargs...) -> generate_mode1(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
+const generate_mode2_pdf = (f; kwargs...) -> generate_mode2(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
+const generate_mode3_pdf = (f; kwargs...) -> generate_mode3(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
 
-    # Clean old files in output/svg
+# ==============================================================================
+# Helper: Clean SVG Directory
+# ==============================================================================
+function _clean_svg_dir(svg_dir::String)
+    mkpath(svg_dir)
     for f in readdir(svg_dir)
         if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
             rm(joinpath(svg_dir, f), force=true)
         end
     end
+end
 
-    # Determine total pages in the PDF
-    page_count = 1
-    try
-        info_out = read(`pdfinfo $pdf_path`, String)
-        m = match(r"Pages:\s+(\d+)", info_out)
-        if m !== nothing
-            page_count = parse(Int, m.captures[1])
-        end
-    catch
-        # Fallback if pdfinfo is not installed
-        page_count = 1
-    end
+# ==============================================================================
+# HTML Presentation Generator
+# ==============================================================================
+function generate_presentation_html(svg_dir::String)
+    svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(svg_dir))
+    sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
 
-    println("Exporting $page_count PDF page(s) to SVG in $svg_dir via pdftocairo...")
-    svg_files = String[]
-    for p in 1:page_count
-        svg_name = @sprintf("page_%03d.svg", p)
-        svg_path = joinpath(svg_dir, svg_name)
-        run(`pdftocairo -svg -f $p -l $p $pdf_path $svg_path`)
-        push!(svg_files, svg_name)
+    if isempty(svg_files)
+        @warn "No SVG files found in $svg_dir to generate HTML presentation"
+        return
     end
 
     slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
@@ -972,28 +1042,23 @@ function main(args=ARGS)
         seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
         println("Prophet Voronoi Diagram - Mode 1 (Prefix Sequence, N = $N)")
         println("="^70)
-        generate_mode1_pdf(pdf_path; N=N, seed=seed)
+        generate_mode1(pdf_path, svg_dir; N=N, seed=seed)
     elseif mode_str in ["2", "mode2", "powers"]
         seed = length(args) >= 2 ? parse(Int, args[2]) : nothing
         println("Prophet Voronoi Diagram - Mode 2 (Powers of 2: N = 2^3..2^12)")
         println("="^70)
-        generate_mode2_pdf(pdf_path; powers=3:12, seed=seed)
+        generate_mode2(pdf_path, svg_dir; powers=3:12, seed=seed)
     elseif mode_str in ["3", "mode3", "prophet"] || isempty(args)
         N = length(args) >= 2 ? parse(Int, args[2]) : 1000
         seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
         println("Prophet Voronoi Diagram - Mode 3 [Default] (7-Page Prophet Comparison, N = $N)")
         println("="^70)
-        generate_mode3_pdf(pdf_path; N=N, seed=seed)
+        generate_mode3(pdf_path, svg_dir; N=N, seed=seed)
     else
         println("Unknown mode: '$mode_str'. Available modes: 1 (prefix), 2 (powers), 3 (default prophet comparison).")
         println("Falling back to default Mode 3 (N = 1000)...")
         println("="^70)
-        generate_mode3_pdf(pdf_path; N=1000)
     end
-    println("="^70)
-
-    # Generate SVGs and HTML presentation index
-    export_pdf_to_svg_presentation(pdf_path, svg_dir)
     println("="^70)
 end
 
