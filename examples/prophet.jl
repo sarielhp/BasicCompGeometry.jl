@@ -218,8 +218,16 @@ function render_voronoi_page!(
 
     r_pt = r_unit * scale_factor
     w_pt = w_unit * scale_factor
-    r_blue_pt = 1.35 * r_pt
-    r_blue_halo_pt = 2.0 * r_pt
+
+    # Point size (diameter) should never exceed 2% of the width of the image
+    max_radius_pt = 0.01 * cw
+    if r_pt > max_radius_pt
+        r_pt = max_radius_pt
+        r_unit = r_pt / scale_factor
+    end
+
+    r_blue_pt = min(1.35 * r_pt, max_radius_pt * 1.35)
+    r_blue_halo_pt = min(2.0 * r_pt, max_radius_pt * 2.0)
 
     Cairo.save(cr)
 
@@ -479,6 +487,13 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
         w_unit = 0.15 / L
         r_pt = r_unit * scale_factor
         w_pt = w_unit * scale_factor
+
+        max_radius_pt = 0.01 * cw
+        if r_pt > max_radius_pt
+            r_pt = max_radius_pt
+            r_unit = r_pt / scale_factor
+        end
+
         total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
 
         @printf("  Page %2d / %2d: N = %4d (2^%2d) | L = %5.1f | r = %4.1f pt, w = %4.2f pt | Prophet: p_%d (Area: %.4f)\n",
