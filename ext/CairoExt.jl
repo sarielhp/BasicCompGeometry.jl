@@ -231,4 +231,35 @@ BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
 BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
     BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close)
 
+# Cairo drawing primitives forwarding
+for fn in (:save, :restore, :new_path, :close_path, :stroke, :fill, :fill_preserve)
+    @eval Cairo.$fn(c::Canvas) = Cairo.$fn(c.cr)
+end
+
+for fn in (:set_line_width, :paint)
+    @eval Cairo.$fn(c::Canvas, a) = Cairo.$fn(c.cr, a)
+end
+
+for fn in (:move_to, :line_to, :translate, :scale)
+    @eval Cairo.$fn(c::Canvas, a, b) = Cairo.$fn(c.cr, a, b)
+end
+
+for fn in (:set_source_rgb, :rotate)
+    @eval Cairo.$fn(c::Canvas, a, b, d...) = Cairo.$fn(c.cr, a, b, d...)
+end
+
+for fn in (:set_source_rgba, :rectangle)
+    @eval Cairo.$fn(c::Canvas, a, b, d, e) = Cairo.$fn(c.cr, a, b, d, e)
+end
+
+Cairo.arc(c::Canvas, x, y, r, a1, a2) = Cairo.arc(c.cr, x, y, r, a1, a2)
+Cairo.set_source_surface(c::Canvas, s, x, y) = Cairo.set_source_surface(c.cr, s, x, y)
+
+# Cairo text primitives forwarding
+Cairo.select_font_face(c::Canvas, family::AbstractString, slant, weight) =
+    Cairo.select_font_face(c.cr, family, slant, weight)
+Cairo.set_font_size(c::Canvas, size) = Cairo.set_font_size(c.cr, size)
+Cairo.show_text(c::Canvas, text::AbstractString) = Cairo.show_text(c.cr, text)
+Cairo.text_extents(c::Canvas, text::AbstractString) = Cairo.text_extents(c.cr, text)
+
 end # module

@@ -191,7 +191,7 @@ Render a single page showing the Voronoi diagram with pink frame, gray fills, ye
 When `show_text` is `false`, the title header and subtitle footer are skipped.
 """
 function render_voronoi_page!(
-    cr::CairoContext,
+    cr,
     pts::Vector{Point2F},
     cells::Vector{Vector{Point2F}},
     k_star::Int,
@@ -398,44 +398,42 @@ function generate_mode1_pdf(
             k_star, p_star[1], p_star[2], max_area, max_area * 100)
 
     mkpath(dirname(filename))
-    surface = CairoPDFSurface(filename, cw, ch)
-    cr = CairoContext(surface)
-
-    usable_w = cw - 2 * margin
-    usable_h = ch - 2 * margin
-    scale_factor = min(usable_w, usable_h) / 1.2
     total_pages = N - 3
 
     println("Mode 1: Rendering $total_pages prefix pages (from 4 to $N points) into $filename...")
-    for i in 4:N
-        page_num = i - 3
-        prefix_pts = pts[1:i]
-        prefix_cells = compute_voronoi_cells_periodic(prefix_pts, outer_box)
-        has_prophet = (i >= k_star)
+    open_canvas(filename, cw, ch) do canvas
+        usable_w = cw - 2 * margin
+        usable_h = ch - 2 * margin
+        scale_factor = min(usable_w, usable_h) / 1.2
 
-        title = if i == N
-            @sprintf("Page %d / %d: Final Voronoi Diagram (%d Points, Largest Cell: p_%d, Area: %.4f)",
-                     page_num, total_pages, N, k_star, max_area)
-        else
-            @sprintf("Page %d / %d: Voronoi Diagram of Prefix p_1 ... p_%d (3x3 Grid)",
-                     page_num, total_pages, i)
+        for i in 4:N
+            page_num = i - 3
+            prefix_pts = pts[1:i]
+            prefix_cells = compute_voronoi_cells_periodic(prefix_pts, outer_box)
+            has_prophet = (i >= k_star)
+
+            title = if i == N
+                @sprintf("Page %d / %d: Final Voronoi Diagram (%d Points, Largest Cell: p_%d, Area: %.4f)",
+                         page_num, total_pages, N, k_star, max_area)
+            else
+                @sprintf("Page %d / %d: Voronoi Diagram of Prefix p_1 ... p_%d (3x3 Grid)",
+                         page_num, total_pages, i)
+            end
+
+            subtitle = if i < k_star
+                @sprintf("Prophet target p_%d arrives at step %d", k_star, k_star)
+            elseif i == k_star
+                @sprintf("★ Prophet target p_%d arrived at this step (drawn in blue, current area: %.4f)",
+                         k_star, polygon_area(prefix_cells[k_star]))
+            else
+                @sprintf("Prophet target p_%d is present (drawn in blue, current area: %.4f)",
+                         k_star, polygon_area(prefix_cells[k_star]))
+            end
+
+            render_voronoi_page!(canvas, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
+                                 title, subtitle; highlight_k_star = has_prophet, show_text = true)
         end
-
-        subtitle = if i < k_star
-            @sprintf("Prophet target p_%d arrives at step %d", k_star, k_star)
-        elseif i == k_star
-            @sprintf("★ Prophet target p_%d arrived at this step (drawn in blue, current area: %.4f)",
-                     k_star, polygon_area(prefix_cells[k_star]))
-        else
-            @sprintf("Prophet target p_%d is present (drawn in blue, current area: %.4f)",
-                     k_star, polygon_area(prefix_cells[k_star]))
-        end
-
-        render_voronoi_page!(cr, prefix_pts, prefix_cells, k_star, p_star, cw, ch, margin, scale_factor,
-                             title, subtitle; highlight_k_star = has_prophet, show_text = true)
     end
-
-    Cairo.finish(surface)
     println("Successfully generated Mode 1 PDF ($total_pages pages): $filename")
 end
 
@@ -455,47 +453,44 @@ function generate_mode2_pdf(
     end
 
     mkpath(dirname(filename))
-    surface = CairoPDFSurface(filename, cw, ch)
-    cr = CairoContext(surface)
-
-    usable_w = cw - 2 * margin
-    usable_h = ch - 2 * margin
-    scale_factor = min(usable_w, usable_h) / 1.2
-    outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
-
     total_pages = length(powers)
     println("Mode 2: Rendering $total_pages powers-of-2 pages (N = 2^$(first(powers))..2^$(last(powers))) into $filename...")
 
-    for (page_idx, p) in enumerate(powers)
-        N = 2^p
-        pts = [point(rand(), rand()) for _ in 1:N]
-        cells = compute_voronoi_cells_periodic(pts, outer_box)
-        areas = [polygon_area(c) for c in cells]
+    open_canvas(filename, cw, ch) do canvas
+        usable_w = cw - 2 * margin
+        usable_h = ch - 2 * margin
+        scale_factor = min(usable_w, usable_h) / 1.2
+        outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
 
-        k_star = argmax(areas)
-        p_star = pts[k_star]
-        max_area = areas[k_star]
-        L = compute_total_unique_edge_length(cells)
+        for (page_idx, p) in enumerate(powers)
+            N = 2^p
+            pts = [point(rand(), rand()) for _ in 1:N]
+            cells = compute_voronoi_cells_periodic(pts, outer_box)
+            areas = [polygon_area(c) for c in cells]
 
-        r_unit = sqrt(0.10 / (pi * N))
-        w_unit = 0.15 / L
-        r_pt = r_unit * scale_factor
-        w_pt = w_unit * scale_factor
-        total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
+            k_star = argmax(areas)
+            p_star = pts[k_star]
+            max_area = areas[k_star]
+            L = compute_total_unique_edge_length(cells)
 
-        @printf("  Page %2d / %2d: N = %4d (2^%2d) | L = %5.1f | r = %4.1f pt, w = %4.2f pt | Prophet: p_%d (Area: %.4f)\n",
-                page_idx, total_pages, N, p, L, r_pt, w_pt, k_star, max_area)
+            r_unit = sqrt(0.10 / (pi * N))
+            w_unit = 0.15 / L
+            r_pt = r_unit * scale_factor
+            w_pt = w_unit * scale_factor
+            total_area_pct = (N * pi * r_unit^2 + L * w_unit) * 100.0
 
-        title = @sprintf("Page %d / %d: Final Voronoi Diagram (N = 2^%d = %d Points, 3x3 Grid)",
-                         page_idx, total_pages, p, N)
-        subtitle = @sprintf("Calibrated Styling (Ink Area = %.1f%% ≤ 25%%): Point Radius = %.1f pt, Boundary Width = %.2f pt | Largest Cell: p_%d (Area = %.4f)",
-                            total_area_pct, r_pt, w_pt, k_star, max_area)
+            @printf("  Page %2d / %2d: N = %4d (2^%2d) | L = %5.1f | r = %4.1f pt, w = %4.2f pt | Prophet: p_%d (Area: %.4f)\n",
+                    page_idx, total_pages, N, p, L, r_pt, w_pt, k_star, max_area)
 
-        render_voronoi_page!(cr, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
-                             title, subtitle; highlight_k_star = true, show_text = true)
+            title = @sprintf("Page %d / %d: Final Voronoi Diagram (N = 2^%d = %d Points, 3x3 Grid)",
+                             page_idx, total_pages, p, N)
+            subtitle = @sprintf("Calibrated Styling (Ink Area = %.1f%% ≤ 25%%): Point Radius = %.1f pt, Boundary Width = %.2f pt | Largest Cell: p_%d (Area = %.4f)",
+                                total_area_pct, r_pt, w_pt, k_star, max_area)
+
+            render_voronoi_page!(canvas, pts, cells, k_star, p_star, cw, ch, margin, scale_factor,
+                                 title, subtitle; highlight_k_star = true, show_text = true)
+        end
     end
-
-    Cairo.finish(surface)
     println("Successfully generated Mode 2 PDF ($total_pages pages): $filename")
 end
 
@@ -693,31 +688,28 @@ function generate_mode3_pdf(
     temp_text = joinpath(temp_dir, "text.pdf")
 
     try
-        # --- Diagram Pages (Cairo) ---
-        diag_surface = CairoPDFSurface(temp_diag, cw, ch)
-        diag_cr = CairoContext(diag_surface)
+        # --- Diagram Pages (Canvas) ---
+        open_canvas(temp_diag, cw, ch) do diag_canvas
+            println("Rendering Diagram 1 / 4: Final Voronoi diagram of N = $N points (no text)...")
+            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = true, show_text = false)
 
-        println("Rendering Diagram 1 / 4: Final Voronoi diagram of N = $N points (no text)...")
-        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                             highlight_k_star = true, show_text = false)
+            println("Rendering Diagram 2 / 4: Prefix Voronoi diagram of k = $k_star points (no text)...")
+            render_voronoi_page!(diag_canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = true, show_text = false)
 
-        println("Rendering Diagram 2 / 4: Prefix Voronoi diagram of k = $k_star points (no text)...")
-        render_voronoi_page!(diag_cr, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
-                             highlight_k_star = true, show_text = false)
+            println("Rendering Diagram 3 / 4: Final Voronoi diagram without sites (cells >= 1/2 max area in red)...")
+            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = false, show_text = false, show_points = false,
+                                 highlight_cells = large_cells_half,
+                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
 
-        println("Rendering Diagram 3 / 4: Final Voronoi diagram without sites (cells >= 1/2 max area in red)...")
-        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                             highlight_k_star = false, show_text = false, show_points = false,
-                             highlight_cells = large_cells_half,
-                             highlight_color = (0.92, 0.22, 0.22, 0.55))
-
-        println("Rendering Diagram 4 / 4: Final Voronoi diagram without sites (cells >= 1/4 max area in red)...")
-        render_voronoi_page!(diag_cr, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                             highlight_k_star = false, show_text = false, show_points = false,
-                             highlight_cells = large_cells_quarter,
-                             highlight_color = (0.92, 0.22, 0.22, 0.55))
-
-        Cairo.finish(diag_surface)
+            println("Rendering Diagram 4 / 4: Final Voronoi diagram without sites (cells >= 1/4 max area in red)...")
+            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                                 highlight_k_star = false, show_text = false, show_points = false,
+                                 highlight_cells = large_cells_quarter,
+                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
+        end
 
         # --- Text Pages (LuaLaTeX) via BasicCompGeometry ---
         println("Generating 3 text pages with LuaLaTeX (via BasicCompGeometry.latex_to_pdf)...")
