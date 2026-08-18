@@ -663,6 +663,59 @@ end
 # ==============================================================================
 # MODE 3: 7-Page Prophet Comparison (Default Mode)
 # ==============================================================================
+function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
+                                max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                                N, cw, ch, margin, scale_factor)
+    # Page 1: Diagram 1
+    println("  Rendering Page 1 / 7: Final Voronoi Diagram...")
+    render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                         highlight_k_star = true, show_text = false)
+    description(canvas, "Page 1: Final Voronoi diagram on the flat torus for N = $N points. Prophet site p_$k_star achieves maximum cell area $(round(max_area_final, digits=4)).")
+    Cairo.show_page(canvas)
+
+    # Page 2: Text 1
+    println("  Rendering Page 2 / 7: Text documentation for Page 1...")
+    cairo_draw_latex_page(canvas, build_text_page2(N, k_star, max_area_final))
+    description(canvas, "Page 2: Mathematical formulation and statistics of the final Voronoi configuration.")
+    Cairo.show_page(canvas)
+
+    # Page 3: Diagram 2
+    println("  Rendering Page 3 / 7: Prefix Voronoi Diagram at arrival step k = $k_star...")
+    render_voronoi_page!(canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
+                         highlight_k_star = true, show_text = false)
+    description(canvas, "Page 3: Prefix Voronoi diagram of the first k = $k_star points when prophet site p_$k_star arrived.")
+    Cairo.show_page(canvas)
+
+    # Page 4: Text 2
+    println("  Rendering Page 4 / 7: Text documentation for Page 3...")
+    cairo_draw_latex_page(canvas, build_text_page4(k_star, area_at_arrival, N, max_area_final))
+    description(canvas, "Page 4: Analysis of cell area evolution and shrinkage upon future site arrivals.")
+    Cairo.show_page(canvas)
+
+    # Page 5: Text 3
+    println("  Rendering Page 5 / 7: Theoretical Background & Mathematical Foundations...")
+    cairo_draw_latex_page(canvas, build_text_page5())
+    description(canvas, "Page 5: Classical prophet inequality theorem and Poisson-Voronoi extremal bounds.")
+    Cairo.show_page(canvas)
+
+    # Page 6: Diagram 3
+    println("  Rendering Page 6 / 7: Final Voronoi diagram (cells >= 1/2 max area in red)...")
+    render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                         highlight_k_star = false, show_text = false, show_points = false,
+                         highlight_cells = large_cells_half,
+                         highlight_color = (0.92, 0.22, 0.22, 0.55))
+    description(canvas, "Page 6: Final Voronoi diagram highlighting $(length(large_cells_half)) cells with area ≥ 1/2 of maximum area (red).")
+    Cairo.show_page(canvas)
+
+    # Page 7: Diagram 4
+    println("  Rendering Page 7 / 7: Final Voronoi diagram (cells >= 1/4 max area in red)...")
+    render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
+                         highlight_k_star = false, show_text = false, show_points = false,
+                         highlight_cells = large_cells_quarter,
+                         highlight_color = (0.92, 0.22, 0.22, 0.55))
+    description(canvas, "Page 7: Final Voronoi diagram highlighting $(length(large_cells_quarter)) cells with area ≥ 1/4 of maximum area (red).")
+end
+
 function generate_mode3(
     pdf_filename::String,
     svg_dir::String;
@@ -712,360 +765,36 @@ function generate_mode3(
     @printf("Mode 3: Found %d cells with area >= 1/4 max area (>= %.6f)\n", length(large_cells_quarter), threshold_quarter)
 
     mkpath(dirname(pdf_filename))
-    _clean_svg_dir(svg_dir)
 
     usable_w = cw - 2 * margin
     usable_h = ch - 2 * margin
     scale_factor = min(usable_w, usable_h) / 1.2
 
-    temp_dir = mktempdir()
-    temp_diag = joinpath(temp_dir, "diag.pdf")
-    temp_text = joinpath(temp_dir, "text.pdf")
-
-    try
-        # --- 1. Render Diagram Pages to PDF Canvas ---
-        open_canvas(temp_diag, cw, ch) do diag_canvas
-            println("Rendering Diagram 1 / 4: Final Voronoi diagram of N = $N points (no text)...")
-            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = true, show_text = false)
-
-            println("Rendering Diagram 2 / 4: Prefix Voronoi diagram of k = $k_star points (no text)...")
-            render_voronoi_page!(diag_canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = true, show_text = false)
-
-            println("Rendering Diagram 3 / 4: Final Voronoi diagram without sites (cells >= 1/2 max area in red)...")
-            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = false, show_text = false, show_points = false,
-                                 highlight_cells = large_cells_half,
-                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
-
-            println("Rendering Diagram 4 / 4: Final Voronoi diagram without sites (cells >= 1/4 max area in red)...")
-            render_voronoi_page!(diag_canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = false, show_text = false, show_points = false,
-                                 highlight_cells = large_cells_quarter,
-                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
-        end
-
-        # --- 2. Render Text Pages with LaTeX ---
-        println("Generating 3 text pages with LuaLaTeX (via BasicCompGeometry.latex_to_pdf)...")
-        text_pages = [
-            build_text_page2(N, k_star, max_area_final),
-            build_text_page4(k_star, area_at_arrival, N, max_area_final),
-            build_text_page5()
-        ]
-        latex_to_pdf(text_pages, temp_text; paperwidth = cw, paperheight = ch, margin = margin)
-
-        # --- 3. Merge into multi-page PDF ---
-        println("Merging diagram and text pages with pdf_merge into $pdf_filename...")
-        pdf_merge(pdf_filename, (temp_diag, 1), (temp_text, 1), (temp_diag, 2), (temp_text, "2-3"), (temp_diag, 3), (temp_diag, 4))
-        println("Successfully generated Mode 3 PDF (7 pages): $pdf_filename")
-
-        # --- 4. Render SVG Slide Sequence Natively via Canvas ---
-        println("Mode 3: Generating SVG slides in $svg_dir (geometric figures via Canvas SVG backend)...")
-        # Page 1: Diagram 1 (Canvas SVG)
-        open_canvas(joinpath(svg_dir, "page_001.svg"), cw, ch) do c
-            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = true, show_text = false)
-        end
-        # Page 2: Text Page 1 (LaTeX)
-        run(pipeline(`pdftocairo -svg -f 1 -l 1 $temp_text $(joinpath(svg_dir, "page_002.svg"))`, stdout=devnull, stderr=devnull))
-
-        # Page 3: Diagram 2 (Canvas SVG)
-        open_canvas(joinpath(svg_dir, "page_003.svg"), cw, ch) do c
-            render_voronoi_page!(c, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = true, show_text = false)
-        end
-        # Page 4: Text Page 2 (LaTeX)
-        run(pipeline(`pdftocairo -svg -f 2 -l 2 $temp_text $(joinpath(svg_dir, "page_004.svg"))`, stdout=devnull, stderr=devnull))
-
-        # Page 5: Text Page 3 (LaTeX)
-        run(pipeline(`pdftocairo -svg -f 3 -l 3 $temp_text $(joinpath(svg_dir, "page_005.svg"))`, stdout=devnull, stderr=devnull))
-
-        # Page 6: Diagram 3 (Canvas SVG)
-        open_canvas(joinpath(svg_dir, "page_006.svg"), cw, ch) do c
-            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = false, show_text = false, show_points = false,
-                                 highlight_cells = large_cells_half,
-                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
-        end
-        # Page 7: Diagram 4 (Canvas SVG)
-        open_canvas(joinpath(svg_dir, "page_007.svg"), cw, ch) do c
-            render_voronoi_page!(c, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
-                                 highlight_k_star = false, show_text = false, show_points = false,
-                                 highlight_cells = large_cells_quarter,
-                                 highlight_color = (0.92, 0.22, 0.22, 0.55))
-        end
-
-        # --- 5. Generate HTML Presentation ---
-        desc_map = Dict{Int, String}(
-            1 => "Final Voronoi diagram on the flat torus for N = $N points. Prophet site p_$k_star achieves maximum cell area $(round(max_area_final, digits=4)).",
-            2 => "LaTeX text documentation for Page 1: Final Voronoi Diagram.",
-            3 => "Prefix Voronoi diagram of the first k = $k_star points when prophet site p_$k_star arrived.",
-            4 => "LaTeX text documentation for Page 3: Prefix Voronoi Diagram.",
-            5 => "Mathematical background on prophet inequalities and extremal Voronoi statistics.",
-            6 => "Final Voronoi diagram highlighting cells with area ≥ 1/2 of maximum area (red).",
-            7 => "Final Voronoi diagram highlighting cells with area ≥ 1/4 of maximum area (red)."
-        )
-        generate_presentation_html(svg_dir; title="Prophet Voronoi Presentation (Mode 3)", descriptions=desc_map)
-    finally
-        rm(temp_dir, recursive=true, force=true)
+    # 1. Multi-page PDF via Canvas
+    println("Mode 3: Rendering 7 pages into PDF via Canvas: $pdf_filename...")
+    open_canvas(pdf_filename, cw, ch) do canvas
+        _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
+                               max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                               N, cw, ch, margin, scale_factor)
     end
+    println("Successfully generated Mode 3 PDF (7 pages): $pdf_filename")
+
+    # 2. HTML Presentation via Canvas
+    html_target = joinpath(svg_dir, "index.html")
+    println("Mode 3: Rendering 7 HTML presentation slides via Canvas: $html_target...")
+    c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Presentation (Mode 3)") do canvas
+        _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
+                               max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                               N, cw, ch, margin, scale_factor)
+    end
+    println("Generated 7 SVG slides in: $svg_dir")
+    println("HTML Presentation: ", get_file_path(c_html))
 end
 
 # Backward compatibility aliases
 const generate_mode1_pdf = (f; kwargs...) -> generate_mode1(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
 const generate_mode2_pdf = (f; kwargs...) -> generate_mode2(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
 const generate_mode3_pdf = (f; kwargs...) -> generate_mode3(f, normpath(joinpath(dirname(f), "svg")); kwargs...)
-
-# ==============================================================================
-# Helper: Clean SVG Directory
-# ==============================================================================
-function _clean_svg_dir(svg_dir::String)
-    mkpath(svg_dir)
-    for f in readdir(svg_dir)
-        if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
-            rm(joinpath(svg_dir, f), force=true)
-        end
-    end
-end
-
-# ==============================================================================
-# HTML Presentation Generator
-# ==============================================================================
-function generate_presentation_html(
-    svg_dir::String;
-    title::String = "Prophet Voronoi Presentation",
-    descriptions::Dict{Int, String} = Dict{Int, String}()
-)
-    svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(svg_dir))
-    sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
-
-    if isempty(svg_files)
-        @warn "No SVG files found in $svg_dir to generate HTML presentation"
-        return
-    end
-
-    slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
-    desc_array = [get(descriptions, i, "") for i in 1:length(svg_files)]
-    desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
-
-    html_content = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$(title)</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card-bg: #1e293b;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --border: #334155;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-    }
-    header {
-      width: 100%;
-      padding: 12px 24px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    h1 { font-size: 1.1rem; font-weight: 600; }
-    .controls { display: flex; gap: 8px; align-items: center; }
-    button, select {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: all 0.15s ease;
-    }
-    button:hover:not(:disabled) {
-      background: var(--accent);
-      color: #0f172a;
-      border-color: var(--accent);
-    }
-    button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    .slide-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      padding: 20px;
-      gap: 14px;
-    }
-    .slide-wrapper {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-      max-width: 90vw;
-      max-height: 72vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-    .slide-wrapper img {
-      width: 100%;
-      height: 100%;
-      max-height: 72vh;
-      object-fit: contain;
-      display: block;
-    }
-    .slide-description {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--accent);
-      border-radius: 6px;
-      padding: 12px 18px;
-      max-width: 90vw;
-      width: 100%;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      font-size: 0.95rem;
-      line-height: 1.5;
-      color: #e2e8f0;
-      white-space: pre-wrap;
-    }
-    footer {
-      width: 100%;
-      padding: 10px 24px;
-      background: var(--card-bg);
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-    .kbd {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-family: monospace;
-      font-size: 0.8rem;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>$(title)</h1>
-    <div class="controls">
-      <button id="prevBtn" onclick="prevSlide()">← Prev</button>
-      <select id="slideSelect" onchange="jumpSlide(parseInt(this.value))"></select>
-      <button id="nextBtn" onclick="nextSlide()">Next →</button>
-      <button id="fullscreenBtn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
-    </div>
-  </header>
-
-  <main class="slide-container" id="mainContainer">
-    <div class="slide-wrapper" id="slideWrapper">
-      <img id="slideImg" src="" alt="Slide">
-    </div>
-    <div class="slide-description" id="slideDesc" style="display: none;"></div>
-  </main>
-
-  <footer>
-    <span id="pageStatus">Slide 1 of $(length(svg_files))</span>
-    <span>Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> to navigate</span>
-  </footer>
-
-  <script>
-    const slides = $slides_json;
-    const descriptions = $desc_json;
-    let currentIdx = 0;
-
-    const img = document.getElementById('slideImg');
-    const desc = document.getElementById('slideDesc');
-    const select = document.getElementById('slideSelect');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const pageStatus = document.getElementById('pageStatus');
-
-    slides.forEach((s, idx) => {
-      const opt = document.createElement('option');
-      opt.value = idx;
-      opt.textContent = `Slide \${idx + 1} (\${s})`;
-      select.appendChild(opt);
-    });
-
-    function showSlide(idx) {
-      if (idx < 0 || idx >= slides.length) return;
-      currentIdx = idx;
-      img.src = slides[currentIdx];
-      select.value = currentIdx;
-      prevBtn.disabled = currentIdx === 0;
-      nextBtn.disabled = currentIdx === slides.length - 1;
-      pageStatus.textContent = `Slide \${currentIdx + 1} of \${slides.length}`;
-
-      const d = descriptions[currentIdx];
-      if (d && d.trim().length > 0) {
-        desc.textContent = d;
-        desc.style.display = 'block';
-      } else {
-        desc.textContent = '';
-        desc.style.display = 'none';
-      }
-    }
-
-    function prevSlide() { showSlide(currentIdx - 1); }
-    function nextSlide() { showSlide(currentIdx + 1); }
-    function jumpSlide(idx) { showSlide(idx); }
-
-    function toggleFullscreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {});
-      } else {
-        document.exitFullscreen();
-      }
-    }
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
-        nextSlide();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        prevSlide();
-      } else if (e.key === 'Home') {
-        showSlide(0);
-      } else if (e.key === 'End') {
-        showSlide(slides.length - 1);
-      } else if (e.key.toLowerCase() === 'f') {
-        toggleFullscreen();
-      }
-    });
-
-    showSlide(0);
-  </script>
-</body>
-</html>
-"""
-    index_path = joinpath(svg_dir, "index.html")
-    write(index_path, html_content)
-    println("Generated $(length(svg_files)) SVG slides in: $svg_dir")
-    println("HTML Presentation: ", get_file_path(index_path))
-end
 
 # ==============================================================================
 # CLI Entrypoint

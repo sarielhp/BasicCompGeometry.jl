@@ -34,6 +34,14 @@ Requires `Cairo` and `LaTeXStrings`.
 function cairo_draw_latex end
 
 """
+    cairo_draw_latex_page(canvas_or_cr, latex_str; compiler="lualatex", dpi=300)
+
+Compile and render a full LaTeX page `latex_str` directly onto the current canvas page.
+Requires `Cairo` and `LaTeXStrings`.
+"""
+function cairo_draw_latex_page end
+
+"""
     latex_to_pdf(pages, output_path; paperwidth=800, paperheight=800, margin=50, packages=["amsmath", "amssymb", "amsfonts", "microtype"], compiler="lualatex", passes=2)
 
 Compile one or more LaTeX page strings into a multi-page PDF document.
@@ -143,6 +151,6 @@ For HTML canvas output, returns the absolute path to `index.html`.
 """
 function get_file_path end
 
-export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, latex_to_pdf, pdf_merge
+export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, cairo_draw_latex_page, latex_to_pdf, pdf_merge
 export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
 export Canvas, open_canvas, description, get_file_path

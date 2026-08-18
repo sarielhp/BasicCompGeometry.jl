@@ -237,6 +237,64 @@ $body
 end
 
 """
+    BasicCompGeometry.cairo_draw_latex_page(canvas_or_cr, latex_str; compiler="lualatex", dpi=300, margin=50)
+
+Compile and render a complete LaTeX page directly onto the current canvas page.
+"""
+function BasicCompGeometry.cairo_draw_latex_page(
+    cr,
+    latex_str::Union{AbstractString, LaTeXString};
+    paperwidth::Union{Real, Nothing} = nothing,
+    paperheight::Union{Real, Nothing} = nothing,
+    margin::Real = 50,
+    compiler::String = "lualatex",
+    dpi::Int = 300,
+    extra_packages::Vector{String} = String[],
+    preamble::AbstractString = ""
+)
+    actual_cr = cr isa Cairo.CairoContext ? cr : (hasproperty(cr, :cr) ? cr.cr : cr)
+    cw = !isnothing(paperwidth) ? Float64(paperwidth) : (hasproperty(cr, :cw) ? Float64(cr.cw) : 800.0)
+    ch = !isnothing(paperheight) ? Float64(paperheight) : (hasproperty(cr, :ch) ? Float64(cr.ch) : 800.0)
+
+    temp_dir = mktempdir()
+    tex_path = joinpath(temp_dir, "page.tex")
+    pdf_path = joinpath(temp_dir, "page.pdf")
+    png_base = joinpath(temp_dir, "page")
+    png_path = joinpath(temp_dir, "page.png")
+
+    full_preamble = BasicCompGeometry.get_latex_preamble(extra_packages=extra_packages, extra_preamble=preamble)
+
+    tex_content = """
+\\documentclass[12pt]{article}
+\\usepackage[paperwidth=$(cw)bp,paperheight=$(ch)bp,margin=$(margin)bp]{geometry}
+$full_preamble
+\\pagestyle{empty}
+\\begin{document}
+$(String(latex_str))
+\\end{document}
+"""
+    write(tex_path, tex_content)
+
+    try
+        _run_silent(Cmd(`$compiler -interaction=nonstopmode -output-directory=$temp_dir $tex_path`, dir=temp_dir))
+        _run_silent(`pdftocairo -png -r $dpi -singlefile $pdf_path $png_base`)
+        img = Cairo.read_from_png(png_path)
+
+        raw_w = Float64(Cairo.width(img))
+        raw_h = Float64(Cairo.height(img))
+        scale = min(cw / raw_w, ch / raw_h)
+
+        Cairo.save(actual_cr)
+        Cairo.scale(actual_cr, scale, scale)
+        Cairo.set_source_surface(actual_cr, img, 0, 0)
+        Cairo.paint(actual_cr)
+        Cairo.restore(actual_cr)
+    finally
+        rm(temp_dir, recursive=true, force=true)
+    end
+end
+
+"""
     BasicCompGeometry.latex_to_pdf(pages, output_path;
                                   paperwidth=800,
                                   paperheight=800,
