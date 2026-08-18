@@ -731,7 +731,7 @@ end
 function generate_mode3(
     pdf_filename::String,
     svg_dir::String;
-    N::Int = 1000,
+    N::Int = 100,
     seed::Union{Int, Nothing} = nothing,
     cw::Int = 800,
     ch::Int = 800,
@@ -812,35 +812,84 @@ const generate_mode3_pdf = (f; kwargs...) -> generate_mode3(f, normpath(joinpath
 # CLI Entrypoint
 # ==============================================================================
 function main(args=ARGS)
-    mode_str = length(args) >= 1 ? lowercase(args[1]) : "3"
+    # Check for help
+    if any(a -> a in ("-h", "--help", "help"), args)
+        println("""
+Usage: prophet.jl [mode] [N] [seed]
+       prophet.jl [N]
+
+Arguments:
+  mode   Mode number or name:
+           3 or 'prophet' : 7-page prophet comparison (default)
+           1 or 'prefix'  : Prefix Voronoi sequence
+           2 or 'powers'  : Powers of 2 sequence (N = 2^3..2^12)
+  N      Number of points (default: 100 for Modes 1 and 3)
+  seed   Random seed (optional integer)
+
+Examples:
+  julia --project=examples examples/prophet.jl
+  julia --project=examples examples/prophet.jl 50
+  julia --project=examples examples/prophet.jl 3 200 42
+  julia --project=examples examples/prophet.jl 1 50
+  julia --project=examples examples/prophet.jl 2 42
+""")
+        return
+    end
 
     outdir = normpath(joinpath(@__DIR__, "..", "output"))
     mkpath(outdir)
     pdf_path = joinpath(outdir, "prophet.pdf")
     svg_dir = joinpath(outdir, "svg")
 
+    first_arg = length(args) >= 1 ? args[1] : ""
+    mode_str = "3"
+    N_arg = nothing
+    seed_arg = nothing
+
+    if isempty(args)
+        mode_str = "3"
+    elseif tryparse(Int, first_arg) !== nothing && parse(Int, first_arg) > 3
+        # e.g. prophet.jl 200
+        mode_str = "3"
+        N_arg = parse(Int, first_arg)
+        if length(args) >= 2
+            seed_arg = tryparse(Int, args[2])
+        end
+    else
+        mode_str = lowercase(first_arg)
+        if length(args) >= 2
+            if mode_str in ("2", "mode2", "powers")
+                seed_arg = tryparse(Int, args[2])
+            else
+                N_arg = tryparse(Int, args[2])
+                if length(args) >= 3
+                    seed_arg = tryparse(Int, args[3])
+                end
+            end
+        end
+    end
+
     println("="^70)
     if mode_str in ["1", "mode1", "prefix"]
-        N = length(args) >= 2 ? parse(Int, args[2]) : 100
-        seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
+        N = !isnothing(N_arg) ? N_arg : 100
         println("Prophet Voronoi Diagram - Mode 1 (Prefix Sequence, N = $N)")
         println("="^70)
-        generate_mode1(pdf_path, svg_dir; N=N, seed=seed)
+        generate_mode1(pdf_path, svg_dir; N=N, seed=seed_arg)
     elseif mode_str in ["2", "mode2", "powers"]
-        seed = length(args) >= 2 ? parse(Int, args[2]) : nothing
         println("Prophet Voronoi Diagram - Mode 2 (Powers of 2: N = 2^3..2^12)")
         println("="^70)
-        generate_mode2(pdf_path, svg_dir; powers=3:12, seed=seed)
-    elseif mode_str in ["3", "mode3", "prophet"] || isempty(args)
-        N = length(args) >= 2 ? parse(Int, args[2]) : 1000
-        seed = length(args) >= 3 ? parse(Int, args[3]) : nothing
+        generate_mode2(pdf_path, svg_dir; powers=3:12, seed=seed_arg)
+    elseif mode_str in ["3", "mode3", "prophet"]
+        N = !isnothing(N_arg) ? N_arg : 100
         println("Prophet Voronoi Diagram - Mode 3 [Default] (7-Page Prophet Comparison, N = $N)")
         println("="^70)
-        generate_mode3(pdf_path, svg_dir; N=N, seed=seed)
+        generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
     else
+        N = !isnothing(N_arg) ? N_arg : 100
         println("Unknown mode: '$mode_str'. Available modes: 1 (prefix), 2 (powers), 3 (default prophet comparison).")
-        println("Falling back to default Mode 3 (N = 1000)...")
+        println("Falling back to default Mode 3 (N = $N)...")
         println("="^70)
+        generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
     end
     println("="^70)
 end
