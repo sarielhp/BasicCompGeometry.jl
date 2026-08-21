@@ -339,24 +339,23 @@ function main(; show_page_numbers::Bool=true)
         page_num += 1
         Cairo.show_page(canvas)
 
-        # Page 15: Voronoi cell + curved polygon together
+        # Page 15: Voronoi cell + curved polygon together (3x3 neighborhood)
+        p15_x0 = max(0.0, (ix - 2) * cell_size)
+        p15_x1 = min(1.0, (ix + 1) * cell_size)
+        p15_y0 = max(0.0, (iy - 2) * cell_size)
+        p15_y1 = min(1.0, (iy + 1) * cell_size)
+        p15_w = p15_x1 - p15_x0
+        p15_max_r = p15_w / 200.0
+        p15_pt_r = min(0.003, p15_max_r)
+        p15_sing_r = min(0.008, p15_max_r * 1.6)
         Cairo.save(canvas)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
-        cairo_draw_setup(canvas, BBox(point(0, 0), point(1, 1)), cw, ch, margin)
+        cairo_draw_setup(canvas, BBox(point(p15_x0, p15_y0), point(p15_x1, p15_y1)), cw, ch, margin)
         fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
-        Cairo.set_source_rgba(canvas, 0.7, 0.7, 0.7, 0.3)
-        Cairo.set_line_width(canvas, 0.001)
-        for i in 0:grid_n
-            Cairo.move_to(canvas, i * cell_size, 0)
-            Cairo.line_to(canvas, i * cell_size, 1)
-            Cairo.stroke(canvas)
-            Cairo.move_to(canvas, 0, i * cell_size)
-            Cairo.line_to(canvas, 1, i * cell_size)
-            Cairo.stroke(canvas)
-        end
+        draw_grid(canvas, grid_n, cell_size)
         Cairo.set_source_rgba(canvas, 0.5, 0.5, 0.5, 0.5)
-        draw_points(canvas, pts, 0.003)
+        draw_points(canvas, pts, p15_pt_r)
         if length(voronoi_cell) >= 3
             Cairo.set_source_rgba(canvas, 0.8, 0.3, 0.3, 0.25)
             Cairo.new_path(canvas)
@@ -386,11 +385,11 @@ function main(; show_page_numbers::Bool=true)
             Cairo.stroke(canvas)
         end
         Cairo.set_source_rgb(canvas, 0.0, 0.3, 0.9)
-        Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], 0.008, 0, 2pi)
+        Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p15_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
         draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point")
+        description(canvas, "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)")
     end
 
     println("Output: ", get_file_path(pdf_path))
