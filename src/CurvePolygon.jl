@@ -1,21 +1,11 @@
 # Curve type and CurvePolygon2D
 
 """
-    AbsCurve2D{T}
-
-Abstract supertype for 2D curve primitives connecting two endpoints.
-Supported types currently include `Segment{2, T}` and `CircleArc{T}`.
-"""
-abstract type AbsCurve2D{T} end
-
-# Make Segment{2, T} and CircleArc{T} subtypes of AbsCurve2D{T} or handle via Union.
-# Alternatively, define Curve2D{T} as a union or wrapper.
-"""
     Curve2D{T}
 
-Type alias for a 2D curve primitive, which can be either a `Segment{2, T}` or a `CircleArc{T}`.
+Type alias for a 2D curve primitive, which can be a `Segment{2, T}`, `CircleArc{T}`, or `Hyperbola{T}`.
 """
-const Curve2D{T} = Union{Segment{2,T}, CircleArc{T}}
+const Curve2D{T} = Union{Segment{2,T}, CircleArc{T}, Hyperbola{T}, Parabola{T}}
 const Curve2DF = Curve2D{Float64}
 
 """
@@ -35,8 +25,8 @@ end
 const CurvePolygon2DF = CurvePolygon2D{Float64}
 
 # eltype for curves
-eltype(::Segment{2,T}) where {T} = T
-eltype(::CircleArc{T}) where {T} = T
+Base.eltype(::Segment{2,T}) where {T} = T
+Base.eltype(::CircleArc{T}) where {T} = T
 
 """
     geom_length(arc::CircleArc)

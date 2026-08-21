@@ -22,6 +22,15 @@ Points in a finite metric space are represented by integers 1:n.
 """
 abstract type AbsFMS end
 
+"""
+    AbsCurve2D{T}
+
+Abstract supertype for 2D curve primitives.
+A curve may be bounded (e.g., `Segment{2, T}`, `CircleArc{T}`) or unbounded (e.g., `Hyperbola{T}`).
+Concrete subtypes: `Segment{2, T}`, `CircleArc{T}`, `Hyperbola{T}`.
+"""
+abstract type AbsCurve2D{T} end
+
 include("Points.jl")
 include("Segments.jl")
 include("Planes.jl")
@@ -140,11 +149,13 @@ Alias for backward compatibility.
 const VecPolygon2F = VecPntSeq2F
 
 include("Spheres.jl")
+include("Hyperbolas.jl")
 include("CurvePolygon.jl")
 
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
-export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, point_on, direction, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon
+export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, direction, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
+export Hyperbola, Parabola, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export dist, dist_sq, dist_subspace, distance_infty, distance
