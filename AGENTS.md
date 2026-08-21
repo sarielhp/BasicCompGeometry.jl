@@ -6,6 +6,8 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
 
 ## 1. Project Overview
 
+**Boundary**: All work is confined to this project directory. Do not edit files outside `/home/sariel/prog/26/BasicCompGeometry/` without explicit permission.
+
 `BasicCompGeometry.jl` is a high-performance Julia library providing fundamental computational geometry data structures and algorithms in arbitrary dimensions:
 
 - **Geometric Primitives**: [`Point`](src/Points.jl), [`Segment`](src/Segments.jl), [`Line`](src/Segments.jl), [`Plane`](src/Planes.jl), [`BBox`](src/BBoxes.jl), [`PntSeq`](src/PntSeqs.jl), [`Sphere`](src/Spheres.jl), [`CircleArc`](src/Spheres.jl), [`CurvePolygon2D`](src/CurvePolygon.jl).
