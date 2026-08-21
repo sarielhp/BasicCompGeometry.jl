@@ -1,8 +1,4 @@
 #! /usr/bin/env julia
-
-using Pkg
-Pkg.activate(@__DIR__)
-
 #
 # examples/polarity.jl
 #
@@ -11,6 +7,7 @@ Pkg.activate(@__DIR__)
 # This duality is involutive: polar(polar(x)) = x.
 # In 2D, a plane is a line, so polar(Line) works the same as polar(Plane).
 
+using QuickEnv
 using BasicCompGeometry
 using LinearAlgebra
 using Printf
@@ -35,7 +32,8 @@ end
 function same_plane(a::Plane{D,T}, b::Plane{D,T}) where {D,T}
     na, nb = a.n ./ norm(a.n), b.n ./ norm(b.n)
     da, db = dot(na, a.p), dot(nb, b.p)
-    return isapprox(na, nb; atol=1e-12) && isapprox(da, db; atol=1e-12)
+    return (isapprox(na, nb; atol=1e-12) && isapprox(da, db; atol=1e-12)) ||
+           (isapprox(na, -nb; atol=1e-12) && isapprox(da, -db; atol=1e-12))
 end
 
 function main()
@@ -52,7 +50,7 @@ function main()
 
     println("--- 2D: polar(Line) works as polar(Plane) ---\n")
     l = Line(point(2.0, 1.0), point(1.0, 0.0))
-    pl = Plane(l.p, l.u)
+    pl = Plane(l)
     pt_from_line = polar(l)
     pt_from_plane = polar(pl)
     @printf("Line:       p=%s, u=%s\n", l.p, l.u)
@@ -66,12 +64,9 @@ function main()
     pl_from_ql = polar(ql)
     @printf("Original Line:  p=%s, u=%s\n", l.p, l.u)
     @printf("Polar point:    %s\n", ql)
-    @printf("Recovered line: p=%s, n=%s\n", pl_from_ql.p, pl_from_ql.n)
-    @printf("Line eqn: dot([%s], x) = %.1f\n", l.u, dot(l.u, l.p))
-    @printf("Recovered: dot([%s], x) = %.1f\n", pl_from_ql.n, dot(pl_from_ql.n, pl_from_ql.p))
-    @printf("Match: %s\n\n",
-        isapprox(l.u ./ norm(l.u), pl_from_ql.n ./ norm(pl_from_ql.n)) &&
-        isapprox(dot(l.u ./ norm(l.u), l.p), dot(pl_from_ql.n ./ norm(pl_from_ql.n), pl_from_ql.p)))
+    @printf("Recovered line: p=%s, u=%s\n", pl_from_ql.p, pl_from_ql.u)
+    match_geom = same_plane(Plane(l), Plane(pl_from_ql))
+    @printf("Match:          %s\n\n", match_geom)
 
     println("--- 3D Polarity ---\n")
     p3 = point(1.0, 2.0, 3.0)

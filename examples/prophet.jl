@@ -9,20 +9,22 @@ Pkg.activate(@__DIR__)
 Supported Modes:
   Mode 1: Prefix Voronoi sequence (starts from 4 points up to N points, default N = 100).
   Mode 2: Powers of 2 comparison (N = 2^3 ... 2^12, 10 pages) with ≤ 25% ink area calibration.
-  Mode 3: (Default) 7-page Prophet comparison:
+  Mode 3: (Default) 9-page Prophet comparison:
           - Page 1: Final Voronoi diagram of N = 1000 points (Cairo, no text).
           - Page 2: Text description of Page 1 (LuaLaTeX).
           - Page 3: Prefix Voronoi diagram of {p_1, ..., p_k} at prophet arrival (Cairo, no text).
-          - Page 4: Text description of Page 3 (LuaLaTeX).
-          - Page 5: Mathematical formulations and prophet inequality background (LuaLaTeX).
-          - Page 6: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/2 max area (Cairo).
-          - Page 7: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/4 max area (Cairo).
+          - Page 4: Prefix diagram highlighting cells larger than prophet cell in green (Cairo).
+          - Page 5: Text description of Pages 3 & 4 (LuaLaTeX).
+          - Page 6: Mathematical formulations and prophet inequality background (LuaLaTeX).
+          - Page 7: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/2 max area (Cairo).
+          - Page 8: Final Voronoi diagram without sites, highlighting in red all cells with area ≥ 1/4 max area (Cairo).
+          - Page 9: Voronoi diagram of first 40 points with furthest vertex disk and largest adjacent cell (Cairo).
 
 Usage:
-  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 7 pages)
+  ./examples/prophet.jl             # Runs default Mode 3 (N = 1000, 9 pages)
   ./examples/prophet.jl 1 [N] [seed] # Mode 1: Prefix Voronoi sequence
   ./examples/prophet.jl 2 [seed]     # Mode 2: Powers of 2 (N = 2^3..2^12, 10 pages)
-  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 7-page Prophet comparison (default N = 1000)
+  ./examples/prophet.jl 3 [N] [seed] # Mode 3: 9-page Prophet comparison (default N = 1000)
 """
 
 using BasicCompGeometry
@@ -142,6 +144,82 @@ function compute_voronoi_cells_periodic(pts::Vector{Point2F}, outer_box::Vector{
         cells[j] = poly
     end
     return cells
+end
+
+"""
+    collect_voronoi_vertices(cells; eps=1e-8)
+
+Collect all unique Voronoi vertices from a set of cells, along with the indices
+of cells adjacent to each vertex.  Returns `(vertices, adj)` where `vertices`
+is a `Vector{Point2F}` and `adj[i]` lists the cell indices that share vertex `i`.
+"""
+function collect_voronoi_vertices(cells::Vector{Vector{Point2F}}; eps::Float64=1e-8)
+    # Map quantised coordinates → (vertex index, adjacent cell indices)
+    vtx_map = Dict{Tuple{Int,Int}, Int}()
+    vertices = Point2F[]
+    adj = Vector{Vector{Int}}()
+
+    for (ci, cell) in enumerate(cells)
+        for v in cell
+            key = (round(Int, v[1] / eps), round(Int, v[2] / eps))
+            if haskey(vtx_map, key)
+                idx = vtx_map[key]
+                if !(ci in adj[idx])
+                    push!(adj[idx], ci)
+                end
+            else
+                push!(vertices, v)
+                push!(adj, [ci])
+                vtx_map[key] = length(vertices)
+            end
+        end
+    end
+    return vertices, adj
+end
+
+"""
+    find_furthest_voronoi_vertex(vertices, pts)
+
+Among the Voronoi `vertices`, find the one whose distance to the closest site
+in `pts` is maximised.  Returns `(best_idx, best_dist)` — the index into
+`vertices` and that maximum nearest-neighbour distance.
+"""
+function find_furthest_voronoi_vertex(vertices::Vector{Point2F}, pts::Vector{Point2F})
+    best_idx = 1
+    best_dist = -Inf
+    for (vi, v) in enumerate(vertices)
+        d_min = Inf
+        for p in pts
+            d = dist(v, p)
+            if d < d_min
+                d_min = d
+            end
+        end
+        if d_min > best_dist
+            best_dist = d_min
+            best_idx = vi
+        end
+    end
+    return best_idx, best_dist
+end
+
+"""
+    find_largest_adjacent_cell(adj_cells, cells)
+
+Given a list of cell indices `adj_cells` and the full `cells` array, return the
+index (into `cells`) of the adjacent cell with the largest area.
+"""
+function find_largest_adjacent_cell(adj_cells::Vector{Int}, cells::Vector{Vector{Point2F}})
+    best = adj_cells[1]
+    best_area = -Inf
+    for ci in adj_cells
+        a = polygon_area(cells[ci])
+        if a > best_area
+            best_area = a
+            best = ci
+        end
+    end
+    return best
 end
 
 """
@@ -385,6 +463,142 @@ function render_voronoi_page!(
             Cairo.stroke(cr)
         end
     end
+
+    Cairo.restore(cr)
+end
+
+"""
+    render_voronoi_vertex_page!(cr, pts10, cells10, vtx, vtx_radius,
+                                 largest_adj_idx, cw, ch, margin, scale_factor)
+
+Render a page showing the Voronoi diagram of the first 10 points with:
+  - The largest adjacent cell to the furthest Voronoi vertex filled in light green.
+  - A semi-transparent disk of radius `vtx_radius` centred at `vtx`.
+  - A solid dot at the vertex position.
+"""
+function render_voronoi_vertex_page!(
+    cr,
+    pts10::Vector{Point2F},
+    cells10::Vector{Vector{Point2F}},
+    vtx::Point2F,
+    vtx_radius::Float64,
+    largest_adj_idx::Int,
+    cw::Int,
+    ch::Int,
+    margin::Float64,
+    scale_factor::Float64
+)
+    N10 = length(pts10)
+    L = compute_total_unique_edge_length(cells10)
+
+    r_unit = sqrt(0.10 / (pi * N10))
+    w_unit = 0.15 / max(L, 1e-4)
+    r_pt = r_unit * scale_factor
+    w_pt = w_unit * scale_factor
+
+    max_radius_pt = 0.01 * cw
+    if r_pt > max_radius_pt
+        r_pt = max_radius_pt
+        r_unit = r_pt / scale_factor
+    end
+    if w_pt > r_pt
+        w_pt = r_pt
+        w_unit = w_pt / scale_factor
+    end
+
+    Cairo.save(cr)
+
+    # Page background
+    set_source_rgb(cr, 0.98, 0.98, 0.99)
+    Cairo.rectangle(cr, 0, 0, cw, ch)
+    Cairo.fill(cr)
+
+    # Setup geometry transform
+    Cairo.translate(cr, margin + 0.1 * scale_factor, ch - margin - 0.1 * scale_factor)
+    Cairo.scale(cr, scale_factor, -scale_factor)
+
+    # 1. White background for diagram area
+    set_source_rgb(cr, 1.0, 1.0, 1.0)
+    Cairo.set_line_width(cr, 3.0)
+    Cairo.rectangle(cr, -0.1, -0.1, 1.2, 1.2)
+    Cairo.stroke(cr)
+
+    # 2. Fill all cells in light gray
+    set_source_rgb(cr, 0.90, 0.90, 0.93)
+    for cell in cells10
+        length(cell) < 3 && continue
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, cell[1][1], cell[1][2])
+        for v in cell[2:end]
+            Cairo.line_to(cr, v[1], v[2])
+        end
+        Cairo.close_path(cr)
+        Cairo.fill(cr)
+    end
+
+    # 3. Fill the largest adjacent cell in light green
+    if 1 <= largest_adj_idx <= length(cells10)
+        adj_cell = cells10[largest_adj_idx]
+        if length(adj_cell) >= 3
+            set_source_rgb(cr, 0.65, 0.92, 0.65)
+            Cairo.new_path(cr)
+            Cairo.move_to(cr, adj_cell[1][1], adj_cell[1][2])
+            for v in adj_cell[2:end]
+                Cairo.line_to(cr, v[1], v[2])
+            end
+            Cairo.close_path(cr)
+            Cairo.fill(cr)
+        end
+    end
+
+    # 4. Stroke all cell boundaries
+    set_source_rgb(cr, 0.0, 0.0, 0.0)
+    Cairo.set_line_width(cr, w_pt)
+    for cell in cells10
+        length(cell) < 2 && continue
+        Cairo.new_path(cr)
+        Cairo.move_to(cr, cell[1][1], cell[1][2])
+        for v in cell[2:end]
+            Cairo.line_to(cr, v[1], v[2])
+        end
+        Cairo.close_path(cr)
+        Cairo.stroke(cr)
+    end
+
+    # 5. Draw the unit square boundary in yellow
+    set_source_rgb(cr, 0.98, 0.86, 0.20)
+    Cairo.set_line_width(cr, max(w_pt * 1.5, 2.0))
+    Cairo.rectangle(cr, 0.0, 0.0, 1.0, 1.0)
+    Cairo.stroke(cr)
+
+    # 6. Draw semi-transparent disk at the furthest vertex
+    set_source_rgba(cr, 0.20, 0.50, 0.85, 0.25)
+    Cairo.new_path(cr)
+    Cairo.arc(cr, vtx[1], vtx[2], vtx_radius, 0.0, 2pi)
+    Cairo.fill(cr)
+
+    # Stroke the disk boundary
+    set_source_rgba(cr, 0.15, 0.35, 0.75, 0.60)
+    Cairo.set_line_width(cr, max(w_pt, 1.5))
+    Cairo.new_path(cr)
+    Cairo.arc(cr, vtx[1], vtx[2], vtx_radius, 0.0, 2pi)
+    Cairo.stroke(cr)
+
+    # 7. Draw sites as red dots
+    for j in 1:N10
+        pj = pts10[j]
+        set_source_rgb(cr, 0.85, 0.15, 0.15)
+        Cairo.new_path(cr)
+        Cairo.arc(cr, pj[1], pj[2], r_unit, 0.0, 2pi)
+        Cairo.fill(cr)
+    end
+
+    # 8. Draw a solid dot at the vertex
+    vtx_dot_r = max(r_unit * 1.3, 0.012)
+    set_source_rgb(cr, 0.10, 0.10, 0.60)
+    Cairo.new_path(cr)
+    Cairo.arc(cr, vtx[1], vtx[2], vtx_dot_r, 0.0, 2pi)
+    Cairo.fill(cr)
 
     Cairo.restore(cr)
 end
@@ -709,37 +923,39 @@ In geometric prophet settings, sites arrive sequentially, and the decision-maker
 end
 
 # ==============================================================================
-# MODE 3: 8-Page Prophet Comparison (Default Mode)
+# MODE 3: 9-Page Prophet Comparison (Default Mode)
 # ==============================================================================
 function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
                                 max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                                pts10, cells10, vtx10, vtx10_radius, largest_adj10,
                                 N, cw, ch, margin, scale_factor)
+    n_vtx = length(pts10)
     areas_k = [polygon_area(c) for c in cells_k]
     larger_cells_k = findall(a -> a > area_at_arrival + 1e-9, areas_k)
     num_larger = length(larger_cells_k)
 
     # Page 1: Diagram 1
-    println("  Rendering Page 1 / 8: Final Voronoi Diagram...")
+    println("  Rendering Page 1 / 9: Final Voronoi Diagram...")
     render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = true, show_text = false)
     description(canvas, "Page 1: Final Voronoi diagram on the flat torus for N = $N points. Prophet site p_$k_star achieves maximum cell area $(round(max_area_final, digits=4)).")
     Cairo.show_page(canvas)
 
     # Page 2: Text 1
-    println("  Rendering Page 2 / 8: Text documentation for Page 1...")
+    println("  Rendering Page 2 / 9: Text documentation for Page 1...")
     cairo_draw_latex_page(canvas, build_text_page2(N, k_star, max_area_final))
     description(canvas, "Page 2: Mathematical formulation and statistics of the final Voronoi configuration.")
     Cairo.show_page(canvas)
 
     # Page 3: Diagram 2
-    println("  Rendering Page 3 / 8: Prefix Voronoi Diagram at arrival step k = $k_star...")
+    println("  Rendering Page 3 / 9: Prefix Voronoi Diagram at arrival step k = $k_star...")
     render_voronoi_page!(canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = true, show_text = false)
     description(canvas, "Page 3: Prefix Voronoi diagram of the first k = $k_star points when prophet site p_$k_star arrived.")
     Cairo.show_page(canvas)
 
-    # Page 4: Diagram 3 (NEW: Prefix cells larger in area than blue cell in light green)
-    println("  Rendering Page 4 / 8: Prefix Voronoi Diagram (cells larger than prophet cell in light green)...")
+    # Page 4: Diagram 3 (Prefix cells larger in area than blue cell in light green)
+    println("  Rendering Page 4 / 9: Prefix Voronoi Diagram (cells larger than prophet cell in light green)...")
     render_voronoi_page!(canvas, prefix_pts, cells_k, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = true, show_text = false, show_points = true,
                          highlight_cells = larger_cells_k,
@@ -748,19 +964,19 @@ function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_sta
     Cairo.show_page(canvas)
 
     # Page 5: Text 2
-    println("  Rendering Page 5 / 8: Text documentation for Pages 3 & 4...")
+    println("  Rendering Page 5 / 9: Text documentation for Pages 3 & 4...")
     cairo_draw_latex_page(canvas, build_text_page4(k_star, area_at_arrival, N, max_area_final, num_larger))
     description(canvas, "Page 5: Analysis of cell area evolution, shrinkage, and prefix area rankings.")
     Cairo.show_page(canvas)
 
     # Page 6: Text 3
-    println("  Rendering Page 6 / 8: Theoretical Background & Mathematical Foundations...")
+    println("  Rendering Page 6 / 9: Theoretical Background & Mathematical Foundations...")
     cairo_draw_latex_page(canvas, build_text_page5())
     description(canvas, "Page 6: Classical prophet inequality theorem and Poisson-Voronoi extremal bounds.")
     Cairo.show_page(canvas)
 
     # Page 7: Diagram 4
-    println("  Rendering Page 7 / 8: Final Voronoi diagram (cells >= 1/2 max area in red)...")
+    println("  Rendering Page 7 / 9: Final Voronoi diagram (cells >= 1/2 max area in red)...")
     render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = false, show_text = false, show_points = false,
                          highlight_cells = large_cells_half,
@@ -769,12 +985,19 @@ function _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_sta
     Cairo.show_page(canvas)
 
     # Page 8: Diagram 5
-    println("  Rendering Page 8 / 8: Final Voronoi diagram (cells >= 1/4 max area in red)...")
+    println("  Rendering Page 8 / 9: Final Voronoi diagram (cells >= 1/4 max area in red)...")
     render_voronoi_page!(canvas, pts, cells_N, k_star, p_star, cw, ch, margin, scale_factor;
                          highlight_k_star = false, show_text = false, show_points = false,
                          highlight_cells = large_cells_quarter,
                          highlight_color = (0.95, 0.60, 0.60))
     description(canvas, "Page 8: Final Voronoi diagram highlighting $(length(large_cells_quarter)) cells with area ≥ 1/4 of maximum area (red).")
+    Cairo.show_page(canvas)
+
+    # Page 9: Voronoi vertex diagram of first n_vtx points
+    println("  Rendering Page 9 / 9: Voronoi vertex diagram (first $n_vtx points)...")
+    render_voronoi_vertex_page!(canvas, pts10, cells10, vtx10, vtx10_radius, largest_adj10,
+                                cw, ch, margin, scale_factor)
+    description(canvas, "Page 9: Voronoi diagram of the first $n_vtx points. The vertex furthest from its nearest site (distance ℓ = $(round(vtx10_radius, digits=4))) is shown with a semi-transparent disk of radius ℓ. The largest adjacent Voronoi cell is filled in light green.")
 end
 
 function generate_mode3(
@@ -825,6 +1048,18 @@ function generate_mode3(
     large_cells_quarter = findall(a -> a >= threshold_quarter, areas_N)
     @printf("Mode 3: Found %d cells with area >= 1/4 max area (>= %.6f)\n", length(large_cells_quarter), threshold_quarter)
 
+    # 4. Compute Voronoi diagram of first 40 points and find furthest vertex
+    n10 = min(40, N)
+    pts10 = pts[1:n10]
+    println("Mode 3: Computing Voronoi diagram of first $n10 points for vertex analysis...")
+    cells10 = compute_voronoi_cells_periodic(pts10, outer_box)
+    vertices10, adj10 = collect_voronoi_vertices(cells10)
+    vtx_idx, vtx_radius = find_furthest_voronoi_vertex(vertices10, pts10)
+    vtx10 = vertices10[vtx_idx]
+    largest_adj10 = find_largest_adjacent_cell(adj10[vtx_idx], cells10)
+    @printf("Mode 3: Furthest Voronoi vertex at (%.4f, %.4f), distance ℓ = %.6f to nearest site, largest adjacent cell = %d\n",
+            vtx10[1], vtx10[2], vtx_radius, largest_adj10)
+
     mkpath(dirname(pdf_filename))
 
     usable_w = cw - 2 * margin
@@ -832,23 +1067,25 @@ function generate_mode3(
     scale_factor = min(usable_w, usable_h) / 1.2
 
     # 1. Multi-page PDF via Canvas
-    println("Mode 3: Rendering 8 pages into PDF via Canvas: $pdf_filename...")
+    println("Mode 3: Rendering 9 pages into PDF via Canvas: $pdf_filename...")
     open_canvas(pdf_filename, cw, ch) do canvas
         _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
                                max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                               pts10, cells10, vtx10, vtx_radius, largest_adj10,
                                N, cw, ch, margin, scale_factor)
     end
-    println("Successfully generated Mode 3 PDF (8 pages): $pdf_filename")
+    println("Successfully generated Mode 3 PDF (9 pages): $pdf_filename")
 
     # 2. HTML Presentation via Canvas
     html_target = joinpath(svg_dir, "index.html")
-    println("Mode 3: Rendering 8 HTML presentation slides via Canvas: $html_target...")
+    println("Mode 3: Rendering 9 HTML presentation slides via Canvas: $html_target...")
     c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Presentation (Mode 3)") do canvas
         _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
                                max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
+                               pts10, cells10, vtx10, vtx_radius, largest_adj10,
                                N, cw, ch, margin, scale_factor)
     end
-    println("Generated 8 SVG slides in: $svg_dir")
+    println("Generated 9 SVG slides in: $svg_dir")
     println("HTML Presentation: ", get_file_path(c_html))
     return k_star
 end
@@ -870,7 +1107,7 @@ Usage: prophet.jl [mode] [N]
 
 Arguments:
   mode   Mode number or name:
-           3 or 'prophet' : 8-page prophet comparison (default)
+           3 or 'prophet' : 9-page prophet comparison (default)
            1 or 'prefix'  : Prefix Voronoi sequence
            2 or 'powers'  : Powers of 2 sequence (N = 2^3..2^12)
   N      Number of points (default: 100)
@@ -947,7 +1184,7 @@ Examples:
         generate_mode2(pdf_path, svg_dir; powers=3:12, seed=seed_arg)
     elseif mode_str in ["3", "mode3", "prophet"]
         N = !isnothing(N_arg) ? N_arg : 100
-        println("Prophet Voronoi Diagram - Mode 3 [Default] (8-Page Prophet Comparison, N = $N)")
+        println("Prophet Voronoi Diagram - Mode 3 [Default] (9-Page Prophet Comparison, N = $N)")
         println("="^70)
         largest_idx = generate_mode3(pdf_path, svg_dir; N=N, seed=seed_arg)
     else
