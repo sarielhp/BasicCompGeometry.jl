@@ -118,8 +118,8 @@ function draw_page_number(cr, page_num, cw, ch, margin; show=true)
 end
 
 function draw_grid(cr, grid_n, cell_size)
-    Cairo.set_source_rgb(cr, 0.7, 0.7, 0.7)
-    Cairo.set_line_width(cr, 0.002)
+    Cairo.set_source_rgb(cr, 0, 0, 0)
+    Cairo.set_line_width(cr, 0.02)
     for i in 0:grid_n
         Cairo.move_to(cr, i * cell_size, 0)
         Cairo.line_to(cr, i * cell_size, 1)
@@ -128,6 +128,14 @@ function draw_grid(cr, grid_n, cell_size)
         Cairo.line_to(cr, 1, i * cell_size)
         Cairo.stroke(cr)
     end
+end
+
+function fill_cell(cr, ix, iy, cell_size, r, g, b)
+    cx0 = (ix - 1) * cell_size
+    cy0 = (iy - 1) * cell_size
+    Cairo.set_source_rgb(cr, r, g, b)
+    Cairo.rectangle(cr, cx0, cy0, cell_size, cell_size)
+    Cairo.fill(cr)
 end
 
 function draw_points(cr, pts, radius)
@@ -159,10 +167,18 @@ function main(; show_page_numbers::Bool=true)
     end
 
     singleton_cell = nothing
-    for ix in 1:grid_n, iy in 1:grid_n
+    for ix in 2:grid_n-1, iy in 2:grid_n-1
         if cell_counts[ix, iy] == 1
             singleton_cell = (ix, iy)
             break
+        end
+    end
+    if singleton_cell === nothing
+        for ix in 1:grid_n, iy in 1:grid_n
+            if cell_counts[ix, iy] == 1
+                singleton_cell = (ix, iy)
+                break
+            end
         end
     end
     singleton_cell === nothing && error("No singleton cell found")
@@ -214,10 +230,8 @@ function main(; show_page_numbers::Bool=true)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
         cairo_draw_setup(canvas, BBox(point(0, 0), point(1, 1)), cw, ch, margin)
+        fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
         draw_grid(canvas, grid_n, cell_size)
-        Cairo.set_source_rgba(canvas, 0.8, 0.9, 1.0, 0.3)
-        Cairo.rectangle(canvas, cx0, cy0, cell_size, cell_size)
-        Cairo.fill(canvas)
         Cairo.set_source_rgb(canvas, 0.85, 0.15, 0.15)
         draw_points(canvas, pts, 0.005)
         Cairo.set_source_rgb(canvas, 0.0, 0.3, 0.9)
@@ -232,19 +246,24 @@ function main(; show_page_numbers::Bool=true)
         # Pages 3-12: Zoom into singleton cell
         for zi in 1:n_zoom
             bb = zoom_boxes[zi]
+            bl = bottom_left(bb)
+            tr = top_right(bb)
+            bb_w = tr[1] - bl[1]
+            max_r = bb_w / 200.0
+            pt_r = min(0.005, max_r)
+            sing_r = min(0.008, max_r * 1.6)
             Cairo.save(canvas)
             Cairo.set_source_rgb(canvas, 1, 1, 1)
             Cairo.paint(canvas)
             cairo_draw_setup(canvas, bb, cw, ch, margin)
-            bl = bottom_left(bb)
-            tr = top_right(bb)
-            Cairo.rectangle(canvas, bl[1], bl[2], tr[1] - bl[1], tr[2] - bl[2])
+            fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
+            Cairo.rectangle(canvas, bl[1], bl[2], bb_w, tr[2] - bl[2])
             Cairo.clip(canvas.cr)
             draw_grid(canvas, grid_n, cell_size)
             Cairo.set_source_rgb(canvas, 0.85, 0.15, 0.15)
-            draw_points(canvas, pts, 0.005)
+            draw_points(canvas, pts, pt_r)
             Cairo.set_source_rgb(canvas, 0.0, 0.3, 0.9)
-            Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], 0.008, 0, 2pi)
+            Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], sing_r, 0, 2pi)
             Cairo.fill(canvas)
             Cairo.restore(canvas)
             draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
@@ -258,6 +277,8 @@ function main(; show_page_numbers::Bool=true)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
         cairo_draw_setup(canvas, BBox(point(cx0, cy0), point(cx1, cy1)), cw, ch, margin)
+        fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
+        draw_grid(canvas, grid_n, cell_size)
         Cairo.set_source_rgb(canvas, 0.7, 0.7, 0.7)
         Cairo.set_line_width(canvas, 0.002)
         Cairo.rectangle(canvas, cx0, cy0, cell_size, cell_size)
@@ -289,6 +310,7 @@ function main(; show_page_numbers::Bool=true)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
         cairo_draw_setup(canvas, BBox(point(nx0, ny0), point(nx1, ny1)), cw, ch, margin)
+        fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
         draw_grid(canvas, grid_n, cell_size)
         Cairo.set_source_rgb(canvas, 0.85, 0.15, 0.15)
         draw_points(canvas, pts, 0.005)
@@ -315,6 +337,7 @@ function main(; show_page_numbers::Bool=true)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
         cairo_draw_setup(canvas, BBox(point(0, 0), point(1, 1)), cw, ch, margin)
+        fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
         Cairo.set_source_rgba(canvas, 0.7, 0.7, 0.7, 0.3)
         Cairo.set_line_width(canvas, 0.001)
         for i in 0:grid_n
