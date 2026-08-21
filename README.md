@@ -171,8 +171,8 @@ Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
 
 ## Examples
 
-Ready-to-run example scripts demonstrating the library's capabilities
-are documented in [`docs/examples/README.md`](docs/examples/README.md).
+Ready-to-run example scripts are documented in
+[`examples/README.md`](examples/README.md).
 
 ## Visualization & Optional Dependencies
 
