@@ -122,6 +122,7 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
 - **Auto-track new files**: After creating any new source file (example, script, extension, test, etc.), immediately stage and commit it. Do not leave new files untracked.
 - **Output directory**: The `output/` directory is gitignored. All examples must write their output (PDFs, PNGs, SVGs, etc.) to `output/` or a subdirectory thereof.
 - **Commit discipline**: Keep commits focused. Stage only the files relevant to the change.
+- **Example documentation**: [`docs/examples/README.md`](docs/examples/README.md) describes every example program in detail. When adding or modifying an example, update this file accordingly.
 
 - **External Dependencies**:
   - `lualatex` (or `pdflatex`): for compiling LaTeX text and snippets.
