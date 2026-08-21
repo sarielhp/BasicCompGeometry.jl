@@ -117,6 +117,12 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
 - **Creating temp files**: Use `mkpath(joinpath(@__DIR__, "..", "output", "tmp"))` then write inside it.
 - **Cleanup**: If feasible, remove temp files at the end of the script.
 
+## 6. Git Workflow
+
+- **Auto-track new files**: After creating any new source file (example, script, extension, test, etc.), immediately stage and commit it. Do not leave new files untracked.
+- **Output directory**: The `output/` directory is gitignored. All examples must write their output (PDFs, PNGs, SVGs, etc.) to `output/` or a subdirectory thereof.
+- **Commit discipline**: Keep commits focused. Stage only the files relevant to the change.
+
 - **External Dependencies**:
   - `lualatex` (or `pdflatex`): for compiling LaTeX text and snippets.
   - `pdftocairo`: for rasterizing in-canvas LaTeX snippet overlays.
