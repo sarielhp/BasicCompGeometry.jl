@@ -54,22 +54,12 @@ end
 Construct the bisector of a line and a point.
 The bisector is the set of points `x` such that `dist(x, line) = dist(x, point)`.
 This is a parabola (focus-directrix definition), not a hyperbola.
-This constructor is provided for convenience but the result is a hyperbola
-that approximates the parabola near the point. For exact computations,
-use the implicit equation directly.
+
+Deprecated: use `Parabola(point, line)` instead.
 """
 function Hyperbola(line::Line{2,T}, point::Point{2,T}) where {T}
-    n = Point{2,T}(-line.u[2], line.u[1])
-    n_len = norm(n)
-    n = n / n_len
-    d_line = dot(line.p, n)
-    d_point = dot(point, n)
-    dist_pp = abs(d_point - d_line)
-    proj = point - dist_pp * n
-    f1 = point
-    f2 = proj + 2 * (d_line - dot(proj, n)) * n
-    d = 2 * dist_pp
-    return Hyperbola{T}(f1, f2, T(d))
+    Base.depwarn("`Hyperbola(line, point)` is deprecated, use `Parabola(point, line)` instead.", :Hyperbola)
+    return Parabola(point, line)
 end
 
 """
@@ -276,11 +266,12 @@ end
 """
     bisector(line::Line{2,T}, point::Point{2,T})
 
-Construct the bisector hyperbola of a line and a point.
+Construct the bisector parabola of a line and a point.
 This is the set of points equidistant from the line and the point.
+Returns a `Parabola(point, line)`.
 """
 function bisector(line::Line{2,T}, point::Point{2,T}) where {T}
-    return Hyperbola(line, point)
+    return Parabola(point, line)
 end
 
 ###############################################

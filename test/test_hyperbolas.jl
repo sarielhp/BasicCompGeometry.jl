@@ -27,9 +27,11 @@ using LinearAlgebra
     @testset "From line and point (bisector)" begin
         line = Line(point(0.0, 1.0), point(1.0, 0.0))
         pt = point(0.0, 0.0)
-        h = Hyperbola(line, pt)
-        @test h isa Hyperbola{Float64}
-        @test h isa AbsCurve2D{Float64}
+        p = Parabola(pt, line)
+        @test p isa Parabola{Float64}
+        @test p isa AbsCurve2D{Float64}
+        @test p.focus == pt
+        @test p.directrix == line
     end
 
     @testset "Point on hyperbola" begin
@@ -85,8 +87,9 @@ using LinearAlgebra
     @testset "Bisector function" begin
         line = Line(point(0.0, 1.0), point(1.0, 0.0))
         pt = point(0.0, 0.0)
-        h = bisector(line, pt)
-        @test h isa Hyperbola{Float64}
+        p = bisector(line, pt)
+        @test p isa Parabola{Float64}
+        @test p isa Curve2D{Float64}
     end
 
     @testset "Distance to hyperbola" begin
