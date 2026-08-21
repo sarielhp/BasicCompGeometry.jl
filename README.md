@@ -169,6 +169,11 @@ using Pkg
 Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
 ```
 
+## Examples
+
+Ready-to-run example scripts demonstrating the library's capabilities
+are documented in [`docs/examples/README.md`](docs/examples/README.md).
+
 ## Visualization & Optional Dependencies
 
 Starting with Julia 1.9, `BasicCompGeometry` uses **Package Extensions** to keep the core library lightweight. Visualization features (like `BBT.Tree_draw`) are only available when you explicitly load the following packages in your environment:

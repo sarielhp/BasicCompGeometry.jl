@@ -225,7 +225,7 @@ export invert
 A 2D circular arc defined by a `center` (`Point{2, T}`), scalar `radius` of type `T`, 
 and counter-clockwise angular span from `theta1` to `theta2` (in radians).
 """
-struct CircleArc{T}
+struct CircleArc{T} <: AbsCurve2D{T}
     center::Point{2,T}
     radius::T
     theta1::T

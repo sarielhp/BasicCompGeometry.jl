@@ -1,6 +1,10 @@
 #!/usr/bin/env julia
+
+using QuickEnv
+# local
+
 # Bisector cell example:
-# 10 random lines tangent to the unit square, their bisectors with the origin,
+# 10 random lines tangent to the unit square, their parabolas (bisectors with the origin),
 # and the cell in their arrangement containing the origin.
 
 using BasicCompGeometry
@@ -50,7 +54,7 @@ end
 
 function cell_containing_origin(lines, origin=point(0.0, 0.0))
     n = length(lines)
-    bisectors = [Hyperbola(line, origin) for line in lines]
+    bisectors = [Parabola(origin, line) for line in lines]
     candidates = Tuple{Point2F,Int,Int}[]
     for i in 1:n
         for j in (i+1):n
@@ -75,7 +79,7 @@ function cell_containing_origin(lines, origin=point(0.0, 0.0))
     end
     isempty(candidates) && return CurvePolygon2D(Curve2D{Float64}[]), bisectors
     unique_pts = Point2F[]
-    seen = Set{Int}()
+    seen = Set{UInt64}()
     for (pt, _, _) in candidates
         h = hash(round.(pt, digits=6))
         if !(h in seen)
@@ -107,7 +111,8 @@ end
 function draw_bisector_cell(lines, origin=point(0.0, 0.0))
     cell, bisectors = cell_containing_origin(lines, origin)
     bb = BBox(point(-3.0, -3.0), point(3.0, 3.0))
-    canvas_path = joinpath(@__DIR__, "bisector_cell.pdf")
+    canvas_path = joinpath(@__DIR__, "..", "output", "bisector_cell.pdf")
+    mkpath(dirname(canvas_path))
     open_canvas(canvas_path, 800, 800; title="Bisector Cell") do canvas
         cairo_draw_setup(canvas, bb, 800, 800, 40)
         Cairo.set_source_rgb(canvas, 1, 1, 1)
@@ -124,23 +129,21 @@ function draw_bisector_cell(lines, origin=point(0.0, 0.0))
         colors = [(0.2, 0.2, 0.8), (0.8, 0.2, 0.2), (0.2, 0.8, 0.2),
                   (0.8, 0.5, 0.1), (0.5, 0.2, 0.8), (0.1, 0.7, 0.7),
                   (0.7, 0.1, 0.5), (0.5, 0.5, 0.5), (0.9, 0.6, 0.2), (0.3, 0.6, 0.3)]
-        for (idx, h) in enumerate(bisectors)
+        for (idx, p) in enumerate(bisectors)
             c = colors[mod1(idx, length(colors))]
             Cairo.set_source_rgb(canvas, c[1], c[2], c[3])
             Cairo.set_line_width(canvas, 0.02)
             pts = Point2F[]
-            for branch in (1, 2)
-                for t in range(-3.0, 3.0, length=200)
-                    p = at(h, Float64(t); branch=branch)
-                    if all(-3 .<= p .<= 3)
-                        push!(pts, p)
-                    end
+            for t in range(-5.0, 5.0, length=200)
+                pt = at(p, Float64(t))
+                if all(-3 .<= pt .<= 3)
+                    push!(pts, pt)
                 end
             end
             if !isempty(pts)
                 Cairo.move_to(canvas, pts[1][1], pts[1][2])
-                for p in pts[2:end]
-                    Cairo.line_to(canvas, p[1], p[2])
+                for pt in pts[2:end]
+                    Cairo.line_to(canvas, pt[1], pt[2])
                 end
                 Cairo.stroke(canvas)
             end
@@ -149,23 +152,51 @@ function draw_bisector_cell(lines, origin=point(0.0, 0.0))
         Cairo.set_line_width(canvas, 0.03)
         n_curves = length(cell.curves)
         for i in 1:n_curves
-            h = cell.curves[i]
+            c = cell.curves[i]
             p_start = point_on(cell, Float64(i-1) / n_curves)
             p_end = point_on(cell, Float64(i) / n_curves)
-            bv = max(b_coeff(h), 1e-12)
-            t_start = asinh((p_start[1] * sin(rotation_angle(h)) - p_start[2] * cos(rotation_angle(h))) / bv)
-            t_end = asinh((p_end[1] * sin(rotation_angle(h)) - p_end[2] * cos(rotation_angle(h))) / bv)
-            branch = 1
-            if dist(at(h, 0.0; branch=1), origin) > dist(at(h, 0.0; branch=2), origin)
-                branch = 2
+            if c isa Parabola
+                V = vertex(c)
+                n_dir = axis_direction(c)
+                u_dir = point(-n_dir[2], n_dir[1])
+                t_start = dot(p_start - V, u_dir)
+                t_end = dot(p_end - V, u_dir)
+                if isfinite(t_start) && isfinite(t_end)
+                    Cairo.move_to(canvas, p_start[1], p_start[2])
+                    for t in range(t_start, t_end, length=50)
+                        pt = at(c, Float64(t))
+                        Cairo.line_to(canvas, pt[1], pt[2])
+                    end
+                    Cairo.line_to(canvas, p_end[1], p_end[2])
+                    Cairo.stroke(canvas)
+                end
+            elseif c isa Hyperbola
+                bv = max(b_coeff(c), 1e-12)
+                ang = rotation_angle(c)
+                t_start = asinh((p_start[1] * sin(ang) - p_start[2] * cos(ang)) / bv)
+                t_end = asinh((p_end[1] * sin(ang) - p_end[2] * cos(ang)) / bv)
+                branch = 1
+                if dist(at(c, 0.0; branch=1), origin) > dist(at(c, 0.0; branch=2), origin)
+                    branch = 2
+                end
+                if isfinite(t_start) && isfinite(t_end)
+                    Cairo.move_to(canvas, p_start[1], p_start[2])
+                    for t in range(t_start, t_end, length=50)
+                        pt = at(c, Float64(t); branch=branch)
+                        Cairo.line_to(canvas, pt[1], pt[2])
+                    end
+                    Cairo.line_to(canvas, p_end[1], p_end[2])
+                    Cairo.stroke(canvas)
+                end
+            elseif c isa Segment2F
+                Cairo.move_to(canvas, p_start[1], p_start[2])
+                Cairo.line_to(canvas, p_end[1], p_end[2])
+                Cairo.stroke(canvas)
+            elseif c isa CircleArc2F
+                Cairo.move_to(canvas, p_start[1], p_start[2])
+                Cairo.arc(canvas, c.center[1], c.center[2], c.radius, c.theta1, c.theta2)
+                Cairo.stroke(canvas)
             end
-            Cairo.move_to(canvas, p_start[1], p_start[2])
-            for t in range(t_start, t_end, length=50)
-                p = at(h, Float64(t); branch=branch)
-                Cairo.line_to(canvas, p[1], p[2])
-            end
-            Cairo.line_to(canvas, p_end[1], p_end[2])
-            Cairo.stroke(canvas)
         end
         Cairo.set_source_rgb(canvas, 0, 0.5, 0)
         Cairo.set_line_width(canvas, 0.01)

@@ -23,7 +23,7 @@ Line(l::Line) = l
 
 A directed line segment in D dimensions defined by its endpoints `p` (start) and `q` (end).
 """
-struct Segment{D,T}
+struct Segment{D,T} <: AbsCurve2D{T}
     p::Point{D,T}
     q::Point{D,T}
 end

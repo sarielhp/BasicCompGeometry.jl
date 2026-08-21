@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 # Voronoi cell of a point w.r.t. the boundary lines of the unit square.
-# The bisector of a point and a line is a parabola.
-# The cell is the set of points closer to p than to any boundary line.
+
+using QuickEnv
 
 using BasicCompGeometry
 using Cairo

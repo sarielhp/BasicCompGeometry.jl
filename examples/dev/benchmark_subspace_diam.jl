@@ -1,4 +1,6 @@
-#! /bin/env julial
+#! /usr/bin/env julia
+
+using QuickEnv
 
 # High-scale comparison of subspace diameter implementations:
 # 1. WSPD-based (Standard)

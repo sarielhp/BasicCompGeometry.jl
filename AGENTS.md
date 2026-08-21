@@ -6,6 +6,8 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
 
 ## 1. Project Overview
 
+**Boundary**: All work is confined to this project directory. Do not edit files outside `/home/sariel/prog/26/BasicCompGeometry/` without explicit permission.
+
 `BasicCompGeometry.jl` is a high-performance Julia library providing fundamental computational geometry data structures and algorithms in arbitrary dimensions:
 
 - **Geometric Primitives**: [`Point`](src/Points.jl), [`Segment`](src/Segments.jl), [`Line`](src/Segments.jl), [`Plane`](src/Planes.jl), [`BBox`](src/BBoxes.jl), [`PntSeq`](src/PntSeqs.jl), [`Sphere`](src/Spheres.jl), [`CircleArc`](src/Spheres.jl), [`CurvePolygon2D`](src/CurvePolygon.jl).
@@ -110,6 +112,20 @@ pdf_merge("final_output.pdf",
   ```bash
   julia --project=examples examples/prophet.jl [mode] [args...]
   ```
+## 5. Temporary Files
+
+Temporary files (test outputs, intermediate data, scratch plots, etc.) should be created under `output/tmp/`. The project root must stay clean — do not write files directly into `/` or any top-level directory besides `output/` and its subdirectories.
+
+- **Creating temp files**: Use `mkpath(joinpath(@__DIR__, "..", "output", "tmp"))` then write inside it.
+- **Cleanup**: If feasible, remove temp files at the end of the script.
+
+## 6. Git Workflow
+
+- **Auto-track new files**: After creating any new source file (example, script, extension, test, etc.), immediately stage and commit it. Do not leave new files untracked.
+- **Output directory**: The `output/` directory is gitignored. All examples must write their output (PDFs, PNGs, SVGs, etc.) to `output/` or a subdirectory thereof.
+- **Commit discipline**: Keep commits focused. Stage only the files relevant to the change.
+- **Example documentation**: [`docs/examples/README.md`](docs/examples/README.md) describes every example program in detail. When adding or modifying an example, update this file accordingly.
+
 - **External Dependencies**:
   - `lualatex` (or `pdflatex`): for compiling LaTeX text and snippets.
   - `pdftocairo`: for rasterizing in-canvas LaTeX snippet overlays.

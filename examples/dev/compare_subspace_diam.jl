@@ -1,4 +1,6 @@
-#! /bin/env julial
+#! /usr/bin/env julia
+
+using QuickEnv
 
 # Comparison of two approx_diam_subspace implementations:
 # 1. WSPD-based: approx_diameter_subspace (from src/Diameter.jl)

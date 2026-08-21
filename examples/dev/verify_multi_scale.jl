@@ -1,4 +1,6 @@
-#! /bin/env julial
+#! /usr/bin/env julia
+
+using QuickEnv
 
 # Multi-scale verification of approx_diam_subspace implementations:
 # 1. WSPD-based (Diameter.jl)

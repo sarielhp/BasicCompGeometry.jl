@@ -1,7 +1,6 @@
 #!/usr/bin/env julia
 
-using Pkg
-Pkg.activate(@__DIR__)
+using QuickEnv
 
 """
     Example: Prophet Voronoi Diagram (Periodic 3x3 Grid)
