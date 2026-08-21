@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+using QuickEnv
+
 using BasicCompGeometry
 using Cairo
 using LinearAlgebra, Printf, Random

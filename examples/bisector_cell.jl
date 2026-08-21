@@ -1,4 +1,7 @@
 #!/usr/bin/env julia
+
+using QuickEnv
+
 # Bisector cell example:
 # 10 random lines tangent to the unit square, their bisectors with the origin,
 # and the cell in their arrangement containing the origin.

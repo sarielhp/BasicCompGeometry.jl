@@ -1,4 +1,6 @@
-#! /bin/env julial
+#! /usr/bin/env julia
+
+using QuickEnv
 
 using BasicCompGeometry
 using BasicCompGeometry.MVBB

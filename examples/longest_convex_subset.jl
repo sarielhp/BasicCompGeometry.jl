@@ -1,7 +1,6 @@
 #! /bin/env julia
 
-using Pkg
-Pkg.activate(@__DIR__)
+using QuickEnv
 
 """
     Example: Longest Convex Subset

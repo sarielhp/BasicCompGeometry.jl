@@ -1,7 +1,6 @@
 #! /usr/bin/env julia
 
-using Pkg
-Pkg.activate(@__DIR__)
+using QuickEnv
 
 #
 # examples/polarity.jl
