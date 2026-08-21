@@ -110,6 +110,13 @@ pdf_merge("final_output.pdf",
   ```bash
   julia --project=examples examples/prophet.jl [mode] [args...]
   ```
+## 5. Temporary Files
+
+Temporary files (test outputs, intermediate data, scratch plots, etc.) should be created under `output/tmp/`. The project root must stay clean — do not write files directly into `/` or any top-level directory besides `output/` and its subdirectories.
+
+- **Creating temp files**: Use `mkpath(joinpath(@__DIR__, "..", "output", "tmp"))` then write inside it.
+- **Cleanup**: If feasible, remove temp files at the end of the script.
+
 - **External Dependencies**:
   - `lualatex` (or `pdflatex`): for compiling LaTeX text and snippets.
   - `pdftocairo`: for rasterizing in-canvas LaTeX snippet overlays.
