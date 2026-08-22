@@ -318,7 +318,7 @@ function main()
         Cairo.show_page(canvas)
         draw_page3(canvas)
     end
-    println("Output: $(get_file_path(canvas_path))")
+    println("Output: ", relpath(get_file_path(canvas_path), normpath(joinpath(@__DIR__, ".."))))
 end
 
 main()

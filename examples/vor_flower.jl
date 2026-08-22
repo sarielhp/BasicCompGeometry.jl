@@ -27,6 +27,8 @@ using BasicCompGeometry
 using LinearAlgebra
 using Cairo
 using Printf
+
+const PROJROOT = normpath(joinpath(@__DIR__, ".."))
 using LaTeXStrings
 
 # Register LaTeX macros & packages
@@ -692,7 +694,7 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
               (tmp_diagrams_pdf, 4), (tmp_text_pdf, 4),
               (tmp_diagrams_pdf, 5), (tmp_text_pdf, 5))
 
-    println("Successfully generated: ", output_pdf)
+    println("Successfully generated: ", relpath(output_pdf, PROJROOT))
 end
 
 # CLI entry point

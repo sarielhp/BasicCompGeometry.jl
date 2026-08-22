@@ -33,6 +33,8 @@ using Printf
 using Random
 using LaTeXStrings
 
+const PROJROOT = normpath(joinpath(@__DIR__, ".."))
+
 # Register session LaTeX macros for figures and documentation pages
 add_latex_packages!("amsmath", "amssymb", "amsfonts", "microtype")
 add_latex_macros!(raw"""
@@ -677,20 +679,20 @@ function generate_mode1(
     total_pages = N - 3
 
     # 1. Multi-page PDF via Canvas
-    println("Mode 1: Rendering $total_pages prefix pages into PDF via Canvas: $pdf_filename...")
+    println("Mode 1: Rendering $total_pages prefix pages into PDF via Canvas: $(relpath(pdf_filename, PROJROOT))...")
     open_canvas(pdf_filename, cw, ch) do canvas
         _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
     end
-    println("Successfully generated Mode 1 PDF ($total_pages pages): $pdf_filename")
+    println("Successfully generated Mode 1 PDF ($total_pages pages): $(relpath(pdf_filename, PROJROOT))")
 
     # 2. HTML Presentation via Canvas
     html_target = joinpath(svg_dir, "index.html")
-    println("Mode 1: Rendering $total_pages HTML presentation slides via Canvas: $html_target...")
+    println("Mode 1: Rendering $total_pages HTML presentation slides via Canvas: $(relpath(html_target, PROJROOT))...")
     c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Sequence (Mode 1)") do canvas
         _render_mode1_content!(canvas, pts, outer_box, k_star, p_star, max_area, cw, ch, margin, total_pages, N)
     end
-    println("Generated $total_pages SVG slides in: $svg_dir")
-    println("HTML Presentation: ", get_file_path(c_html))
+    println("Generated $total_pages SVG slides in: $(relpath(svg_dir, PROJROOT))")
+    println("HTML Presentation: ", relpath(get_file_path(c_html), PROJROOT))
     return k_star
 end
 
@@ -770,21 +772,21 @@ function generate_mode2(
     total_pages = length(powers)
 
     # 1. Multi-page PDF via Canvas
-    println("Mode 2: Rendering $total_pages powers-of-2 pages into PDF via Canvas: $pdf_filename...")
+    println("Mode 2: Rendering $total_pages powers-of-2 pages into PDF via Canvas: $(relpath(pdf_filename, PROJROOT))...")
     last_k = 0
     open_canvas(pdf_filename, cw, ch) do canvas
         last_k = _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     end
-    println("Successfully generated Mode 2 PDF ($total_pages pages): $pdf_filename")
+    println("Successfully generated Mode 2 PDF ($total_pages pages): $(relpath(pdf_filename, PROJROOT))")
 
     # 2. HTML Presentation via Canvas
     html_target = joinpath(svg_dir, "index.html")
-    println("Mode 2: Rendering $total_pages HTML presentation slides via Canvas: $html_target...")
+    println("Mode 2: Rendering $total_pages HTML presentation slides via Canvas: $(relpath(html_target, PROJROOT))...")
     c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Powers of 2 (Mode 2)") do canvas
         _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     end
-    println("Generated $total_pages SVG slides in: $svg_dir")
-    println("HTML Presentation: ", get_file_path(c_html))
+    println("Generated $total_pages SVG slides in: $(relpath(svg_dir, PROJROOT))")
+    println("HTML Presentation: ", relpath(get_file_path(c_html), PROJROOT))
     return last_k
 end
 
@@ -1066,26 +1068,26 @@ function generate_mode3(
     scale_factor = min(usable_w, usable_h) / 1.2
 
     # 1. Multi-page PDF via Canvas
-    println("Mode 3: Rendering 9 pages into PDF via Canvas: $pdf_filename...")
+    println("Mode 3: Rendering 9 pages into PDF via Canvas: $(relpath(pdf_filename, PROJROOT))...")
     open_canvas(pdf_filename, cw, ch) do canvas
         _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
                                max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
                                pts10, cells10, vtx10, vtx_radius, largest_adj10,
                                N, cw, ch, margin, scale_factor)
     end
-    println("Successfully generated Mode 3 PDF (9 pages): $pdf_filename")
+    println("Successfully generated Mode 3 PDF (9 pages): $(relpath(pdf_filename, PROJROOT))")
 
     # 2. HTML Presentation via Canvas
     html_target = joinpath(svg_dir, "index.html")
-    println("Mode 3: Rendering 9 HTML presentation slides via Canvas: $html_target...")
+    println("Mode 3: Rendering 9 HTML presentation slides via Canvas: $(relpath(html_target, PROJROOT))...")
     c_html = open_canvas(html_target, cw, ch; title="Prophet Voronoi Presentation (Mode 3)") do canvas
         _render_mode3_content!(canvas, pts, cells_N, prefix_pts, cells_k, k_star, p_star,
                                max_area_final, area_at_arrival, large_cells_half, large_cells_quarter,
                                pts10, cells10, vtx10, vtx_radius, largest_adj10,
                                N, cw, ch, margin, scale_factor)
     end
-    println("Generated 9 SVG slides in: $svg_dir")
-    println("HTML Presentation: ", get_file_path(c_html))
+    println("Generated 9 SVG slides in: $(relpath(svg_dir, PROJROOT))")
+    println("HTML Presentation: ", relpath(get_file_path(c_html), PROJROOT))
     return k_star
 end
 

@@ -219,7 +219,7 @@ function main()
     lines = tangent_lines_to_unit_square(10)
     origin = point(0.0, 0.0)
     path = draw_bisector_cell(lines, origin)
-    println("Output: $path")
+    println("Output: ", relpath(path, normpath(joinpath(@__DIR__, ".."))))
 end
 
 main()

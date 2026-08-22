@@ -128,7 +128,7 @@ function output_to_pdf(ps, sol, filename::String)
     draw_points(cr, ps)
 
     Cairo.finish(c)
-    println("Output written to: ", filename)
+    println("Output written to: ", relpath(filename, normpath(joinpath(@__DIR__, ".."))))
 end
 
 function main(n::Int)

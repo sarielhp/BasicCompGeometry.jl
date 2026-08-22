@@ -28,6 +28,8 @@ using LinearAlgebra
 using Cairo
 using Printf
 
+const PROJROOT = normpath(joinpath(@__DIR__, ".."))
+
 """
     supporting_lines(poly)
 
@@ -1205,7 +1207,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.show_page(cr)
 
     Cairo.finish(surface)
-    println("Output written to ", pdf_path)
+    println("Output written to ", relpath(pdf_path, PROJROOT))
 end
 
 function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
@@ -1700,7 +1702,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
 
     alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
 
-    println("Generating ", num_frames, " PNG frames in ", frames_dir, "...")
+    println("Generating ", num_frames, " PNG frames in ", relpath(frames_dir, PROJROOT), "...")
     for (idx, a1_val) in enumerate(alpha_list)
         img_surface = CairoARGBSurface(cw, ch)
         cr = CairoContext(img_surface)
@@ -1720,14 +1722,14 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("MP4 movie generated successfully at: ", mp4_path)
+        println("MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
     catch
         # Fallback to ImageMagick convert if ffmpeg is not installed
         try
             delay_val = round(Int, 100 / fps)
             frame_files = sort(readdir(frames_dir, join=true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Animated GIF movie generated at: ", gif_path)
+            println("Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
         catch e
             println("Could not assemble movie: ", e)
         end
@@ -1818,7 +1820,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
 
     alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
 
-    println("Generating ", num_frames, " PNG frames for Page 12 movie in ", frames_dir, "...")
+    println("Generating ", num_frames, " PNG frames for Page 12 movie in ", relpath(frames_dir, PROJROOT), "...")
     for (idx, a1_val) in enumerate(alpha_list)
         img_surface = CairoARGBSurface(cw, ch)
         cr = CairoContext(img_surface)
@@ -1943,13 +1945,13 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Page 12 MP4 movie generated successfully at: ", mp4_path)
+        println("Page 12 MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
     catch
         try
             delay_val = round(Int, 100 / fps)
             frame_files = sort(readdir(frames_dir, join=true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Page 12 Animated GIF movie generated at: ", gif_path)
+            println("Page 12 Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
         catch e
             println("Could not assemble Page 12 movie: ", e)
         end
@@ -2051,7 +2053,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
     end
     bb_cover_global = bb_cover_global + 0.2
 
-    println("Generating ", num_frames, " PNG frames for Page 13 movie (movie_cover) in ", frames_dir, "...")
+    println("Generating ", num_frames, " PNG frames for Page 13 movie (movie_cover) in ", relpath(frames_dir, PROJROOT), "...")
     for (idx, a1_val) in enumerate(alpha_list)
         stair_v_info = all_stair_v_info[idx]
 
@@ -2130,13 +2132,13 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Page 13 MP4 movie generated successfully at: ", mp4_path)
+        println("Page 13 MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
     catch
         try
             delay_val = round(Int, 100 / fps)
             frame_files = sort(readdir(frames_dir, join=true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Page 13 Animated GIF movie generated at: ", gif_path)
+            println("Page 13 Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
         catch e
             println("Could not assemble Page 13 movie: ", e)
         end
@@ -2256,7 +2258,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     mkpath(frames_dir)
 
     total_video_frames = 5 * num_frames
-    println("Generating ", total_video_frames, " PNG frames (2000x1000) for movie_all in ", frames_dir, "...")
+    println("Generating ", total_video_frames, " PNG frames (2000x1000) for movie_all in ", relpath(frames_dir, PROJROOT), "...")
 
     global_frame_idx = 0
 
@@ -2378,13 +2380,13 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Combined MP4 movie generated successfully at: ", mp4_path)
+        println("Combined MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
     catch
         try
             delay_val = round(Int, 100 / fps)
             frame_files = sort(readdir(frames_dir, join=true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Combined Animated GIF movie generated at: ", gif_path)
+            println("Combined Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
         catch e
             println("Could not assemble combined movie: ", e)
         end

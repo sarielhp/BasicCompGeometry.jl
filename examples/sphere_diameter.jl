@@ -74,7 +74,7 @@ function diam_test_sphere(D, iters, filename)
         )
         pretty_table(fl, df_display, alignment = :r, backend = :markdown)
     end
-    println("Results saved to: $filename")
+    println("Results saved to: ", relpath(filename, normpath(joinpath(@__DIR__, ".."))))
 end
 
 function main()
@@ -88,7 +88,9 @@ function main()
     tree = BBT.Tree_init(P_viz)
     BBT.Tree_fully_expand(tree)
     mkpath(joinpath(@__DIR__, "..", "output"))
-    BBT.Tree_draw(tree, joinpath(@__DIR__, "..", "output", "sphere_bbt.pdf"))
+    bbt_path = joinpath(@__DIR__, "..", "output", "sphere_bbt.pdf")
+    BBT.Tree_draw(tree, bbt_path)
+    println("BBT visualization: ", relpath(bbt_path, normpath(joinpath(@__DIR__, ".."))))
 
     # 2. Performance Comparison
     println("\nRunning diameter tests (Approx vs Exact)...")

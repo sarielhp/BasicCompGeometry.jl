@@ -392,7 +392,7 @@ function main(; show_page_numbers::Bool=true)
         description(canvas, "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)")
     end
 
-    println("Output: ", get_file_path(pdf_path))
+    println("Output: ", relpath(get_file_path(pdf_path), normpath(joinpath(@__DIR__, ".."))))
 end
 
 main(; show_page_numbers=true)
