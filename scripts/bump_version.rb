@@ -23,3 +23,4 @@ system('git', '-C', repo, 'tag', '-a', "v#{new_ver}", '-m', "Version #{new_ver}"
 system('git', '-C', repo, 'push', '--tags') || abort('git push --tags failed')
 
 puts "Tagged and pushed v#{new_ver}"
+puts 'GitHub: https://github.com/sarielhp/BasicCompGeometry.jl'
