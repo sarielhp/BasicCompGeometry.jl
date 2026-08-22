@@ -87,14 +87,14 @@ function main()
     scale!(P_viz, 300.0)
     tree = BBT.Tree_init(P_viz)
     BBT.Tree_fully_expand(tree)
-    mkpath("output")
-    BBT.Tree_draw(tree, joinpath("output", "sphere_bbt.pdf"))
+    mkpath(joinpath(@__DIR__, "..", "output"))
+    BBT.Tree_draw(tree, joinpath(@__DIR__, "..", "output", "sphere_bbt.pdf"))
 
     # 2. Performance Comparison
     println("\nRunning diameter tests (Approx vs Exact)...")
     # Using smaller iters for the example run
-    diam_test_sphere(2, 12, "results/example_2d.md")
-    diam_test_sphere(3, 10, "results/example_3d.md")
+    diam_test_sphere(2, 12, joinpath(@__DIR__, "..", "output", "results", "example_2d.md"))
+    diam_test_sphere(3, 10, joinpath(@__DIR__, "..", "output", "results", "example_3d.md"))
 
     println("\nExample completed successfully.")
 end

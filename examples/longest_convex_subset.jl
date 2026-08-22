@@ -140,12 +140,9 @@ function main(n::Int)
 
     @printf("Time: %.3f seconds, Largest convex subset size: %d\n", t.time, length(sol))
 
-    # Create output directory if it doesn't exist
-    if !isdir("output")
-        mkdir("output")
-    end
-
-    filename = joinpath("output", "longest_convex_subset_$n.pdf")
+    outdir = joinpath(@__DIR__, "..", "output")
+    mkpath(outdir)
+    filename = joinpath(outdir, "longest_convex_subset_$n.pdf")
     output_to_pdf(ps, sol, filename)
 end
 

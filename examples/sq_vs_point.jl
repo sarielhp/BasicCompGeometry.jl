@@ -308,7 +308,7 @@ end
 function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
-    output_dir = joinpath(@__DIR__, "output")
+    output_dir = joinpath(@__DIR__, "..", "output")
     isdir(output_dir) || mkpath(output_dir)
     canvas_path = joinpath(output_dir, "sq_vs_point.pdf")
     open_canvas(canvas_path, 800, 800; title="Point vs Square Voronoi Cell") do canvas
