@@ -119,6 +119,10 @@ pdf_merge("final_output.pdf",
 ## 5. Coding Conventions
 
 - **2D Point Coordinate Access**: For points in two dimensions, use `.x` and `.y` (e.g., `p.x`, `p.y`) to access coordinates instead of indexing (`p[1]`, `p[2]`), unless it complicates the code (e.g., in generic dimension-agnostic algorithms).
+- **Line Widths & Radii across Vector (PDF) vs. Raster (PNG / GIF)**:
+  - When rendering with `scale = cairo_draw_setup(cr_or_canvas, bb, cw, ch, margin)`:
+    - **Stroke Line Widths**: Always specify stroke widths in **absolute device point/pixel sizes** (e.g. `Cairo.set_line_width(canvas, 1.5)` or `3.0`), rather than tiny user-coordinate bounding-box units (e.g. `0.005`). On raster surfaces (`.png`, `.gif` via `CairoImageSurface`), sub-pixel user-coordinate values get rounded to zero by Cairo's rasterizer, making borders and curves completely invisible even though vector PDF renderers might draw them.
+    - **Point Radii**: For point markers drawn with `Cairo.arc(canvas, x, y, r, ...)`, scale the radius using `scale` returned from `cairo_draw_setup` (e.g. `r = 4.0 / scale` for a 4px dot), or use `cairo_draw_points(canvas, points, radius_px)`.
 
 ---
 
