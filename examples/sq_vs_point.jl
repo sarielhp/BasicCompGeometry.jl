@@ -18,7 +18,7 @@ function square_boundary_lines()
 end
 
 function distance_to_line(x::Point{2,T}, line::Line{2,T}) where {T}
-    n = Point{2,T}(-line.u[2], line.u[1])
+    n = Point{2,T}(-line.u.y, line.u.x)
     n = n / norm(n)
     return abs(dot(x - line.p, n))
 end
@@ -30,7 +30,7 @@ function voronoi_cell(p::Point{2,T}) where {T}
     interior = point(T(0.5), T(0.5))
     normals = Vector{Point{2,T}}(undef, n)
     for i in 1:n
-        ni = Point{2,T}(-lines[i].u[2], lines[i].u[1])
+        ni = Point{2,T}(-lines[i].u.y, lines[i].u.x)
         ni = ni / norm(ni)
         if dot(interior - lines[i].p, ni) < 0
             ni = -ni
@@ -45,12 +45,12 @@ function voronoi_cell(p::Point{2,T}) where {T}
             ci = dot(lines[i].p, normals[i])
             cj = dot(lines[j].p, normals[j])
             d = ci - cj
-            dir = Point{2,T}(-nd[2], nd[1])
+            dir = Point{2,T}(-nd.y, nd.x)
             pt0 = Point{2,T}(0.0, 0.0)
-            if abs(nd[1]) > 1e-12
-                pt0 = Point{2,T}(d / nd[1], 0.0)
-            elseif abs(nd[2]) > 1e-12
-                pt0 = Point{2,T}(0.0, d / nd[2])
+            if abs(nd.x) > 1e-12
+                pt0 = Point{2,T}(d / nd.x, 0.0)
+            elseif abs(nd.y) > 1e-12
+                pt0 = Point{2,T}(0.0, d / nd.y)
             end
             bis = Line(pt0, dir)
             pts = intersect_line_curve(bis, parabolas[i])
@@ -70,7 +70,7 @@ function voronoi_cell(p::Point{2,T}) where {T}
         end
     end
     isempty(candidates) && return parabolas, Point{2,T}[]
-    sort!(candidates, by=pt -> atan(pt[2] - p[2], pt[1] - p[1]))
+    sort!(candidates, by=pt -> atan(pt.y - p.y, pt.x - p.x))
     unique_pts = Point{2,T}[]
     for pt in candidates
         if isempty(unique_pts) || dist(pt, unique_pts[end]) > 1e-8
@@ -81,56 +81,57 @@ function voronoi_cell(p::Point{2,T}) where {T}
 end
 
 """
-    point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}, vertices::Vector{Point{2,T}})
+    voronoi_curved_polygon(p::Point{2,T})
 
-Check if a point is inside the Voronoi cell of point p.
-A point is inside if it's closer to p than to any boundary line (within numerical tolerance).
+Compute the Voronoi cell of point `p` w.r.t. the unit square boundary as a `CurvePolygon2D`.
 """
-function point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}, vertices::Vector{Point{2,T}}) where {T}
-    length(vertices) < 3 && return false
-    
+function voronoi_curved_polygon(p::Point{2,T}) where {T}
     lines = square_boundary_lines()
-    dist_to_p = dist(pt, p)
-    
-    # For each boundary line, check if the point is closer to p
-    # In a Voronoi diagram, a point is in the cell if it's closer to the generating point
-    # than to any other site (in this case, the boundary lines)
-    for line in lines
-        # Compute the distance from point to the line
-        n = Point{2,T}(-line.u[2], line.u[1])
-        n = n / norm(n)
-        dist_to_line = abs(dot(pt - line.p, n))
-        
-        # If point is strictly closer to any line than to p (with tolerance), it's outside
-        if dist_to_line < dist_to_p - 1e-9
-            return false
+    parabolas, verts = voronoi_cell(p)
+    length(verts) < 3 && return CurvePolygon2D(ParabolaArc{T}[])
+    m = length(verts)
+    arcs = ParabolaArc{T}[]
+    for idx in 1:m
+        p_cur = verts[idx]
+        p_next = verts[mod1(idx + 1, m)]
+        mid = (p_cur + p_next) / 2
+        best_k = 0
+        best_diff = Inf
+        for k in 1:4
+            d = abs(dist(mid, p) - distance_to_line(mid, lines[k]))
+            if d < best_diff
+                best_diff = d; best_k = k
+            end
         end
+        push!(arcs, ParabolaArc(parabolas[best_k], p_cur, p_next))
     end
-    
-    return true
+    return CurvePolygon2D(arcs)
 end
 
 """
-    estimate_area_via_sampling(p::Point{2,T}, vertices::Vector{Point{2,T}}, n_samples::Int=10000)
+    point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T})
 
-Estimate the area of a Voronoi cell using Monte Carlo sampling.
-Samples points in the unit square [0,1]×[0,1] and counts how many fall inside the cell.
+Check if a point `pt` is inside the Voronoi cell of point `p` using `is_inside`.
 """
-function estimate_area_via_sampling(p::Point{2,T}, vertices::Vector{Point{2,T}}, n_samples::Int=10000) where {T}
+function point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}) where {T}
+    cp = voronoi_curved_polygon(p)
+    return is_inside(pt, cp)
+end
+
+"""
+    estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000)
+
+Estimate the area of the Voronoi cell using Monte Carlo sampling and `is_inside`.
+"""
+function estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000) where {T}
+    cp = voronoi_curved_polygon(p)
     inside_count = 0
-    
-    # Sample points uniformly in unit square
-    for i in 1:n_samples
-        x = rand(T)
-        y = rand(T)
-        pt = Point{2,T}(x, y)
-        
-        if point_in_curved_polygon(pt, p, vertices)
+    for _ in 1:n_samples
+        pt = point(rand(T), rand(T))
+        if is_inside(pt, cp)
             inside_count += 1
         end
     end
-    
-    # Area estimate = fraction of points inside × area of unit square (which is 1)
     return T(inside_count) / T(n_samples)
 end
 
@@ -151,37 +152,21 @@ function cell_area(p::Point{2,T}) where {T}
     area = 0.0
     for i in 1:length(samples)
         j = mod1(i + 1, length(samples))
-        area += samples[i][1] * samples[j][2]
-        area -= samples[j][1] * samples[i][2]
+        area += samples[i].x * samples[j].y
+        area -= samples[j].x * samples[i].y
     end
     return abs(area) / 2
 end
 
-function sample_cell_boundary(p::Point{2,T}, n_samples=200) where {T}
-    _, verts = voronoi_cell(p)
-    length(verts) < 3 && return Point{2,T}[]
-    lines = square_boundary_lines()
-    parabolas = [Parabola(p, lines[i]) for i in 1:4]
-    m = length(verts)
+function sample_cell_boundary(p::Point{2,T}, n_samples=300) where {T}
+    cp = voronoi_curved_polygon(p)
+    isempty(cp.curves) && return Point{2,T}[]
+    m = length(cp.curves)
     pts = Point{2,T}[]
-    for i in 1:m
-        p_cur = verts[i]
-        p_next = verts[mod1(i + 1, m)]
-        best_k = 0
-        best_diff = Inf
-        mid = (p_cur + p_next) / 2
-        for k in 1:4
-            d = abs(dist(mid, p) - distance_to_line(mid, lines[k]))
-            if d < best_diff
-                best_diff = d; best_k = k
-            end
-        end
-        h = parabolas[best_k]
-        t_cur = (p_cur[1] - vertex(h)[1]) * (-axis_direction(h)[2]) + (p_cur[2] - vertex(h)[2]) * axis_direction(h)[1]
-        t_next = (p_next[1] - vertex(h)[1]) * (-axis_direction(h)[2]) + (p_next[2] - vertex(h)[2]) * axis_direction(h)[1]
-        for s in range(0.0, 1.0, length=n_samples ÷ m)
-            t = t_cur + s * (t_next - t_cur)
-            push!(pts, at(h, t))
+    samples_per_curve = max(2, n_samples ÷ m)
+    for c in cp.curves
+        for s in range(0.0, 1.0, length=samples_per_curve)
+            push!(pts, at(c, s))
         end
     end
     return pts
@@ -197,9 +182,9 @@ function draw_page1(canvas, p)
     if length(verts) >= 3
         boundary = sample_cell_boundary(p, 300)
         Cairo.set_source_rgb(canvas, 0.8, 0.9, 1.0)
-        Cairo.move_to(canvas, boundary[1][1], boundary[1][2])
+        Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
         for pt in boundary[2:end]
-            Cairo.line_to(canvas, pt[1], pt[2])
+            Cairo.line_to(canvas, pt.x, pt.y)
         end
         Cairo.close_path(canvas)
         Cairo.fill(canvas)
@@ -210,14 +195,14 @@ function draw_page1(canvas, p)
         pts = Point2F[]
         for t in range(-3.0, 3.0, length=200)
             pt = at(h, t)
-            if -0.2 <= pt[1] <= 1.2 && -0.2 <= pt[2] <= 1.2
+            if -0.2 <= pt.x <= 1.2 && -0.2 <= pt.y <= 1.2
                 push!(pts, pt)
             end
         end
         if !isempty(pts)
-            Cairo.move_to(canvas, pts[1][1], pts[1][2])
+            Cairo.move_to(canvas, pts[1].x, pts[1].y)
             for pt in pts[2:end]
-                Cairo.line_to(canvas, pt[1], pt[2])
+                Cairo.line_to(canvas, pt.x, pt.y)
             end
             Cairo.stroke(canvas)
         end
@@ -231,22 +216,21 @@ function draw_page1(canvas, p)
         Cairo.set_source_rgb(canvas, 0, 0, 0.8)
         Cairo.set_line_width(canvas, 0.008)
         boundary = sample_cell_boundary(p, 300)
-        Cairo.move_to(canvas, boundary[1][1], boundary[1][2])
+        Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
         for pt in boundary[2:end]
-            Cairo.line_to(canvas, pt[1], pt[2])
+            Cairo.line_to(canvas, pt.x, pt.y)
         end
         Cairo.close_path(canvas); Cairo.stroke(canvas)
-        # Draw vertices with smaller radius (1/10 of original)
         for v in verts
-            Cairo.arc(canvas, v[1], v[2], 0.0015, 0, 2pi)  # 1/10 of 0.015
+            Cairo.arc(canvas, v.x, v.y, 0.0015, 0, 2pi)
             Cairo.fill(canvas)
         end
     end
     Cairo.set_source_rgb(canvas, 1, 0, 0)
-    Cairo.arc(canvas, p[1], p[2], 0.02, 0, 2pi)
+    Cairo.arc(canvas, p.x, p.y, 0.02, 0, 2pi)
     Cairo.fill(canvas)
     area_val = cell_area(p)
-    description(canvas, @sprintf("Voronoi cell of point (%.2f, %.2f) — area = %.4f", p[1], p[2], area_val))
+    description(canvas, @sprintf("Voronoi cell of point (%.2f, %.2f) — area = %.4f", p.x, p.y, area_val))
 end
 
 function draw_page2(canvas)
@@ -364,24 +348,18 @@ function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
     
-    # Compute areas using different methods
     computed_area = cell_area(p)
+    cp = voronoi_curved_polygon(p)
     
-    # Get vertices for the Voronoi cell
-    _, verts = voronoi_cell(p)
-    if length(verts) >= 3
-        # Estimate area using Monte Carlo sampling
-        estimated_area = estimate_area_via_sampling(p, verts, 10000)
+    if length(cp.curves) >= 3
+        estimated_area = estimate_area_via_sampling(p, 10000)
         
-        # Print areas to terminal
         println("Computed area (triangulation): ", @sprintf("%.6f", computed_area))
         println("Estimated area (Monte Carlo):  ", @sprintf("%.6f", estimated_area))
         
-        # Calculate and print error
         error = abs(computed_area - estimated_area)
         println("Absolute error:               ", @sprintf("%.6f", error))
         
-        # Print warning if error is too large
         if error > 0.05
             println("WARNING: Error is larger than expected (+/- 0.05)")
         end
