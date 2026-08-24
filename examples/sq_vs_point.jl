@@ -118,46 +118,6 @@ function point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}) where {T}
     return is_inside(pt, cp)
 end
 
-"""
-    estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000)
-
-Estimate the area of the Voronoi cell using Monte Carlo sampling and `is_inside`.
-"""
-function estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000) where {T}
-    cp = voronoi_curved_polygon(p)
-    inside_count = 0
-    for _ in 1:n_samples
-        pt = point(rand(T), rand(T))
-        if is_inside(pt, cp)
-            inside_count += 1
-        end
-    end
-    return T(inside_count) / T(n_samples)
-end
-
-function cell_area(p::Point{2,T}) where {T}
-    _, verts = voronoi_cell(p)
-    length(verts) < 3 && return 0.0
-    m = length(verts)
-    samples = Point{2,T}[]
-    for i in 1:m
-        push!(samples, verts[i])
-        if i < m
-            mid = (verts[i] + verts[i+1]) / 2
-            push!(samples, mid)
-        end
-    end
-    mid = (verts[end] + verts[1]) / 2
-    push!(samples, mid)
-    area = 0.0
-    for i in 1:length(samples)
-        j = mod1(i + 1, length(samples))
-        area += samples[i].x * samples[j].y
-        area -= samples[j].x * samples[i].y
-    end
-    return abs(area) / 2
-end
-
 function sample_cell_boundary(p::Point{2,T}, n_samples=300) where {T}
     cp = voronoi_curved_polygon(p)
     isempty(cp.curves) && return Point{2,T}[]
@@ -170,6 +130,34 @@ function sample_cell_boundary(p::Point{2,T}, n_samples=300) where {T}
         end
     end
     return pts
+end
+
+function cell_area(p::Point{2,T}) where {T}
+    boundary = sample_cell_boundary(p, 400)
+    isempty(boundary) && return 0.0
+    area = 0.0
+    for i in 1:length(boundary)
+        j = mod1(i + 1, length(boundary))
+        area += boundary[i].x * boundary[j].y
+        area -= boundary[j].x * boundary[i].y
+    end
+    return abs(area) / 2
+end
+
+"""
+    estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000; cp=voronoi_curved_polygon(p))
+
+Estimate the area of the Voronoi cell using Monte Carlo sampling and `is_inside`.
+"""
+function estimate_area_via_sampling(p::Point{2,T}, n_samples::Int=10000; cp::CurvePolygon2D{T}=voronoi_curved_polygon(p)) where {T}
+    inside_count = 0
+    for _ in 1:n_samples
+        pt = point(rand(T), rand(T))
+        if is_inside(pt, cp)
+            inside_count += 1
+        end
+    end
+    return T(inside_count) / T(n_samples)
 end
 
 function draw_page1(canvas, p)
@@ -351,17 +339,12 @@ function main()
     computed_area = cell_area(p)
     cp = voronoi_curved_polygon(p)
     
+    println("Computed area:                         ", @sprintf("%.6f", computed_area))
     if length(cp.curves) >= 3
-        estimated_area = estimate_area_via_sampling(p, 10000)
-        
-        println("Computed area (triangulation): ", @sprintf("%.6f", computed_area))
-        println("Estimated area (Monte Carlo):  ", @sprintf("%.6f", estimated_area))
-        
-        error = abs(computed_area - estimated_area)
-        println("Absolute error:               ", @sprintf("%.6f", error))
-        
-        if error > 0.05
-            println("WARNING: Error is larger than expected (+/- 0.05)")
+        for n in [10_000, 100_000, 1_000_000]
+            estimated_area = estimate_area_via_sampling(p, n; cp=cp)
+            pad = " "^max(1, 8 - length(string(n)))
+            println(@sprintf("Estimated area (Monte Carlo, n = %d):%s%.6f", n, pad, estimated_area))
         end
     end
     
