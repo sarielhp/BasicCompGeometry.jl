@@ -18,9 +18,21 @@ Draw points as filled circles of the given `radius` using the Cairo context `cr`
 function cairo_draw_points end
 
 """
-    cairo_draw_polygon(cr, poly, close)
+    cairo_set_line_width(cr_or_canvas, width)
+
+Set the stroke line width on a Cairo context or `Canvas`.
+If `width < 1.0`, it is treated as a mathematical world-coordinate unit and automatically
+scaled by the active transformation matrix scale factor (`scale = sqrt(|det(CTM)|)`) and rounded
+up to at least 1.0 device pixel across all surfaces. If `width >= 1.0`, it is treated as an
+explicit device pixel/point width.
+"""
+function cairo_set_line_width end
+
+"""
+    cairo_draw_polygon(cr, poly; line_width=nothing, close=true)
 
 Draw the edges of a polygon (or point sequence) `poly` using the Cairo context `cr`.
+If `line_width` is provided, `cairo_set_line_width` is called first.
 If `close` is true, the polygon is closed by connecting the last vertex back to the first.
 """
 function cairo_draw_polygon end
@@ -151,6 +163,6 @@ For HTML canvas output, returns the absolute path to `index.html`.
 """
 function get_file_path end
 
-export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_draw_latex, cairo_draw_latex_page, latex_to_pdf, pdf_merge
+export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_set_line_width, cairo_draw_latex, cairo_draw_latex_page, latex_to_pdf, pdf_merge
 export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
 export Canvas, open_canvas, description, get_file_path

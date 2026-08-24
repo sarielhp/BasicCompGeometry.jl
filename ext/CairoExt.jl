@@ -54,16 +54,18 @@ function BasicCompGeometry.cairo_draw_points(cr, points, radius::Real=2)
 end
 
 """
-    cairo_draw_polygon(cr, poly, close=true)
+    cairo_draw_polygon(cr, poly; line_width=nothing, close=true)
 
 Draw the edges of a polygon (or point sequence) `poly` using the Cairo context `cr`.
+If `line_width` is provided, `cairo_set_line_width` is called first.
 If `close` is true, the polygon is closed by connecting the last vertex back to the first.
 """
-function BasicCompGeometry.cairo_draw_polygon(cr, poly, close::Bool=true)
+function BasicCompGeometry.cairo_draw_polygon(cr, poly; line_width=nothing, close::Bool=true)
     C = Cairo
     n = length(poly)
     n == 0 && return
 
+    !isnothing(line_width) && BasicCompGeometry.cairo_set_line_width(cr, line_width)
     C.new_path(cr)
     C.move_to(cr, poly[1][1], poly[1][2])
     for i = 2:n
@@ -581,8 +583,8 @@ BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real,
 BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_points(c.cr, points, radius))
 
-BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
-    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close))
+BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly; line_width=nothing, close::Bool=true) =
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly; line_width=line_width, close=close))
 
 # Cairo drawing primitives forwarding
 for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
@@ -590,9 +592,9 @@ for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :
 end
 
 raw"""
-    Cairo.set_line_width(c::Canvas, a::Real)
+    cairo_set_line_width(cr_or_canvas, a::Real)
 
-Set the stroke line width on `Canvas` `c`, with automatic scaling and raster protection.
+Set the stroke line width on a Cairo context or `Canvas`, with automatic scaling and raster protection.
 
 # Background & Problem Description
 In computational geometry visualization, drawings are typically defined in mathematical
@@ -616,27 +618,28 @@ When setting line widths, code often passes values in one of two conventions:
 
 # Automatic Fix Implementation
 To ensure consistent rendering across all supported formats without requiring manual conversions:
-1. When targeting raster surfaces (`:png`, `:gif`) and a fractional width `a < 1.0` is passed:
+1. When targeting raster surfaces (`:png`, `:gif`) or when a fractional width `a < 1.0` is passed:
    - The active scaling factor `scale = sqrt(|det(CTM)|)` is extracted from the current transformation matrix.
    - The mathematical width is converted to device pixels: `w_dev = a * scale`.
    - The device width is rounded up to the nearest integer and clamped to at least `1.0 px`:
      `effective_w = max(1.0, ceil(a * scale))`.
-2. When an explicit pixel width `a >= 1.0` is passed (or when targeting vector formats `:pdf` / `:svg`),
-   the value is passed directly to Cairo without alteration.
+2. When an explicit pixel width `a >= 1.0` is passed, the value is passed directly to Cairo as device pixels.
 """
-function Cairo.set_line_width(c::Canvas, a::Real)
-    _ensure_surface!(c)
+function BasicCompGeometry.cairo_set_line_width(cr_or_canvas, a::Real)
+    cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
     if a < 1.0
-        m = Cairo.get_matrix(c.cr)
+        m = Cairo.get_matrix(cr)
         scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
         if scale > 0
             effective_w = max(1.0, ceil(Float64(a) * scale))
-            Cairo.set_line_width(c.cr, effective_w)
+            Cairo.set_line_width(cr, effective_w)
             return
         end
     end
-    Cairo.set_line_width(c.cr, Float64(a))
+    Cairo.set_line_width(cr, Float64(a))
 end
+
+Cairo.set_line_width(c::Canvas, a::Real) = BasicCompGeometry.cairo_set_line_width(c, a)
 
 for fn in (:move_to, :line_to, :translate, :scale)
     @eval Cairo.$fn(c::Canvas, a, b) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b))
