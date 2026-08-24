@@ -768,6 +768,203 @@ draw_page7(canvas) = draw_edge_analysis(canvas, point(0.5, 0.10), 6)
 draw_page8(canvas, p=point(0.5, 0.02)) = draw_cell_diagram(canvas, p)
 draw_page9(canvas) = draw_edge_analysis(canvas, point(0.5, 0.02), 8)
 
+function colormap_viridis(t)
+    t = clamp(t, 0.0, 1.0)
+    stops = [
+        (0.00, (0.267, 0.004, 0.329)),
+        (0.25, (0.231, 0.322, 0.545)),
+        (0.50, (0.129, 0.565, 0.553)),
+        (0.75, (0.369, 0.788, 0.384)),
+        (1.00, (0.993, 0.906, 0.144))
+    ]
+    for i in 1:(length(stops)-1)
+        t0, c0 = stops[i]
+        t1, c1 = stops[i+1]
+        if t0 <= t <= t1
+            u = (t - t0) / (t1 - t0)
+            return (1-u).*c0 .+ u.*c1
+        end
+    end
+    return stops[end][2]
+end
+
+function draw_page10(canvas)
+    Cairo.reset_transform(canvas)
+    cw, ch = 800.0, 800.0
+    
+    # Clean background
+    Cairo.set_source_rgb(canvas, 0.98, 0.99, 1.0)
+    Cairo.paint(canvas)
+    
+    # Top header bar
+    Cairo.set_source_rgb(canvas, 0.12, 0.23, 0.45)
+    Cairo.rectangle(canvas, 0, 0, cw, 65)
+    Cairo.fill(canvas)
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+    Cairo.set_font_size(canvas, 20)
+    Cairo.move_to(canvas, 35, 42)
+    Cairo.show_text(canvas, "Page 10: Heat Map of Voronoi Cell Area f(p) on [0, 1]²")
+    
+    # Compute Grid
+    n = 100
+    xs = range(0.005, 0.995, length=n)
+    ys = range(0.005, 0.995, length=n)
+    vals = zeros(n, n)
+    max_val = 0.0
+    for (i, x) in enumerate(xs)
+        for (j, y) in enumerate(ys)
+            a = cell_area(point(x, y))
+            vals[i, j] = a
+            if a > max_val; max_val = a; end
+        end
+    end
+    
+    # Heat map position on canvas
+    hm_l = 75.0
+    hm_b = 680.0
+    hm_w = 480.0
+    hm_h = 480.0
+    hm_t = hm_b - hm_h
+    
+    # Draw heatmap tiles
+    dx_px = hm_w / n
+    dy_px = hm_h / n
+    for i in 1:n
+        for j in 1:n
+            t = vals[i, j] / max_val
+            r, g, b = colormap_viridis(t)
+            Cairo.set_source_rgb(canvas, r, g, b)
+            px = hm_l + (i - 1) * dx_px
+            py = hm_b - j * dy_px
+            Cairo.rectangle(canvas, px, py, dx_px + 0.5, dy_px + 0.5)
+            Cairo.fill(canvas)
+        end
+    end
+    
+    # Draw black square boundary
+    Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
+    cairo_set_line_width(canvas, 2.5)
+    Cairo.rectangle(canvas, hm_l, hm_t, hm_w, hm_h)
+    Cairo.stroke(canvas)
+    
+    # Axes Ticks & Labels
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+    Cairo.set_font_size(canvas, 11)
+    Cairo.set_source_rgb(canvas, 0.2, 0.2, 0.3)
+    cairo_set_line_width(canvas, 1.0)
+    for (t, str) in [(0.0, "0.0"), (0.25, "0.25"), (0.5, "0.50"), (0.75, "0.75"), (1.0, "1.0")]
+        # X tick
+        tx = hm_l + t * hm_w
+        Cairo.new_path(canvas)
+        Cairo.move_to(canvas, tx, hm_b); Cairo.line_to(canvas, tx, hm_b + 5); Cairo.stroke(canvas)
+        Cairo.move_to(canvas, tx - 10, hm_b + 20); Cairo.show_text(canvas, str)
+        # Y tick
+        ty = hm_b - t * hm_h
+        Cairo.new_path(canvas)
+        Cairo.move_to(canvas, hm_l, ty); Cairo.line_to(canvas, hm_l - 5, ty); Cairo.stroke(canvas)
+        Cairo.move_to(canvas, hm_l - 32, ty + 4); Cairo.show_text(canvas, str)
+    end
+    
+    # Axis titles
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_font_size(canvas, 13)
+    Cairo.new_path(canvas)
+    Cairo.move_to(canvas, hm_l + hm_w / 2 - 30, hm_b + 40); Cairo.show_text(canvas, "x coordinate")
+    
+    Cairo.save(canvas)
+    Cairo.translate(canvas, hm_l - 45, hm_t + hm_h / 2 + 30)
+    Cairo.rotate(canvas, -pi / 2)
+    Cairo.new_path(canvas)
+    Cairo.move_to(canvas, 0, 0)
+    Cairo.show_text(canvas, "y coordinate")
+    Cairo.restore(canvas)
+    
+    # Center maximum red dot
+    cx_px = hm_l + 0.5 * hm_w
+    cy_px = hm_b - 0.5 * hm_h
+    Cairo.new_path(canvas)
+    Cairo.set_source_rgb(canvas, 1.0, 0.0, 0.0)
+    Cairo.arc(canvas, cx_px, cy_px, 6.0, 0, 2pi)
+    Cairo.fill(canvas)
+    
+    Cairo.new_path(canvas)
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_font_size(canvas, 11)
+    Cairo.move_to(canvas, cx_px + 8, cy_px + 4)
+    Cairo.show_text(canvas, @sprintf("Max = %.4f", max_val))
+    
+    # Colorbar on Right
+    cb_x = 600.0
+    cb_w = 32.0
+    cb_h = 360.0
+    cb_y0 = hm_t + 60.0
+    m_cb = 120
+    for k in 0:(m_cb - 1)
+        t0 = k / m_cb
+        yk = cb_y0 + (1.0 - (k + 1) / m_cb) * cb_h
+        dyk = cb_h / m_cb
+        r, g, b = colormap_viridis(t0)
+        Cairo.set_source_rgb(canvas, r, g, b)
+        Cairo.rectangle(canvas, cb_x, yk, cb_w, dyk + 0.5)
+        Cairo.fill(canvas)
+    end
+    Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
+    cairo_set_line_width(canvas, 1.5)
+    Cairo.rectangle(canvas, cb_x, cb_y0, cb_w, cb_h)
+    Cairo.stroke(canvas)
+    
+    # Colorbar Ticks and Labels
+    cb_ticks = [0.0, 0.05, 0.10, 0.15, 0.20, max_val]
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+    Cairo.set_font_size(canvas, 11)
+    for val in cb_ticks
+        t = val / max_val
+        yk = cb_y0 + (1.0 - t) * cb_h
+        Cairo.new_path(canvas)
+        Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
+        Cairo.move_to(canvas, cb_x + cb_w, yk); Cairo.line_to(canvas, cb_x + cb_w + 5, yk); Cairo.stroke(canvas)
+        Cairo.move_to(canvas, cb_x + cb_w + 9, yk + 4)
+        Cairo.show_text(canvas, @sprintf("%.4f", val))
+    end
+    Cairo.new_path(canvas)
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_font_size(canvas, 12)
+    Cairo.move_to(canvas, cb_x - 5, cb_y0 - 12)
+    Cairo.show_text(canvas, "Area f(p)")
+    
+    # Info summary box below colorbar
+    box_x = 580.0
+    box_y = cb_y0 + cb_h + 30.0
+    box_w = 195.0
+    box_h = 135.0
+    Cairo.set_source_rgb(canvas, 0.90, 0.94, 0.98)
+    Cairo.rectangle(canvas, box_x, box_y, box_w, box_h)
+    Cairo.fill(canvas)
+    Cairo.set_source_rgb(canvas, 0.2, 0.4, 0.7)
+    cairo_set_line_width(canvas, 1.0)
+    Cairo.rectangle(canvas, box_x, box_y, box_w, box_h)
+    Cairo.stroke(canvas)
+    
+    Cairo.new_path(canvas)
+    Cairo.set_source_rgb(canvas, 0.1, 0.2, 0.4)
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_font_size(canvas, 11)
+    Cairo.move_to(canvas, box_x + 10, box_y + 20); Cairo.show_text(canvas, "Key Area Values:")
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+    Cairo.set_font_size(canvas, 10)
+    Cairo.move_to(canvas, box_x + 10, box_y + 40); Cairo.show_text(canvas, @sprintf("• Center (0.5,0.5):  %.4f", max_val))
+    Cairo.move_to(canvas, box_x + 10, box_y + 60); Cairo.show_text(canvas, @sprintf("• Page 1 (0.3,0.4):  %.4f", cell_area(point(0.3, 0.4))))
+    Cairo.move_to(canvas, box_x + 10, box_y + 80); Cairo.show_text(canvas, @sprintf("• Page 6 (0.5,0.1):  %.4f", cell_area(point(0.5, 0.10))))
+    Cairo.move_to(canvas, box_x + 10, box_y + 100); Cairo.show_text(canvas, @sprintf("• Page 8 (0.5,0.02): %.4f", cell_area(point(0.5, 0.02))))
+    Cairo.move_to(canvas, box_x + 10, box_y + 120); Cairo.show_text(canvas, @sprintf("• Corner (0.05,0.05): %.4f", cell_area(point(0.05, 0.05))))
+    
+    description(canvas, @sprintf("Heat map of Voronoi cell area f(p) over the unit square [0, 1]² — Maximum at (0.5, 0.5) = %.4f", max_val))
+end
+
 function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
@@ -796,6 +993,8 @@ function main()
         draw_page8(canvas, point(0.5, 0.02))
         Cairo.show_page(canvas)
         draw_page9(canvas)
+        Cairo.show_page(canvas)
+        draw_page10(canvas)
     end
     println("Output: ", relpath(get_file_path(canvas_path), normpath(joinpath(@__DIR__, ".."))))
     

@@ -645,7 +645,9 @@ for fn in (:move_to, :line_to, :translate, :scale)
     @eval Cairo.$fn(c::Canvas, a, b) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b))
 end
 
-for fn in (:set_source_rgb, :rotate)
+Cairo.rotate(c::Canvas, angle::Real) = (_ensure_surface!(c); Cairo.rotate(c.cr, angle))
+
+for fn in (:set_source_rgb,)
     @eval Cairo.$fn(c::Canvas, a, b, d...) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d...))
 end
 
