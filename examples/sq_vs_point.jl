@@ -790,6 +790,24 @@ function main()
         draw_page9(canvas)
     end
     println("Output: ", relpath(get_file_path(canvas_path), normpath(joinpath(@__DIR__, ".."))))
+    
+    # Generate animated GIF (60 frames from (0.5, 0.5) to (0.5, 0.001) at 6 fps, last frame repeated 10 times)
+    gif_path = joinpath(output_dir, "sq_vs_point.gif")
+    open_canvas(gif_path, 800, 800; fps=6) do canvas
+        ys = range(0.5, 0.001, length=60)
+        for y in ys
+            draw_cell_diagram(canvas, point(0.5, y))
+            Cairo.show_page(canvas)
+        end
+        # Repeat the last frame 10 times
+        p_last = point(0.5, 0.001)
+        for _ in 1:9
+            draw_cell_diagram(canvas, p_last)
+            Cairo.show_page(canvas)
+        end
+        draw_cell_diagram(canvas, p_last)
+    end
+    println("Output: ", relpath(get_file_path(gif_path), normpath(joinpath(@__DIR__, ".."))))
 end
 
 main()

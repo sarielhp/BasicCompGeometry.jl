@@ -96,7 +96,9 @@ is a parabola. Renders a 9-page PDF document:
 - **Page 8**: Edge-adjacent Voronoi cell for $p = (0.50, 0.02)$ (4 parabolic arcs).
 - **Page 9**: Mathematical analysis and explanation of Page 8.
 
-**Output:** `output/sq_vs_point.pdf`
+Also generates an animated GIF showing the continuous deformation of the Voronoi cell as the site moves vertically from $(0.50, 0.50)$ down to $(0.50, 0.001)$ (60 frames at 6 fps, with the final frame held for 10 frames).
+
+**Output:** `output/sq_vs_point.pdf`, `output/sq_vs_point.gif`
 
 ---
 
