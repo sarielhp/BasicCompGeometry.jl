@@ -357,11 +357,11 @@ function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
     for c in cp.curves
         intersections = intersect_line_curve(ray, c)
         for (pt, s) in intersections
-            if pt[2] < q[2] - 1e-11
+            if pt.y < q.y - 1e-11
                 if s < 1.0 - 1e-9
                     crossings += 1
                 end
-            elseif abs(pt[2] - q[2]) <= 1e-11
+            elseif abs(pt.y - q.y) <= 1e-11
                 return true # Point is on the boundary
             end
         end

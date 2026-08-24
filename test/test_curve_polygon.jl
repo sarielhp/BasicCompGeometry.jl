@@ -195,7 +195,7 @@ end
     mismatches = 0
     for q in pts
         dist_to_site = dist(q, p)
-        dist_to_boundary = min(q[1], 1.0 - q[1], q[2], 1.0 - q[2])
+        dist_to_boundary = min(q.x, 1.0 - q.x, q.y, 1.0 - q.y)
         inside_by_dist = dist_to_site < dist_to_boundary
         inside_by_lib = is_inside(q, cp)
         if inside_by_dist != inside_by_lib
