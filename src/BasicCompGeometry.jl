@@ -155,7 +155,7 @@ include("CurvePolygon.jl")
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
 export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, direction, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
-export Hyperbola, Parabola, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
+export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export dist, dist_sq, dist_subspace, distance_infty, distance

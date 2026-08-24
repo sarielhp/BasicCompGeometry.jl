@@ -80,6 +80,60 @@ function voronoi_cell(p::Point{2,T}) where {T}
     return parabolas, unique_pts
 end
 
+"""
+    point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}, vertices::Vector{Point{2,T}})
+
+Check if a point is inside the Voronoi cell of point p.
+A point is inside if it's closer to p than to any boundary line (within numerical tolerance).
+"""
+function point_in_curved_polygon(pt::Point{2,T}, p::Point{2,T}, vertices::Vector{Point{2,T}}) where {T}
+    length(vertices) < 3 && return false
+    
+    lines = square_boundary_lines()
+    dist_to_p = dist(pt, p)
+    
+    # For each boundary line, check if the point is closer to p
+    # In a Voronoi diagram, a point is in the cell if it's closer to the generating point
+    # than to any other site (in this case, the boundary lines)
+    for line in lines
+        # Compute the distance from point to the line
+        n = Point{2,T}(-line.u[2], line.u[1])
+        n = n / norm(n)
+        dist_to_line = abs(dot(pt - line.p, n))
+        
+        # If point is strictly closer to any line than to p (with tolerance), it's outside
+        if dist_to_line < dist_to_p - 1e-9
+            return false
+        end
+    end
+    
+    return true
+end
+
+"""
+    estimate_area_via_sampling(p::Point{2,T}, vertices::Vector{Point{2,T}}, n_samples::Int=10000)
+
+Estimate the area of a Voronoi cell using Monte Carlo sampling.
+Samples points in the unit square [0,1]×[0,1] and counts how many fall inside the cell.
+"""
+function estimate_area_via_sampling(p::Point{2,T}, vertices::Vector{Point{2,T}}, n_samples::Int=10000) where {T}
+    inside_count = 0
+    
+    # Sample points uniformly in unit square
+    for i in 1:n_samples
+        x = rand(T)
+        y = rand(T)
+        pt = Point{2,T}(x, y)
+        
+        if point_in_curved_polygon(pt, p, vertices)
+            inside_count += 1
+        end
+    end
+    
+    # Area estimate = fraction of points inside × area of unit square (which is 1)
+    return T(inside_count) / T(n_samples)
+end
+
 function cell_area(p::Point{2,T}) where {T}
     _, verts = voronoi_cell(p)
     length(verts) < 3 && return 0.0
@@ -182,8 +236,9 @@ function draw_page1(canvas, p)
             Cairo.line_to(canvas, pt[1], pt[2])
         end
         Cairo.close_path(canvas); Cairo.stroke(canvas)
+        # Draw vertices with smaller radius (1/10 of original)
         for v in verts
-            Cairo.arc(canvas, v[1], v[2], 0.015, 0, 2pi)
+            Cairo.arc(canvas, v[1], v[2], 0.0015, 0, 2pi)  # 1/10 of 0.015
             Cairo.fill(canvas)
         end
     end
@@ -308,6 +363,30 @@ end
 function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
+    
+    # Compute areas using different methods
+    computed_area = cell_area(p)
+    
+    # Get vertices for the Voronoi cell
+    _, verts = voronoi_cell(p)
+    if length(verts) >= 3
+        # Estimate area using Monte Carlo sampling
+        estimated_area = estimate_area_via_sampling(p, verts, 10000)
+        
+        # Print areas to terminal
+        println("Computed area (triangulation): ", @sprintf("%.6f", computed_area))
+        println("Estimated area (Monte Carlo):  ", @sprintf("%.6f", estimated_area))
+        
+        # Calculate and print error
+        error = abs(computed_area - estimated_area)
+        println("Absolute error:               ", @sprintf("%.6f", error))
+        
+        # Print warning if error is too large
+        if error > 0.05
+            println("WARNING: Error is larger than expected (+/- 0.05)")
+        end
+    end
+    
     output_dir = joinpath(@__DIR__, "..", "output")
     isdir(output_dir) || mkpath(output_dir)
     canvas_path = joinpath(output_dir, "sq_vs_point.pdf")

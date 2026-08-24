@@ -386,9 +386,9 @@ function intersect_line_curve(line::Line{2,Float64}, h::Parabola)
         if abs(A) < 1e-12
             return res
         end
-        s = -C / A
+        t_curve = D
+        s = (D^2 / (4 * p) - C) / A
         pt = lp + s * lu
-        t_curve = (pt[1] - V[1]) * u[1] + (pt[2] - V[2]) * u[2]
         push!(res, (pt, t_curve))
         return res
     end
@@ -432,4 +432,94 @@ function distance(x::Point{2,T}, h::Parabola{T}) where {T}
     return best
 end
 
-export Hyperbola, Parabola, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, vertex, p_coeff, axis_direction
+###############################################
+### ParabolaArc type
+
+"""
+    ParabolaArc{T}
+
+A bounded segment of a 2D parabola between parameters `t1` and `t2`.
+"""
+struct ParabolaArc{T} <: AbsCurve2D{T}
+    parabola::Parabola{T}
+    t1::T
+    t2::T
+end
+
+const ParabolaArc2F = ParabolaArc{Float64}
+
+"""
+    ParabolaArc(parabola::Parabola{T}, t1::Real, t2::Real)
+
+Construct a `ParabolaArc` from a parabola and parameter bounds `t1`, `t2`.
+"""
+function ParabolaArc(parabola::Parabola{T}, t1::Real, t2::Real) where {T}
+    return ParabolaArc{T}(parabola, T(t1), T(t2))
+end
+
+"""
+    ParabolaArc(parabola::Parabola{T}, p1::Point{2,T}, p2::Point{2,T})
+
+Construct a `ParabolaArc` from a parabola and two endpoints `p1`, `p2` on the parabola.
+"""
+function ParabolaArc(parabola::Parabola{T}, p1::Point{2,T}, p2::Point{2,T}) where {T}
+    V = vertex(parabola)
+    n = axis_direction(parabola)
+    u = Point{2,T}(-n[2], n[1])
+    t1 = dot(p1 - V, u)
+    t2 = dot(p2 - V, u)
+    return ParabolaArc{T}(parabola, t1, t2)
+end
+
+Base.eltype(::ParabolaArc{T}) where {T} = T
+
+"""
+    at(arc::ParabolaArc, s::Real)
+
+Return a point on `arc` at relative parameter `s` in `[0, 1]`.
+`s=0` corresponds to `t1` and `s=1` corresponds to `t2`.
+"""
+function at(arc::ParabolaArc{T}, s::Real) where {T}
+    t = arc.t1 + T(s) * (arc.t2 - arc.t1)
+    return at(arc.parabola, t)
+end
+
+"""
+    geom_length(arc::ParabolaArc)
+
+Compute the exact arc length of the parabolic arc between parameters `t1` and `t2`.
+"""
+function geom_length(arc::ParabolaArc{T}) where {T}
+    p = p_coeff(arc.parabola)
+    u1 = arc.t1 / (2 * p)
+    u2 = arc.t2 / (2 * p)
+    F(u) = p * (u * sqrt(1 + u^2) + asinh(u))
+    return abs(F(u2) - F(u1))
+end
+
+function Base.show(io::IO, arc::ParabolaArc{T}) where {T}
+    print(io, "ParabolaArc(", arc.parabola, ", t1=", arc.t1, ", t2=", arc.t2, ")")
+end
+
+"""
+    intersect_line_curve(line::Line{2,Float64}, arc::ParabolaArc)
+
+Compute all intersection points between an infinite 2D line and a parabolic arc.
+Returns a vector of `(point::Point2F, s::Float64)` where `s ∈ [0, 1]` is the local arc parameter.
+"""
+function intersect_line_curve(line::Line{2,Float64}, arc::ParabolaArc)
+    res = Tuple{Point2F,Float64}[]
+    pts = intersect_line_curve(line, arc.parabola)
+    min_t = min(arc.t1, arc.t2)
+    max_t = max(arc.t1, arc.t2)
+    dt = arc.t2 - arc.t1
+    for (pt, t_curve) in pts
+        if min_t - 1e-11 <= t_curve <= max_t + 1e-11
+            s = abs(dt) < 1e-12 ? 0.0 : clamp((t_curve - arc.t1) / dt, 0.0, 1.0)
+            push!(res, (pt, s))
+        end
+    end
+    return res
+end
+
+export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, vertex, p_coeff, axis_direction
