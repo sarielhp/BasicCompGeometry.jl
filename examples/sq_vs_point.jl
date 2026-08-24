@@ -229,8 +229,8 @@ end
 function draw_page2(canvas)
     Cairo.reset_transform(canvas)
     n = 40
-    xs = range(0.0, 1.0, length=n)
-    ys = range(0.0, 1.0, length=n)
+    xs = range(0.01, 0.99, length=n)
+    ys = range(0.01, 0.99, length=n)
     vals = zeros(n, n)
     max_val = 0.0
     for (i, x) in enumerate(xs)
