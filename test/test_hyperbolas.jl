@@ -24,16 +24,6 @@ using LinearAlgebra
         @test c_coeff(h) ≈ 5.0
     end
 
-    @testset "From line and point (bisector)" begin
-        line = Line(point(0.0, 1.0), point(1.0, 0.0))
-        pt = point(0.0, 0.0)
-        p = Parabola(pt, line)
-        @test p isa Parabola{Float64}
-        @test p isa AbsCurve2D{Float64}
-        @test p.focus == pt
-        @test p.directrix == line
-    end
-
     @testset "Point on hyperbola" begin
         h = Hyperbola(point(0.0, 0.0), 5.0, 3.0, 0.0)
         p0 = at(h, 0.0; branch=1)
@@ -84,65 +74,11 @@ using LinearAlgebra
         @test isinf(geom_length(h))
     end
 
-    @testset "Bisector function" begin
-        line = Line(point(0.0, 1.0), point(1.0, 0.0))
-        pt = point(0.0, 0.0)
-        p = bisector(line, pt)
-        @test p isa Parabola{Float64}
-        @test p isa Curve2D{Float64}
-    end
-
     @testset "Distance to hyperbola" begin
         h = Hyperbola(point(0.0, 0.0), 5.0, 3.0, 0.0)
         d = distance(point(5.0, 0.0), h)
         @test d < 0.1
         d2 = distance(point(0.0, 0.0), h)
         @test d2 > 4.0
-    end
-end
-
-@testset "Parabola" begin
-    @testset "Construction" begin
-        p = point(0.3, 0.4)
-        line = Line(point(0.0, 0.0), point(0.0, 1.0))
-        par = Parabola(p, line)
-        @test par isa Parabola{Float64}
-        @test par isa AbsCurve2D{Float64}
-        @test par isa Curve2D{Float64}
-        @test vertex(par) ≈ point(0.15, 0.4)
-        @test p_coeff(par) ≈ 0.15
-        @test axis_direction(par) ≈ point(1.0, 0.0)
-    end
-
-    @testset "Point on parabola" begin
-        p = point(0.3, 0.4)
-        line = Line(point(0.0, 0.0), point(0.0, 1.0))
-        par = Parabola(p, line)
-        for t in [-2.0, -1.0, 0.0, 1.0, 2.0]
-            x = at(par, t)
-            d_p = dist(x, p)
-            d_line = x[1]
-            @test abs(d_p - d_line) < 1e-10
-        end
-    end
-
-    @testset "Intersect line with parabola" begin
-        p = point(0.3, 0.4)
-        line = Line(point(0.0, 0.0), point(0.0, 1.0))
-        par = Parabola(p, line)
-        bis = Line(point(0.0, 0.0), point(1.0, 1.0))
-        pts = intersect_line_curve(bis, par)
-        @test length(pts) == 2
-        for (pt, _) in pts
-            @test abs(dist(pt, p) - pt[1]) < 1e-10
-        end
-    end
-
-    @testset "geom_length and eltype" begin
-        p = point(0.3, 0.4)
-        line = Line(point(0.0, 0.0), point(0.0, 1.0))
-        par = Parabola(p, line)
-        @test isinf(geom_length(par))
-        @test eltype(par) == Float64
     end
 end

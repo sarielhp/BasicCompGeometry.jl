@@ -10,7 +10,7 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
 
 `BasicCompGeometry.jl` is a high-performance Julia library providing fundamental computational geometry data structures and algorithms in arbitrary dimensions:
 
-- **Geometric Primitives**: [`Point`](src/Points.jl), [`Segment`](src/Segments.jl), [`Line`](src/Segments.jl), [`Plane`](src/Planes.jl), [`BBox`](src/BBoxes.jl), [`PntSeq`](src/PntSeqs.jl), [`Sphere`](src/Spheres.jl), [`CircleArc`](src/Spheres.jl), [`CurvePolygon2D`](src/CurvePolygon.jl).
+- **Geometric Primitives**: [`Point`](src/Points.jl), [`Segment`](src/Segments.jl), [`Line`](src/Segments.jl), [`Plane`](src/Planes.jl), [`BBox`](src/BBoxes.jl), [`PntSeq`](src/PntSeqs.jl), [`Sphere`](src/Spheres.jl), [`CircleArc`](src/Spheres.jl), [`Hyperbola`](src/Hyperbolas.jl), [`Parabola`](src/Parabolas.jl), [`ParabolaArc`](src/Parabolas.jl), [`CurvePolygon2D`](src/CurvePolygon.jl).
 - **Algorithms**:
   - 2D & 3D Convex Hulls ([`src/ConvexHull.jl`](src/ConvexHull.jl), [`src/ConvexHull3D.jl`](src/ConvexHull3D.jl))
   - Minimum Volume Bounding Box ([`src/MVBB.jl`](src/MVBB.jl))

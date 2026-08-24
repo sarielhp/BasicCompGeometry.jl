@@ -150,6 +150,7 @@ const VecPolygon2F = VecPntSeq2F
 
 include("Spheres.jl")
 include("Hyperbolas.jl")
+include("Parabolas.jl")
 include("CurvePolygon.jl")
 
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
