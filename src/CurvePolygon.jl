@@ -349,58 +349,25 @@ end
 """
     is_inside(q::Point{2,S}, cp::CurvePolygon2D{T})
 
-Test whether query point `q` lies strictly inside the 2D curved polygon `cp` using ray casting.
+Test whether query point `q` lies strictly inside the 2D curved polygon `cp` by shooting a ray downward.
 """
 function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
-    angles = (0.0, 0.3141592653589793, 0.7853981633974483, 1.2345678901234567, 2.1543210987654321)
-    for ang in angles
-        dir = Point{2,Float64}(cos(ang), sin(ang))
-        ray = Line(Point{2,Float64}(q), dir)
-        valid = true
-        crossings = 0
-        for c in cp.curves
-            intersections = intersect_line_curve(ray, c)
-            for (pt, s) in intersections
-                dist_along_ray = dot(pt - Point{2,Float64}(q), dir)
-                if abs(dist_along_ray) < 1e-11
-                    return true # Point is on the boundary
-                end
-                if dist_along_ray > 0.0
-                    if abs(s) < 1e-8 || abs(s - 1.0) < 1e-8
-                        valid = false
-                        break
-                    end
+    ray = Line(Point{2,Float64}(q), Point{2,Float64}(0.0, -1.0))
+    crossings = 0
+    for c in cp.curves
+        intersections = intersect_line_curve(ray, c)
+        for (pt, s) in intersections
+            if pt[2] < q[2] - 1e-11
+                if s < 1.0 - 1e-9
                     crossings += 1
                 end
+            elseif abs(pt[2] - q[2]) <= 1e-11
+                return true # Point is on the boundary
             end
-            if !valid
-                break
-            end
-        end
-        if valid
-            return isodd(crossings)
         end
     end
-    # Fallback to winding number
-    return _is_inside_winding(q, cp)
+    return isodd(crossings)
 end
 
-function _is_inside_winding(q::Point{2,S}, cp::CurvePolygon2D{T}, n_per_curve::Int=64) where {S,T}
-    total_angle = 0.0
-    for c in cp.curves
-        p_prev = at(c, 0.0)
-        v_prev = p_prev - q
-        for k in 1:n_per_curve
-            s = k / n_per_curve
-            p_curr = at(c, s)
-            v_curr = p_curr - q
-            cp_cross = v_prev[1] * v_curr[2] - v_prev[2] * v_curr[1]
-            dp_dot = v_prev[1] * v_curr[1] + v_prev[2] * v_curr[2]
-            total_angle += atan(cp_cross, dp_dot)
-            v_prev = v_curr
-        end
-    end
-    return abs(total_angle) > pi
-end
 
 
