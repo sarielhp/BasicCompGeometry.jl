@@ -133,4 +133,4 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
 
 ## 7. Keyword Triggers
 
-- **"bump"**: Run `ruby scripts/bump_version.rb` to bump the patch version, commit, push, and tag on GitHub.
+- **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push, and tag on GitHub.
