@@ -112,14 +112,25 @@ pdf_merge("final_output.pdf",
   ```bash
   julia --project=examples examples/prophet.jl [mode] [args...]
   ```
-## 5. Temporary Files
+
+---
+
+## 5. Coding Conventions
+
+- **2D Point Coordinate Access**: For points in two dimensions, use `.x` and `.y` (e.g., `p.x`, `p.y`) to access coordinates instead of indexing (`p[1]`, `p[2]`), unless it complicates the code (e.g., in generic dimension-agnostic algorithms).
+
+---
+
+## 6. Temporary Files
 
 Temporary files (test outputs, intermediate data, scratch plots, etc.) should be created under `output/tmp/`. The project root must stay clean — do not write files directly into `/` or any top-level directory besides `output/` and its subdirectories.
 
 - **Creating temp files**: Use `mkpath(joinpath(@__DIR__, "..", "output", "tmp"))` then write inside it.
 - **Cleanup**: If feasible, remove temp files at the end of the script.
 
-## 6. Git Workflow
+---
+
+## 7. Git Workflow
 
 - **Auto-track new files**: After creating any new source file (example, script, extension, test, etc.), immediately stage and commit it. Do not leave new files untracked.
 - **Output directory**: The `output/` directory is gitignored. All examples must write their output (PDFs, PNGs, SVGs, etc.) to `output/` or a subdirectory thereof.
@@ -131,6 +142,9 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
   - `pdftocairo`: for rasterizing in-canvas LaTeX snippet overlays.
   - `qpdf`: for merging and interleaving multi-page PDFs.
 
-## 7. Keyword Triggers
+---
+
+## 8. Keyword Triggers
 
 - **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push, and tag on GitHub.
+
