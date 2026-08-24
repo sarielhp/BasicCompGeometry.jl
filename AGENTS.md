@@ -100,6 +100,7 @@ pdf_merge("final_output.pdf",
 
 ## 4. Development & Testing Guidelines
 
+- **Test Re-run Policy**: Tests only need to be rerun when changes are made to the core library (`src/`) or test suite (`test/`). When only examples (`examples/`) are updated or added, do not rerun the full test suite.
 - **Running Test Suite**:
   ```bash
   julia --project=. test/runtests.jl
