@@ -586,6 +586,41 @@ for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
+"""
+    Cairo.set_line_width(c::Canvas, a::Real)
+
+Set the stroke line width on `Canvas` `c`, with automatic scaling and raster protection.
+
+# Background & Problem Description
+In computational geometry visualization, drawings are typically defined in mathematical
+world coordinates (e.g., within a unit square $[0, 1]^2$ or arbitrary bounding box).
+The canvas transformation is configured via `cairo_draw_setup(canvas, bb, cw, ch, margin)`,
+which scales the world coordinates by a factor:
+    `scale = min((cw - 2margin) / bb_width, (ch - 2margin) / bb_height)`
+
+When setting line widths, code often passes values in one of two conventions:
+1. **Mathematical / Bounding-box units**: e.g., `0.008` or `0.015` relative to a $[0, 1]$ domain.
+2. **Device / Pixel units**: e.g., `1.5`, `2.0`, or `3.0` pixels.
+
+**The Discrepancy between Vector and Raster Surfaces:**
+- **Vector Surfaces (`.pdf`, `.svg`)**: Vector viewers render sub-unit paths with vector precision,
+  producing visible hairlines even for very small user-unit numbers.
+- **Raster Surfaces (`.png`, `.gif` via `CairoImageSurface`)**: Cairo's underlying rasterizer (Pixman)
+  interprets line widths directly in device pixels during scanline conversion. If a user passes a small
+  mathematical fraction (e.g. `0.008`) without scaling it by `scale`, the device stroke width is `< 0.5 px`,
+  which rounds down to **0 pixels**. As a result, polygon boundaries, grid lines, and curve strokes
+  silently vanish and become completely invisible on PNGs and animated GIFs.
+
+# Automatic Fix Implementation
+To ensure consistent rendering across all supported formats without requiring manual conversions:
+1. When targeting raster surfaces (`:png`, `:gif`) and a fractional width `a < 1.0` is passed:
+   - The active scaling factor `scale = sqrt(|det(CTM)|)` is extracted from the current transformation matrix.
+   - The mathematical width is converted to device pixels: `w_dev = a * scale`.
+   - The device width is rounded up to the nearest integer and clamped to at least `1.0 px`:
+     `effective_w = max(1.0, ceil(a * scale))`.
+2. When an explicit pixel width `a >= 1.0` is passed (or when targeting vector formats `:pdf` / `:svg`),
+   the value is passed directly to Cairo without alteration.
+"""
 function Cairo.set_line_width(c::Canvas, a::Real)
     _ensure_surface!(c)
     if c.fmt in (:png, :gif) && a < 1.0
