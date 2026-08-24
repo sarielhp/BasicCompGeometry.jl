@@ -173,6 +173,11 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
     Cairo.set_source_rgb(canvas, 1, 1, 1)
     Cairo.paint(canvas)
     
+    # Fill square with very light yellow
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 0.88)
+    Cairo.rectangle(canvas, 0, 0, 1, 1)
+    Cairo.fill(canvas)
+    
     cp = voronoi_curved_polygon(p)
     if !isempty(cp.curves)
         boundary = sample_cell_boundary(p, 300)
@@ -206,8 +211,9 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
         end
     end
     
+    # Draw thick black boundary for the square
     Cairo.set_source_rgb(canvas, 0, 0, 0)
-    Cairo.set_line_width(canvas, 0.008)
+    Cairo.set_line_width(canvas, 0.015)
     Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
     Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
     Cairo.close_path(canvas); Cairo.stroke(canvas)
@@ -363,6 +369,11 @@ function draw_page4(canvas, p=point(0.05, 0.05))
     Cairo.set_source_rgb(canvas, 1, 1, 1)
     Cairo.paint(canvas)
     
+    # Fill square with very light yellow
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 0.88)
+    Cairo.rectangle(canvas, 0, 0, 1, 1)
+    Cairo.fill(canvas)
+    
     cp = voronoi_curved_polygon(p)
     
     # Fill Voronoi cell
@@ -399,9 +410,9 @@ function draw_page4(canvas, p=point(0.05, 0.05))
         end
     end
     
-    # Draw unit square
+    # Draw thick black boundary for the square
     Cairo.set_source_rgb(canvas, 0, 0, 0)
-    Cairo.set_line_width(canvas, 0.008)
+    Cairo.set_line_width(canvas, 0.015)
     Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
     Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
     Cairo.close_path(canvas); Cairo.stroke(canvas)
