@@ -586,20 +586,20 @@ for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
-"""
+raw"""
     Cairo.set_line_width(c::Canvas, a::Real)
 
 Set the stroke line width on `Canvas` `c`, with automatic scaling and raster protection.
 
 # Background & Problem Description
 In computational geometry visualization, drawings are typically defined in mathematical
-world coordinates (e.g., within a unit square $[0, 1]^2$ or arbitrary bounding box).
+world coordinates (e.g., within a unit square [0, 1]^2 or arbitrary bounding box).
 The canvas transformation is configured via `cairo_draw_setup(canvas, bb, cw, ch, margin)`,
 which scales the world coordinates by a factor:
     `scale = min((cw - 2margin) / bb_width, (ch - 2margin) / bb_height)`
 
 When setting line widths, code often passes values in one of two conventions:
-1. **Mathematical / Bounding-box units**: e.g., `0.008` or `0.015` relative to a $[0, 1]$ domain.
+1. **Mathematical / Bounding-box units**: e.g., `0.008` or `0.015` relative to a [0, 1] domain.
 2. **Device / Pixel units**: e.g., `1.5`, `2.0`, or `3.0` pixels.
 
 **The Discrepancy between Vector and Raster Surfaces:**
