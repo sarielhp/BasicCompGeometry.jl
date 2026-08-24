@@ -194,7 +194,7 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
     
     # Draw parabolas in grey
     Cairo.set_source_rgb(canvas, 0.65, 0.65, 0.65)
-    Cairo.set_line_width(canvas, 0.003)
+    Cairo.set_line_width(canvas, 2.0)
     for h in parabolas
         pts = Point2F[]
         for t in range(-3.0, 3.0, length=300)
@@ -214,7 +214,7 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
     
     # Draw thick black boundary for the square
     Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
-    Cairo.set_line_width(canvas, 0.008)
+    Cairo.set_line_width(canvas, 4.0)
     Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
     Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
     Cairo.close_path(canvas); Cairo.stroke(canvas)
@@ -224,7 +224,7 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
         boundary = sample_cell_boundary(p, 300)
         if !isempty(boundary)
             Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
-            Cairo.set_line_width(canvas, 0.006)
+            Cairo.set_line_width(canvas, 3.0)
             Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
             for pt in boundary[2:end]
                 Cairo.line_to(canvas, pt.x, pt.y)
@@ -233,13 +233,13 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
             
             # Vertices as small blue dots
             Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
-            cairo_draw_points(canvas, verts, 4)
+            cairo_draw_points(canvas, verts, 5)
         end
     end
     
     # Draw site point in red
     Cairo.set_source_rgb(canvas, 1.0, 0.0, 0.0)
-    cairo_draw_points(canvas, [p], 7)
+    cairo_draw_points(canvas, [p], 8)
     
     area_val = cell_area(p)
     description(canvas, @sprintf("Voronoi cell of point (%.2f, %.2f) — area = %.4f", p.x, p.y, area_val))
@@ -393,7 +393,7 @@ function draw_page4(canvas, p=point(0.05, 0.05))
     
     # Draw parabolas
     Cairo.set_source_rgb(canvas, 0.65, 0.65, 0.65)
-    Cairo.set_line_width(canvas, 0.003)
+    Cairo.set_line_width(canvas, 2.0)
     for h in parabolas[1:2:3] # Active parabolas 1 (x=0) and 3 (y=0)
         pts = Point2F[]
         for t in range(-3.0, 3.0, length=300)
@@ -413,7 +413,7 @@ function draw_page4(canvas, p=point(0.05, 0.05))
     
     # Draw thick black boundary for the square
     Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
-    Cairo.set_line_width(canvas, 0.008)
+    Cairo.set_line_width(canvas, 4.0)
     Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
     Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
     Cairo.close_path(canvas); Cairo.stroke(canvas)
@@ -423,7 +423,7 @@ function draw_page4(canvas, p=point(0.05, 0.05))
         boundary = sample_cell_boundary(p, 300)
         if !isempty(boundary)
             Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
-            Cairo.set_line_width(canvas, 0.006)
+            Cairo.set_line_width(canvas, 3.0)
             Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
             for pt in boundary[2:end]
                 Cairo.line_to(canvas, pt.x, pt.y)
@@ -431,13 +431,13 @@ function draw_page4(canvas, p=point(0.05, 0.05))
             Cairo.close_path(canvas); Cairo.stroke(canvas)
             
             Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
-            cairo_draw_points(canvas, verts, 4)
+            cairo_draw_points(canvas, verts, 5)
         end
     end
     
     # Draw site point
     Cairo.set_source_rgb(canvas, 1.0, 0.0, 0.0)
-    cairo_draw_points(canvas, [p], 7)
+    cairo_draw_points(canvas, [p], 8)
     
     # 2. Magnified Inset in Top-Right
     Cairo.reset_transform(canvas)

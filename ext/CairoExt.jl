@@ -42,9 +42,12 @@ Draw points as filled circles of the given `radius` using the Cairo context `cr`
 """
 function BasicCompGeometry.cairo_draw_points(cr, points, radius::Real=2)
     C = Cairo
+    m = C.get_matrix(cr)
+    scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
+    effective_r = (scale > 0 && radius >= 0.5) ? (Float64(radius) / scale) : Float64(radius)
     for p in points
         C.new_path(cr)
-        C.arc(cr, p[1], p[2], radius, 0.0, 2pi)
+        C.arc(cr, p[1], p[2], effective_r, 0.0, 2pi)
         C.fill(cr)
     end
     return
@@ -623,7 +626,7 @@ To ensure consistent rendering across all supported formats without requiring ma
 """
 function Cairo.set_line_width(c::Canvas, a::Real)
     _ensure_surface!(c)
-    if c.fmt in (:png, :gif) && a < 1.0
+    if a < 1.0
         m = Cairo.get_matrix(c.cr)
         scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
         if scale > 0
@@ -632,7 +635,7 @@ function Cairo.set_line_width(c::Canvas, a::Real)
             return
         end
     end
-    Cairo.set_line_width(c.cr, a)
+    Cairo.set_line_width(c.cr, Float64(a))
 end
 
 for fn in (:move_to, :line_to, :translate, :scale)
