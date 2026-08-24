@@ -618,6 +618,189 @@ function draw_page5(canvas)
     description(canvas, "Mathematical analysis and explanation of the corner Voronoi cell on Page 4")
 end
 
+function draw_page6(canvas, p=point(0.5, 0.1))
+    lines = square_boundary_lines()
+    parabolas, verts = voronoi_cell(p)
+    
+    bb = BBox(point(-0.2, -0.2), point(1.2, 1.2))
+    cairo_draw_setup(canvas, bb, 800, 800, 40)
+    Cairo.set_source_rgb(canvas, 1, 1, 1)
+    Cairo.paint(canvas)
+    
+    cp = voronoi_curved_polygon(p)
+    
+    # Fill Voronoi cell
+    if !isempty(cp.curves)
+        boundary = sample_cell_boundary(p, 300)
+        if !isempty(boundary)
+            Cairo.set_source_rgb(canvas, 0.8, 0.9, 1.0)
+            Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
+            for pt in boundary[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.close_path(canvas)
+            Cairo.fill(canvas)
+        end
+    end
+    
+    # Draw parabolas
+    Cairo.set_source_rgb(canvas, 0.65, 0.65, 0.65)
+    Cairo.set_line_width(canvas, 0.003)
+    for h in parabolas
+        pts = Point2F[]
+        for t in range(-3.0, 3.0, length=300)
+            pt = at(h, t)
+            if -0.2 <= pt.x <= 1.2 && -0.2 <= pt.y <= 1.2
+                push!(pts, pt)
+            end
+        end
+        if !isempty(pts)
+            Cairo.move_to(canvas, pts[1].x, pts[1].y)
+            for pt in pts[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.stroke(canvas)
+        end
+    end
+    
+    # Draw unit square
+    Cairo.set_source_rgb(canvas, 0, 0, 0)
+    Cairo.set_line_width(canvas, 0.008)
+    Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
+    Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
+    Cairo.close_path(canvas); Cairo.stroke(canvas)
+    
+    # Draw cell boundary
+    if !isempty(cp.curves)
+        boundary = sample_cell_boundary(p, 300)
+        if !isempty(boundary)
+            Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
+            Cairo.set_line_width(canvas, 0.007)
+            Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
+            for pt in boundary[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.close_path(canvas); Cairo.stroke(canvas)
+            
+            for v in verts
+                Cairo.arc(canvas, v.x, v.y, 0.0015, 0, 2pi)
+                Cairo.fill(canvas)
+            end
+        end
+    end
+    
+    # Draw site point
+    Cairo.set_source_rgb(canvas, 1, 0, 0)
+    Cairo.arc(canvas, p.x, p.y, 0.02, 0, 2pi)
+    Cairo.fill(canvas)
+    
+    area_val = cell_area(p)
+    description(canvas, @sprintf("Voronoi cell of edge site (0.50, 0.10) — 4 parabolic arcs, area = %.5f", area_val))
+end
+
+function draw_page7(canvas)
+    Cairo.reset_transform(canvas)
+    cw, ch = 800.0, 800.0
+    
+    # Clean background
+    Cairo.set_source_rgb(canvas, 0.98, 0.99, 1.0)
+    Cairo.paint(canvas)
+    
+    # Top header bar
+    Cairo.set_source_rgb(canvas, 0.12, 0.23, 0.45)
+    Cairo.rectangle(canvas, 0, 0, cw, 70)
+    Cairo.fill(canvas)
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+    Cairo.set_font_size(canvas, 20)
+    Cairo.move_to(canvas, 35, 44)
+    Cairo.show_text(canvas, "Page 6 Analysis: Edge-Adjacent Voronoi Cell at p = (0.50, 0.10)")
+    
+    # Body text setup
+    left_margin = 40.0
+    y = 110.0
+    
+    function draw_section_heading(title)
+        Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.set_source_rgb(canvas, 0.12, 0.25, 0.55)
+        Cairo.set_font_size(canvas, 14)
+        Cairo.move_to(canvas, left_margin, y)
+        Cairo.show_text(canvas, title)
+        y += 24.0
+    end
+    
+    function draw_body_text(lines; is_code=false, color=(0.15, 0.15, 0.18))
+        Cairo.set_source_rgb(canvas, color...)
+        if is_code
+            Cairo.select_font_face(canvas, "Monospace", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+            Cairo.set_font_size(canvas, 11)
+        else
+            Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+            Cairo.set_font_size(canvas, 12)
+        end
+        for line in lines
+            Cairo.move_to(canvas, left_margin + 12.0, y)
+            Cairo.show_text(canvas, line)
+            y += 18.0
+        end
+        y += 12.0
+    end
+    
+    draw_section_heading("1. Edge-Adjacent Regime & Boundary Participation")
+    draw_body_text([
+        "When the site is positioned at p = (0.50, 0.10), it lies near the bottom edge (y = 0, distance 0.10),",
+        "equidistant to the left and right edges (distance 0.50), and far from the top edge (y = 1, distance 0.90).",
+        "Unlike the corner site at (0.05, 0.05) where only 2 parabolas participate, here ALL FOUR square",
+        "boundaries contribute parabolic arcs to the cell boundary."
+    ])
+    
+    draw_section_heading("2. Four Parabolic Bisectors & Exact Equations")
+    draw_body_text([
+        "The cell is bounded by 4 distinct parabolic segments:",
+        "  • Bottom edge (y = 0): y = 0.05 + 5.0*(x - 0.5)^2",
+        "  • Left edge   (x = 0): x = 0.25 + (y - 0.1)^2",
+        "  • Right edge  (x = 1): x = 0.75 - (y - 0.1)^2",
+        "  • Top edge    (y = 1): y = 0.55 - (5/9)*(x - 0.5)^2"
+    ], is_code=true, color=(0.1, 0.2, 0.35))
+    
+    draw_section_heading("3. Four Vertices & Bilateral Symmetry")
+    draw_body_text([
+        "Because p is centered horizontally at x = 0.5, the cell possesses exact mirror symmetry across x = 0.5.",
+        "The 4 Voronoi vertices form two symmetric pairs:",
+        "  • Bottom-Right V1 = (0.7162, 0.2838)  and  Bottom-Left V4 = (0.2838, 0.2838)",
+        "  • Top-Right    V2 = (0.5487, 0.5487)  and  Top-Left    V3 = (0.4513, 0.5487)"
+    ], is_code=true, color=(0.1, 0.2, 0.35))
+    
+    draw_section_heading("4. The Asymmetric Dome / Teardrop Shape")
+    draw_body_text([
+        "The resulting Voronoi cell forms an asymmetric dome shape flattened along the bottom and",
+        "extending upward towards the center of the square:",
+        "  • Bottom arc: sharply curved, dipping to apex y = 0.05 (halfway between p and bottom edge)",
+        "  • Top arc:    broad, shallow crest with apex at (0.50, 0.55)",
+        "",
+        "  • Perimeter (arc length): 1.3946",
+        "  • Cell Area:              0.1439 (approx 66% of the maximum center area 0.2189)"
+    ])
+    
+    # Bottom info box
+    Cairo.set_source_rgb(canvas, 0.90, 0.94, 0.98)
+    Cairo.rectangle(canvas, 40, y + 5, 720, 50)
+    Cairo.fill(canvas)
+    Cairo.set_source_rgb(canvas, 0.2, 0.4, 0.7)
+    Cairo.set_line_width(canvas, 1.0)
+    Cairo.rectangle(canvas, 40, y + 5, 720, 50)
+    Cairo.stroke(canvas)
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_ITALIC, Cairo.FONT_WEIGHT_NORMAL)
+    Cairo.set_source_rgb(canvas, 0.1, 0.2, 0.4)
+    Cairo.set_font_size(canvas, 11)
+    Cairo.move_to(canvas, 55, y + 34)
+    Cairo.show_text(canvas, "Summary: Page 6 shows the 4-arc asymmetric dome geometry for sites approaching a single edge.")
+    
+    description(canvas, "Mathematical analysis and explanation of the edge-adjacent Voronoi cell on Page 6")
+end
+
 function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
@@ -638,6 +821,10 @@ function main()
         draw_page4(canvas, point(0.05, 0.05))
         Cairo.show_page(canvas)
         draw_page5(canvas)
+        Cairo.show_page(canvas)
+        draw_page6(canvas, point(0.5, 0.1))
+        Cairo.show_page(canvas)
+        draw_page7(canvas)
     end
     println("Output: ", relpath(get_file_path(canvas_path), normpath(joinpath(@__DIR__, ".."))))
 end

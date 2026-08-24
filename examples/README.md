@@ -85,12 +85,14 @@ their arrangement that contains the origin. Outputs a single-page PDF.
 
 Computes the Voronoi cell of a query point with respect to the four
 boundary lines of the unit square. The bisector of a point and a line
-is a parabola. Renders a 5-page PDF document:
+is a parabola. Renders a 7-page PDF document:
 - **Page 1**: Interior Voronoi cell for $p = (0.30, 0.40)$ (4 parabolic arcs).
-- **Page 2**: 3D surface plot of $f(p) = \text{area}(\text{Vor}(p))$ across $[0, 1]^2$.
+- **Page 2**: 3D surface plot of $f(p) = \text{area}(\text{Vor}(p))$ across $[0.01, 0.99]^2$.
 - **Page 3**: Superlevel set region where $f(p) > 1/6$.
 - **Page 4**: Corner Voronoi cell for $p = (0.05, 0.05)$ with magnified inset showing the 2-arc parabolic lens.
 - **Page 5**: Mathematical analysis and explanation of Page 4.
+- **Page 6**: Edge-adjacent Voronoi cell for $p = (0.50, 0.10)$ (4 parabolic arcs).
+- **Page 7**: Mathematical analysis and explanation of Page 6.
 
 **Output:** `output/sq_vs_point.pdf`
 
