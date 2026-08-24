@@ -206,6 +206,7 @@ function draw_page1(canvas, p)
 end
 
 function draw_page2(canvas)
+    Cairo.reset_transform(canvas)
     n = 40
     xs = range(0.0, 1.0, length=n)
     ys = range(0.0, 1.0, length=n)

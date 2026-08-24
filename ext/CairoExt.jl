@@ -27,6 +27,7 @@ function BasicCompGeometry.cairo_draw_setup(
     scale = min((cw - 2margin) / bb_width, (ch - 2margin) / bb_height)
 
     C = Cairo
+    C.reset_transform(cr)
     C.translate(cr, margin, ch - margin)
     C.scale(cr, scale, -scale)
     C.translate(cr, -bl[1], -bl[2])
@@ -581,7 +582,7 @@ BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly, close::Bool=true) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly, close))
 
 # Cairo drawing primitives forwarding
-for fn in (:save, :restore, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
+for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
