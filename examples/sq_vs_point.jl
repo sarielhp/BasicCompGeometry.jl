@@ -88,7 +88,28 @@ Compute the Voronoi cell of point `p` w.r.t. the unit square boundary as a `Curv
 function voronoi_curved_polygon(p::Point{2,T}) where {T}
     lines = square_boundary_lines()
     parabolas, verts = voronoi_cell(p)
-    length(verts) < 3 && return CurvePolygon2D(ParabolaArc{T}[])
+    length(verts) < 2 && return CurvePolygon2D(ParabolaArc{T}[])
+    if length(verts) == 2
+        p1, p2 = verts[1], verts[2]
+        active_k = Int[]
+        for k in 1:4
+            d1 = abs(dist(p1, p) - distance_to_line(p1, lines[k]))
+            d2 = abs(dist(p2, p) - distance_to_line(p2, lines[k]))
+            if d1 < 1e-6 && d2 < 1e-6
+                push!(active_k, k)
+            end
+        end
+        if length(active_k) == 2
+            arc1 = ParabolaArc(parabolas[active_k[1]], p1, p2)
+            arc2 = ParabolaArc(parabolas[active_k[2]], p2, p1)
+            mid1 = at(arc1, 0.5)
+            if turn_sign(p1, mid1, p) > 0
+                arc1 = ParabolaArc(parabolas[active_k[2]], p1, p2)
+                arc2 = ParabolaArc(parabolas[active_k[1]], p2, p1)
+            end
+            return CurvePolygon2D([arc1, arc2])
+        end
+    end
     m = length(verts)
     arcs = ParabolaArc{T}[]
     for idx in 1:m
@@ -260,8 +281,9 @@ function draw_page2(canvas)
     for i in 1:n
         for j in 1:n
             if i < n && j < n
-                z = (vals[i, j] + vals[i+1, j] + vals[i, j+1] + vals[i+1, j+1]) / 4
-                intensity = 0.3 + 0.7 * z / max_val
+                z = (vals[i, j] + vals[i+1, j] + vals[i+1, j+1] + vals[i, j+1]) / 4
+                intensity = clamp(0.3 + 0.7 * (z / max(max_val, 1e-9)), 0.0, 1.0)
+                isnan(intensity) && (intensity = 0.3)
                 x1, y1 = project(xs[i], ys[j], vals[i, j])
                 x2, y2 = project(xs[i+1], ys[j], vals[i+1, j])
                 x3, y3 = project(xs[i+1], ys[j+1], vals[i+1, j+1])
@@ -317,6 +339,285 @@ function draw_page3(canvas)
     description(canvas, "Region where f(p) > 1/6 (shaded)")
 end
 
+function draw_page4(canvas, p=point(0.05, 0.05))
+    lines = square_boundary_lines()
+    parabolas, verts = voronoi_cell(p)
+    
+    # 1. Main View (Full Unit Square)
+    bb = BBox(point(-0.15, -0.15), point(1.15, 1.15))
+    cairo_draw_setup(canvas, bb, 800, 800, 40)
+    Cairo.set_source_rgb(canvas, 1, 1, 1)
+    Cairo.paint(canvas)
+    
+    cp = voronoi_curved_polygon(p)
+    
+    # Fill Voronoi cell
+    if !isempty(cp.curves)
+        boundary = sample_cell_boundary(p, 300)
+        if !isempty(boundary)
+            Cairo.set_source_rgb(canvas, 0.8, 0.9, 1.0)
+            Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
+            for pt in boundary[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.close_path(canvas)
+            Cairo.fill(canvas)
+        end
+    end
+    
+    # Draw parabolas
+    Cairo.set_source_rgb(canvas, 0.65, 0.65, 0.65)
+    Cairo.set_line_width(canvas, 0.004)
+    for h in parabolas[1:2:3] # Active parabolas 1 (x=0) and 3 (y=0)
+        pts = Point2F[]
+        for t in range(-3.0, 3.0, length=300)
+            pt = at(h, t)
+            if -0.15 <= pt.x <= 1.15 && -0.15 <= pt.y <= 1.15
+                push!(pts, pt)
+            end
+        end
+        if !isempty(pts)
+            Cairo.move_to(canvas, pts[1].x, pts[1].y)
+            for pt in pts[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.stroke(canvas)
+        end
+    end
+    
+    # Draw unit square
+    Cairo.set_source_rgb(canvas, 0, 0, 0)
+    Cairo.set_line_width(canvas, 0.008)
+    Cairo.move_to(canvas, 0, 0); Cairo.line_to(canvas, 1, 0)
+    Cairo.line_to(canvas, 1, 1); Cairo.line_to(canvas, 0, 1)
+    Cairo.close_path(canvas); Cairo.stroke(canvas)
+    
+    # Draw cell boundary
+    if !isempty(cp.curves)
+        boundary = sample_cell_boundary(p, 300)
+        if !isempty(boundary)
+            Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
+            Cairo.set_line_width(canvas, 0.007)
+            Cairo.move_to(canvas, boundary[1].x, boundary[1].y)
+            for pt in boundary[2:end]
+                Cairo.line_to(canvas, pt.x, pt.y)
+            end
+            Cairo.close_path(canvas); Cairo.stroke(canvas)
+            
+            for v in verts
+                Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
+                Cairo.arc(canvas, v.x, v.y, 0.006, 0, 2pi)
+                Cairo.fill(canvas)
+            end
+        end
+    end
+    
+    # Draw site point
+    Cairo.set_source_rgb(canvas, 1, 0, 0)
+    Cairo.arc(canvas, p.x, p.y, 0.012, 0, 2pi)
+    Cairo.fill(canvas)
+    
+    # 2. Magnified Inset in Top-Right
+    Cairo.reset_transform(canvas)
+    ix, iy, iw, ih = 390.0, 70.0, 350.0, 350.0
+    
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+    Cairo.rectangle(canvas, ix, iy, iw, ih)
+    Cairo.fill(canvas)
+    
+    Cairo.set_source_rgb(canvas, 0.2, 0.3, 0.5)
+    Cairo.set_line_width(canvas, 1.5)
+    Cairo.rectangle(canvas, ix, iy, iw, ih)
+    Cairo.stroke(canvas)
+    
+    w_min = -0.015
+    w_max = 0.215
+    w_span = w_max - w_min
+    
+    function map_inset(wx, wy)
+        sx = ix + (wx - w_min) / w_span * iw
+        sy = (iy + ih) - (wy - w_min) / w_span * ih
+        return sx, sy
+    end
+    
+    # Inset: Axes
+    sx0, sy0 = map_inset(0.0, 0.0)
+    sx1, sy1 = map_inset(0.20, 0.0)
+    sx2, sy2 = map_inset(0.0, 0.20)
+    Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.0)
+    Cairo.set_line_width(canvas, 2.0)
+    Cairo.move_to(canvas, sx0, sy0); Cairo.line_to(canvas, sx1, sy0); Cairo.stroke(canvas)
+    Cairo.move_to(canvas, sx0, sy0); Cairo.line_to(canvas, sx0, sy2); Cairo.stroke(canvas)
+    
+    # Inset: Symmetry line y = x
+    sd1_x, sd1_y = map_inset(0.0, 0.0)
+    sd2_x, sd2_y = map_inset(0.20, 0.20)
+    Cairo.set_source_rgb(canvas, 0.7, 0.7, 0.7)
+    Cairo.set_line_width(canvas, 1.0)
+    Cairo.move_to(canvas, sd1_x, sd1_y); Cairo.line_to(canvas, sd2_x, sd2_y); Cairo.stroke(canvas)
+    
+    # Inset: Shaded cell
+    boundary = sample_cell_boundary(p, 300)
+    if !isempty(boundary)
+        Cairo.set_source_rgb(canvas, 0.8, 0.9, 1.0)
+        bx, by = map_inset(boundary[1].x, boundary[1].y)
+        Cairo.move_to(canvas, bx, by)
+        for pt in boundary[2:end]
+            bx, by = map_inset(pt.x, pt.y)
+            Cairo.line_to(canvas, bx, by)
+        end
+        Cairo.close_path(canvas); Cairo.fill(canvas)
+        
+        # Stroke boundary
+        Cairo.set_source_rgb(canvas, 0.0, 0.0, 0.8)
+        Cairo.set_line_width(canvas, 2.5)
+        bx, by = map_inset(boundary[1].x, boundary[1].y)
+        Cairo.move_to(canvas, bx, by)
+        for pt in boundary[2:end]
+            bx, by = map_inset(pt.x, pt.y)
+            Cairo.line_to(canvas, bx, by)
+        end
+        Cairo.close_path(canvas); Cairo.stroke(canvas)
+    end
+    
+    # Inset: Vertices
+    for (i, v) in enumerate(verts)
+        vx, vy = map_inset(v.x, v.y)
+        Cairo.set_source_rgb(canvas, 0.0, 0.2, 0.8)
+        Cairo.arc(canvas, vx, vy, 4.0, 0, 2pi)
+        Cairo.fill(canvas)
+        
+        Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.set_font_size(canvas, 11)
+        Cairo.move_to(canvas, vx + 7, vy - 4)
+        Cairo.show_text(canvas, @sprintf("V%d (%.3f, %.3f)", i, v.x, v.y))
+    end
+    
+    # Inset: Site p
+    px, py = map_inset(p.x, p.y)
+    Cairo.set_source_rgb(canvas, 0.9, 0.1, 0.1)
+    Cairo.arc(canvas, px, py, 6.0, 0, 2pi)
+    Cairo.fill(canvas)
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_source_rgb(canvas, 0.8, 0.0, 0.0)
+    Cairo.set_font_size(canvas, 12)
+    Cairo.move_to(canvas, px + 8, py + 12)
+    Cairo.show_text(canvas, "p (0.05, 0.05)")
+    
+    # Inset: Title badge
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_source_rgb(canvas, 0.2, 0.3, 0.5)
+    Cairo.set_font_size(canvas, 12)
+    Cairo.move_to(canvas, ix + 12, iy + 22)
+    Cairo.show_text(canvas, "Magnified Corner View [0, 0.20]²")
+    
+    area_val = cell_area(p)
+    description(canvas, @sprintf("Voronoi cell of corner site (0.05, 0.05) — 2 parabolic arcs, area = %.5f", area_val))
+end
+
+function draw_page5(canvas)
+    Cairo.reset_transform(canvas)
+    cw, ch = 800.0, 800.0
+    
+    # Clean background
+    Cairo.set_source_rgb(canvas, 0.98, 0.99, 1.0)
+    Cairo.paint(canvas)
+    
+    # Top header bar
+    Cairo.set_source_rgb(canvas, 0.12, 0.23, 0.45)
+    Cairo.rectangle(canvas, 0, 0, cw, 70)
+    Cairo.fill(canvas)
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+    Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+    Cairo.set_font_size(canvas, 20)
+    Cairo.move_to(canvas, 35, 44)
+    Cairo.show_text(canvas, "Page 4 Analysis: Corner Voronoi Cell at p = (0.05, 0.05)")
+    
+    # Body text setup
+    left_margin = 40.0
+    y = 110.0
+    
+    function draw_section_heading(title)
+        Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.set_source_rgb(canvas, 0.12, 0.25, 0.55)
+        Cairo.set_font_size(canvas, 14)
+        Cairo.move_to(canvas, left_margin, y)
+        Cairo.show_text(canvas, title)
+        y += 24.0
+    end
+    
+    function draw_body_text(lines; is_code=false, color=(0.15, 0.15, 0.18))
+        Cairo.set_source_rgb(canvas, color...)
+        if is_code
+            Cairo.select_font_face(canvas, "Monospace", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+            Cairo.set_font_size(canvas, 11)
+        else
+            Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+            Cairo.set_font_size(canvas, 12)
+        end
+        for line in lines
+            Cairo.move_to(canvas, left_margin + 12.0, y)
+            Cairo.show_text(canvas, line)
+            y += 18.0
+        end
+        y += 12.0
+    end
+    
+    draw_section_heading("1. Active Boundaries in the Corner Regime")
+    draw_body_text([
+        "For interior sites like p = (0.3, 0.4), all four square edges participate in the cell boundary (4 arcs).",
+        "When the site is placed near a corner at p = (0.05, 0.05), the distances to the left edge (x = 0) and",
+        "bottom edge (y = 0) are only 0.05, whereas the distances to the right edge (x = 1) and top edge (y = 1)",
+        "are 0.95. Every point in the Voronoi cell is much closer to p than to the distant edges.",
+        "Consequently, the right and top boundary lines are completely inactive."
+    ])
+    
+    draw_section_heading("2. Two-Parabola Boundary & Exact Equations")
+    draw_body_text([
+        "The cell boundary is formed exclusively by 2 parabolic bisectors:",
+        "  • Left edge  (x = 0):  dist(q, p) = x  =>  x = 0.025 + 10*(y - 0.05)^2",
+        "  • Bottom edge (y = 0): dist(q, p) = y  =>  y = 0.025 + 10*(x - 0.05)^2"
+    ], is_code=true, color=(0.1, 0.2, 0.35))
+    
+    draw_section_heading("3. Two Intersection Vertices Along the Diagonal")
+    draw_body_text([
+        "Because px = py = 0.05, the two parabolas intersect symmetrically along the diagonal y = x.",
+        "Equating x = y yields the quadratic equation 10*x^2 - 2*x + 0.05 = 0 (or 200*x^2 - 40*x + 1 = 0).",
+        "This produces two distinct real intersection points:",
+        "  • Lower vertex V1 = ( (2 - sqrt(2))/20, (2 - sqrt(2))/20 )  ≈  (0.02929, 0.02929)",
+        "  • Upper vertex V2 = ( (2 + sqrt(2))/20, (2 + sqrt(2))/20 )  ≈  (0.17071, 0.17071)"
+    ], is_code=true, color=(0.1, 0.2, 0.35))
+    
+    draw_section_heading("4. The Self-Enclosing Lens & Vanishing Area")
+    draw_body_text([
+        "The two parabolic arcs between V1 and V2 close directly upon each other, forming a 2-arc",
+        "convex \"leaf\" / \"lens\" that completely encloses the site p = (0.05, 0.05).",
+        "",
+        "  • Perimeter (arc length): 0.4388 (compared to 1.6242 for p = (0.3, 0.4))",
+        "  • Cell Area:              0.0094 (compared to 0.1984 for p = (0.3, 0.4) and max 0.2189 at center)",
+        "",
+        "As p -> (0, 0), the vertices collapse as O(||p||) and the cell area vanishes quadratically as O(||p||^2)."
+    ])
+    
+    # Bottom info box
+    Cairo.set_source_rgb(canvas, 0.90, 0.94, 0.98)
+    Cairo.rectangle(canvas, 40, y + 5, 720, 50)
+    Cairo.fill(canvas)
+    Cairo.set_source_rgb(canvas, 0.2, 0.4, 0.7)
+    Cairo.set_line_width(canvas, 1.0)
+    Cairo.rectangle(canvas, 40, y + 5, 720, 50)
+    Cairo.stroke(canvas)
+    
+    Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_ITALIC, Cairo.FONT_WEIGHT_NORMAL)
+    Cairo.set_source_rgb(canvas, 0.1, 0.2, 0.4)
+    Cairo.set_font_size(canvas, 11)
+    Cairo.move_to(canvas, 55, y + 34)
+    Cairo.show_text(canvas, "Summary: Page 4 illustrates the transition from 4-arc interior cells to 2-arc corner lenses.")
+    
+    description(canvas, "Mathematical analysis and explanation of the corner Voronoi cell on Page 4")
+end
+
 function main()
     Random.seed!(42)
     p = point(0.3, 0.4)
@@ -333,6 +634,10 @@ function main()
         draw_page2(canvas)
         Cairo.show_page(canvas)
         draw_page3(canvas)
+        Cairo.show_page(canvas)
+        draw_page4(canvas, point(0.05, 0.05))
+        Cairo.show_page(canvas)
+        draw_page5(canvas)
     end
     println("Output: ", relpath(get_file_path(canvas_path), normpath(joinpath(@__DIR__, ".."))))
 end
