@@ -586,7 +586,19 @@ for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
-Cairo.set_line_width(c::Canvas, a) = (_ensure_surface!(c); Cairo.set_line_width(c.cr, a))
+function Cairo.set_line_width(c::Canvas, a::Real)
+    _ensure_surface!(c)
+    if c.fmt in (:png, :gif) && a < 1.0
+        m = Cairo.get_matrix(c.cr)
+        scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
+        if scale > 0
+            effective_w = max(1.0, ceil(Float64(a) * scale))
+            Cairo.set_line_width(c.cr, effective_w)
+            return
+        end
+    end
+    Cairo.set_line_width(c.cr, a)
+end
 
 for fn in (:move_to, :line_to, :translate, :scale)
     @eval Cairo.$fn(c::Canvas, a, b) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b))
