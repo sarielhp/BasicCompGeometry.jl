@@ -339,11 +339,11 @@ function main()
     computed_area = cell_area(p)
     cp = voronoi_curved_polygon(p)
     
-    println("Computed area:                         ", @sprintf("%.6f", computed_area))
+    println("Computed area:                           ", @sprintf("%.6f", computed_area))
     if length(cp.curves) >= 3
-        for n in [10_000, 100_000, 1_000_000]
+        for n in [10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
             estimated_area = estimate_area_via_sampling(p, n; cp=cp)
-            pad = " "^max(1, 8 - length(string(n)))
+            pad = " "^max(1, 10 - length(string(n)))
             println(@sprintf("Estimated area (Monte Carlo, n = %d):%s%.6f", n, pad, estimated_area))
         end
     end
