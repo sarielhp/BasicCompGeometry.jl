@@ -12,6 +12,21 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `misc/monte_carlo_area.jl` — Monte Carlo Area Estimation of Curved Voronoi Cell
+
+Constructs the Voronoi cell of a query point with respect to the 4 boundary lines
+of the unit square $[0, 1]^2$ as a `CurvePolygon2D` formed by 4 `ParabolaArc` curves.
+Estimates the cell area using Monte Carlo sampling across $N = 10^4, 10^5, 10^6, 10^7$
+points using the ray-casting `is_inside` point-in-curved-polygon test and compares
+convergence against the boundary discretization reference area.
+
+**Usage:**
+```bash
+julia --project=examples examples/misc/monte_carlo_area.jl
+```
+
+---
+
 ## `polarity.jl` — Point-Plane Polarity
 
 Demonstrates the involutive point-plane polarity with respect to the
