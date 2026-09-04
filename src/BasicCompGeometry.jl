@@ -152,6 +152,7 @@ include("Spheres.jl")
 include("Hyperbolas.jl")
 include("Parabolas.jl")
 include("CurvePolygon.jl")
+include("IpeDraw.jl")
 
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
@@ -165,6 +166,6 @@ export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
 export polar, polar_line
 export bottom_left, corner, top_right, width, height, middle, diam, max_dist, max_dist_subspace, is_inside
-export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D
+export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D, IpeDraw
 
 end

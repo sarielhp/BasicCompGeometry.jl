@@ -15,6 +15,7 @@ A core concept in the library is the `AbsPntSeq`, which is treated as a **sequen
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling.
 - **Spatial Decomposition**: Efficient Bounding Box Trees (BBT) and Well-Separated Pairs Decompositions (WSPD).
 - **2D Transformations**: Efficient translation and rotation for planar geometry.
+- **Vector Figure Generation (`IpeDraw`)**: Programmatic generation of publication-ready Ipe 7 figures, cropped PDFs, and LaTeX wrappers with native math annotations.
 - **Visualization (Optional)**: High-quality PDF visualization for trees and polygons via `Cairo.jl` and `Colors.jl` (only loaded if these packages are present).
 
 ## Algorithms
@@ -177,3 +178,34 @@ distance_infty
 centroid
 match_price
 ```
+
+### Vector Figure Generation (IpeDraw)
+```@docs
+IpeDraw
+IpeDraw.IpeCanvas
+IpeDraw.open_ipe
+IpeDraw.edit_ipe
+IpeDraw.add_preamble!
+IpeDraw.draw_point!
+IpeDraw.draw_points!
+IpeDraw.draw_segment!
+IpeDraw.draw_box!
+IpeDraw.draw_polygon!
+IpeDraw.draw_circle!
+IpeDraw.draw_arc!
+IpeDraw.draw_bar!
+IpeDraw.draw_span!
+IpeDraw.draw_dimension!
+IpeDraw.draw_arrow!
+IpeDraw.draw_curved_arrow!
+IpeDraw.draw_label!
+IpeDraw.set_layer!
+IpeDraw.add_layer!
+IpeDraw.add_view!
+IpeDraw.setup_transform!
+IpeDraw.save_ipe
+IpeDraw.compile_pdf
+IpeDraw.save_figure_tex
+IpeDraw.export_figure
+```
+

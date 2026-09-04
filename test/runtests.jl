@@ -364,4 +364,6 @@ using BasicCompGeometry
         include("test_latex_cairo.jl")
     end
 
+    include("test_ipedraw.jl")
+
 end

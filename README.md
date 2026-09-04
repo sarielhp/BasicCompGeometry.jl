@@ -36,6 +36,7 @@ This library provides a flat, idiomatic hierarchy for geometric types and algori
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling of polygonal curves.
 - **Planar Geometry**: Homogeneous 2D transformations (translation and rotation).
+- **Vector Figure Generation (`IpeDraw`)**: Programmatic generation of publication-ready Ipe 7 XML figures, cropped PDFs, and LaTeX fragments with native math formulas and geometric dispatches.
 
 ## Algorithms
 
@@ -173,6 +174,40 @@ Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
 
 Ready-to-run example scripts are documented in
 [`examples/README.md`](examples/README.md).
+
+## Vector Figure Generation (`IpeDraw`)
+
+The `IpeDraw` submodule provides programmatic generation of publication-ready vector figures using the [Ipe extensible drawing editor](http://ipe.otfried.org/) format (`.ipe`).
+
+- **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, and polygon chains.
+- **Conceptual & Algorithmic Helpers**: Primitives for intervals, spans, dimension lines, and curved arrows (`draw_bar!`, `draw_span!`, `draw_dimension!`, `draw_curved_arrow!`).
+- **LaTeX Math Formulas**: Native math support (accepts `LaTeXStrings` `L"..."` and standard LaTeX strings) with automatic XML escaping.
+- **Multi-Layer & Multi-View**: Easily define layers and progressive presentation views.
+- **Self-Contained Style**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), extended pens, opacities, and rich color palettes.
+- **Automated Compilation**: Generates editable `.ipe`, cropped vector `.pdf`, and companion `_fig.tex` LaTeX wrappers.
+
+### Quick Example
+
+```julia
+using BasicCompGeometry
+using BasicCompGeometry.IpeDraw
+using LaTeXStrings
+
+open_ipe("output/interval_demo"; caption="Interval estimation", label="fig:demo") do cv
+    add_layer!(cv, "intervals")
+    add_layer!(cv, "labels")
+
+    set_layer!(cv, "intervals")
+    draw_bar!(cv, 50.0, 350.0, 100.0; label_left=L"0", label_right=L"1")
+    draw_span!(cv, 100.0, 250.0, 100.0; fill=:lightgreen, stroke=:darkgreen)
+    draw_dimension!(cv, 100.0, 250.0, 130.0; label=L"\Delta \le \varepsilon", arrow=:both)
+
+    set_layer!(cv, "labels")
+    draw_point!(cv, 175.0, 100.0; stroke=:darkblue, fill=:darkblue, shape=:disk)
+    draw_label!(cv, 175.0, 85.0, L"\mu"; halign=:center)
+end
+```
+See [`examples/ipe_conceptual_figure.jl`](examples/ipe_conceptual_figure.jl) for a complete example.
 
 ## Visualization & Optional Dependencies
 

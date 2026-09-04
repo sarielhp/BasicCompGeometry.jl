@@ -12,6 +12,21 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `ipe_conceptual_figure.jl` — Conceptual Ipe Vector Figure Generation
+
+Demonstrates programmatic generation of publication-ready, vector conceptual figures
+with native LaTeX math formulas using `BasicCompGeometry.IpeDraw` and `LaTeXStrings`.
+Automatically produces:
+- An editable Ipe 7 XML document (`output/inverse_estimation_demo.ipe`)
+- A cropped vector PDF (`output/inverse_estimation_demo.pdf`)
+- A companion LaTeX figure fragment (`output/inverse_estimation_demo_fig.tex`) ready for `\input`.
+
+**Usage:**
+```bash
+./examples/ipe_conceptual_figure.jl
+```
+
+
 ## `misc/monte_carlo_area.jl` — Monte Carlo Area Estimation of Curved Voronoi Cell
 
 Constructs the Voronoi cell of a query point with respect to the 4 boundary lines
