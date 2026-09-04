@@ -77,6 +77,8 @@ This uses an optimization approach to find the closest points on both segments.
     return dist_segment_segment(a.p, a.q, b.p, b.q)
 end
 
+@inline dist(p::Point{D,T}, s::Segment{D,T}) where {D,T} = dist(s, p)
+
 """
     convex_coef(seg, point)
 

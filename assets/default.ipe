@@ -309,6 +309,10 @@ h
 <textstyle name="itemize" begin="\begin{itemize}" end="\end{itemize}"/>
 <tiling name="falling" angle="-60" step="4" width="1"/>
 <tiling name="rising" angle="30" step="4" width="1"/>
+<tiling name="hatch" angle="45" step="4" width="0.5"/>
+<tiling name="crosshatch" angle="45" step="4" width="0.5"/>
+<tiling name="vertical" angle="90" step="4" width="0.5"/>
+<tiling name="horizontal" angle="0" step="4" width="0.5"/>
 </ipestyle>
 <ipestyle name="compgeom_colors">
 <color name="aliceblue" value="0.941 0.973 1"/>

@@ -12,7 +12,8 @@ using Printf
 
 export IpeCanvas, open_ipe, edit_ipe, add_preamble!
 export draw_point!, draw_points!, draw_segment!, draw_box!, draw_polygon!
-export draw_circle!, draw_arc!
+export draw_circle!, draw_arc!, draw_ellipse!, draw_elliptic_arc!
+export draw_bezier!, draw_spline!, draw_bspline!, draw_polygon_with_holes!, ipe_group
 export draw_bar!, draw_span!, draw_dimension!, draw_arrow!, draw_curved_arrow!
 export draw_label!, set_layer!, add_layer!, add_view!, setup_transform!
 export save_ipe, compile_pdf, save_figure_tex, export_figure
@@ -340,7 +341,229 @@ function draw_arc!(
 end
 
 draw_arc!(canvas::IpeCanvas, arc::CircleArc; kwargs...) = 
-    draw_arc!(canvas, arc.center, arc.radius, arc.start_angle, arc.end_angle; kwargs...)
+    draw_arc!(canvas, arc.center, arc.radius, arc.theta1, arc.theta2; kwargs...)
+
+"""
+    draw_ellipse!(canvas, center::Point{2}, r_major::Real, r_minor::Real; angle=0.0, ...)
+    draw_ellipse!(canvas, ellipse::Ellipse; ...)
+
+Draw an ellipse with given center, semi-axes `r_major` and `r_minor`, and orientation `angle` in radians.
+"""
+function draw_ellipse!(
+    canvas::IpeCanvas, center::Point{2}, r_major::Real, r_minor::Real;
+    angle::Real = 0.0,
+    stroke::Symbol = :black,
+    fill::Symbol = :none,
+    pen::Symbol = :normal,
+    dash::Symbol = :none,
+    opacity::Union{Symbol, Nothing} = nothing,
+    tiling::Symbol = :none
+)
+    c = _apply_tf(canvas, center)
+    ca, sa = cos(Float64(angle)), sin(Float64(angle))
+    a, b = Float64(r_major), Float64(r_minor)
+    m11, m21 = a * ca, a * sa
+    m12, m22 = -b * sa, b * ca
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))$(_fmt_attr("tiling", tiling))"
+    xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
+          @sprintf("%.4f %.4f %.4f %.4f %.3f %.3f e\n</path>", m11, m21, m12, m22, c[1], c[2])
+    push!(canvas.elements, xml)
+    return canvas
+end
+
+draw_ellipse!(canvas::IpeCanvas, e::Ellipse; kwargs...) =
+    draw_ellipse!(canvas, e.center, e.r_major, e.r_minor; angle=e.angle, kwargs...)
+
+"""
+    draw_elliptic_arc!(canvas, center, r_major, r_minor, angle, a1, a2; ...)
+    draw_arc!(canvas, arc::EllipticArc; ...)
+
+Draw an elliptic arc from parametric angle `a1` to `a2` (in radians).
+"""
+function draw_elliptic_arc!(
+    canvas::IpeCanvas, center::Point{2}, r_major::Real, r_minor::Real,
+    angle::Real, a1::Real, a2::Real;
+    stroke::Symbol = :black,
+    pen::Symbol = :normal,
+    arrow::Symbol = :none,
+    rarrow::Symbol = :none
+)
+    c = _apply_tf(canvas, center)
+    ca, sa = cos(Float64(angle)), sin(Float64(angle))
+    a, b = Float64(r_major), Float64(r_minor)
+    m11, m21 = a * ca, a * sa
+    m12, m22 = -b * sa, b * ca
+    p1 = Point(c[1] + m11 * cos(a1) + m12 * sin(a1), c[2] + m21 * cos(a1) + m22 * sin(a1))
+    p2 = Point(c[1] + m11 * cos(a2) + m12 * sin(a2), c[2] + m21 * cos(a2) + m22 * sin(a2))
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("pen", pen))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
+    xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
+          @sprintf("%.4f %.4f %.4f %.4f %.3f %.3f %.3f %.3f %.3f %.3f arc\n</path>",
+                  m11, m21, m12, m22, c[1], c[2], p1[1], p1[2], p2[1], p2[2])
+    push!(canvas.elements, xml)
+    return canvas
+end
+
+draw_arc!(canvas::IpeCanvas, arc::EllipticArc; kwargs...) =
+    draw_elliptic_arc!(canvas, arc.ellipse.center, arc.ellipse.r_major, arc.ellipse.r_minor,
+                       arc.ellipse.angle, arc.alpha1, arc.alpha2; kwargs...)
+
+"""
+    draw_bezier!(canvas, b::CubicBezier{2}; stroke=:black, pen=:normal, fill=:none, ...)
+
+Draw a cubic Bézier curve.
+"""
+function draw_bezier!(
+    canvas::IpeCanvas, b::CubicBezier{2};
+    stroke::Symbol = :black,
+    fill::Symbol = :none,
+    pen::Symbol = :normal,
+    dash::Symbol = :none,
+    arrow::Symbol = :none,
+    rarrow::Symbol = :none
+)
+    p0 = _apply_tf(canvas, b.p0)
+    p1 = _apply_tf(canvas, b.p1)
+    p2 = _apply_tf(canvas, b.p2)
+    p3 = _apply_tf(canvas, b.p3)
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
+    xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
+          "$(_pt_str(p0)) m\n" *
+          @sprintf("%.3f %.3f %.3f %.3f %.3f %.3f c\n</path>",
+                  p1[1], p1[2], p2[1], p2[2], p3[1], p3[2])
+    push!(canvas.elements, xml)
+    return canvas
+end
+
+"""
+    draw_spline!(canvas, spline::CubicSpline{2}; stroke=:black, pen=:normal, fill=:none, ...)
+    draw_spline!(canvas, pts::AbsPntSeq{2}; method=:catmull_rom, closed=false, ...)
+
+Draw a composite cubic spline curve.
+"""
+function draw_spline!(
+    canvas::IpeCanvas, s::CubicSpline{2};
+    stroke::Symbol = :black,
+    fill::Symbol = :none,
+    pen::Symbol = :normal,
+    dash::Symbol = :none,
+    arrow::Symbol = :none,
+    rarrow::Symbol = :none
+)
+    isempty(s.segments) && return canvas
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
+    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
+    p0 = _apply_tf(canvas, s.segments[1].p0)
+    push!(lines, "$(_pt_str(p0)) m")
+    for seg in s.segments
+        p1 = _apply_tf(canvas, seg.p1)
+        p2 = _apply_tf(canvas, seg.p2)
+        p3 = _apply_tf(canvas, seg.p3)
+        push!(lines, @sprintf("%.3f %.3f %.3f %.3f %.3f %.3f c",
+                              p1[1], p1[2], p2[1], p2[2], p3[1], p3[2]))
+    end
+    s.is_closed && push!(lines, "h")
+    push!(lines, "</path>")
+    push!(canvas.elements, join(lines, "\n"))
+    return canvas
+end
+
+draw_spline!(canvas::IpeCanvas, pts::AbsPntSeq{2}; method::Symbol = :catmull_rom, closed::Bool = false, kwargs...) =
+    draw_spline!(canvas, method == :natural ? interpolate_natural_spline(pts; closed=closed) :
+                                             interpolate_catmull_rom(pts; closed=closed); kwargs...)
+
+"""
+    draw_bspline!(canvas, pts; closed=false, stroke=:black, pen=:normal, fill=:none, ...)
+
+Draw an approximating cubic B-spline using native Ipe spline operators (`s` or `u`).
+"""
+function draw_bspline!(
+    canvas::IpeCanvas, pts;
+    closed::Bool = false,
+    stroke::Symbol = :black,
+    fill::Symbol = :none,
+    pen::Symbol = :normal,
+    dash::Symbol = :none
+)
+    n = length(pts)
+    n >= 3 || error("B-spline requires at least 3 control points")
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))"
+    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
+    tf_pts = [_apply_tf(canvas, p) for p in pts]
+    if closed
+        pt_strs = [_pt_str(p) for p in tf_pts]
+        push!(lines, "$(join(pt_strs, "\n")) u")
+    else
+        push!(lines, "$(_pt_str(tf_pts[1])) m")
+        pt_strs = [_pt_str(p) for p in tf_pts[2:end]]
+        push!(lines, "$(join(pt_strs, "\n")) s")
+    end
+    push!(lines, "</path>")
+    push!(canvas.elements, join(lines, "\n"))
+    return canvas
+end
+
+"""
+    draw_polygon_with_holes!(canvas, outer, holes...; stroke=:black, fill=:gray7, ...)
+
+Draw a filled planar region with interior holes using the even-odd winding rule (`fillrule="eofill"`).
+"""
+function draw_polygon_with_holes!(
+    canvas::IpeCanvas, outer::AbsPntSeq{2}, holes::AbsPntSeq{2}...;
+    stroke::Symbol = :black,
+    fill::Symbol = :gray7,
+    pen::Symbol = :normal,
+    dash::Symbol = :none,
+    opacity::Union{Symbol, Nothing} = nothing,
+    tiling::Symbol = :none
+)
+    attrs = " fillrule=\"eofill\"$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))$(_fmt_attr("tiling", tiling))"
+    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
+    _append_subpath!(lines, canvas, outer)
+    for hole in holes
+        _append_subpath!(lines, canvas, hole)
+    end
+    push!(lines, "</path>")
+    push!(canvas.elements, join(lines, "\n"))
+    return canvas
+end
+
+function _append_subpath!(lines::Vector{String}, canvas::IpeCanvas, poly::AbsPntSeq{2})
+    n = cardin(poly)
+    n == 0 && return
+    p0 = _apply_tf(canvas, poly[1])
+    push!(lines, "$(_pt_str(p0)) m")
+    for i in 2:n
+        pi = _apply_tf(canvas, poly[i])
+        push!(lines, "$(_pt_str(pi)) l")
+    end
+    push!(lines, "h")
+end
+
+"""
+    ipe_group(f::Function, canvas::IpeCanvas; matrix=nothing, opacity=nothing)
+
+Group elements emitted inside function `f(canvas)` under an Ipe `<group>` tag,
+optionally applying an affine matrix transformation or group opacity.
+"""
+function ipe_group(
+    f::Function, canvas::IpeCanvas;
+    matrix::Union{Nothing, AbstractVector{<:Real}} = nothing,
+    opacity::Union{Nothing, Symbol, String} = nothing
+)
+    attrs = ""
+    if matrix !== nothing
+        @assert length(matrix) == 6 "Matrix must have 6 values [m11, m21, m12, m22, dx, dy]"
+        attrs *= @sprintf(" matrix=\"%.4f %.4f %.4f %.4f %.3f %.3f\"",
+                          matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6])
+    end
+    if opacity !== nothing
+        attrs *= " opacity=\"$(opacity)\""
+    end
+    push!(canvas.elements, "<group$attrs>")
+    f(canvas)
+    push!(canvas.elements, "</group>")
+    return canvas
+end
 
 
 # -----------------------------------------------------------------------------
@@ -603,6 +826,12 @@ h
 <textsize name="small" value="\small"/>
 <textsize name="tiny" value="\tiny"/>
 <textsize name="footnote" value="\footnotesize"/>
+<tiling name="falling" angle="-60" step="4" width="1"/>
+<tiling name="rising" angle="30" step="4" width="1"/>
+<tiling name="hatch" angle="45" step="4" width="0.5"/>
+<tiling name="crosshatch" angle="45" step="4" width="0.5"/>
+<tiling name="vertical" angle="90" step="4" width="0.5"/>
+<tiling name="horizontal" angle="0" step="4" width="0.5"/>
 <layout paper="576 504" origin="0 0" frame="576 504" crop="yes"/>
 </ipestyle>"""
 

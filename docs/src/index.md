@@ -143,6 +143,27 @@ expand!
 expand_add!
 ```
 
+### Ellipses & Arcs
+```@docs
+Ellipse
+EllipticArc
+r_major
+r_minor
+alpha1
+alpha2
+```
+
+### Curves & Splines
+```@docs
+CubicBezier
+CubicSpline
+derivative
+subdivide
+flatten
+interpolate_catmull_rom
+interpolate_natural_spline
+```
+
 ### Nearest Neighbor Search (BBT)
 ```@docs
 BBT.exact_naive_scan
@@ -193,6 +214,13 @@ IpeDraw.draw_box!
 IpeDraw.draw_polygon!
 IpeDraw.draw_circle!
 IpeDraw.draw_arc!
+IpeDraw.draw_ellipse!
+IpeDraw.draw_elliptic_arc!
+IpeDraw.draw_bezier!
+IpeDraw.draw_spline!
+IpeDraw.draw_bspline!
+IpeDraw.draw_polygon_with_holes!
+IpeDraw.ipe_group
 IpeDraw.draw_bar!
 IpeDraw.draw_span!
 IpeDraw.draw_dimension!

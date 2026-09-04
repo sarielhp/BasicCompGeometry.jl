@@ -72,6 +72,33 @@ using BasicCompGeometry.IpeDraw
             end
         end
 
+        # 5b. Ellipses, Arcs, Béziers, Splines, Holes, and Groups
+        e = Ellipse(Point(300.0, 200.0), 40.0, 20.0, π / 6)
+        draw_ellipse!(canvas, e; fill=:lightblue, stroke=:darkblue, tiling=:hatch)
+        draw_ellipse!(canvas, Point(350.0, 200.0), 30.0, 15.0; stroke=:red)
+
+        c_arc = CircleArc(Point(100.0, 100.0), 25.0, 0.0, π)
+        draw_arc!(canvas, c_arc; stroke=:darkgreen)
+
+        el_arc = EllipticArc(e, 0.0, π / 2)
+        draw_arc!(canvas, el_arc; stroke=:magenta, arrow=:forward)
+
+        bez = CubicBezier(Point(50.0, 50.0), Point(50.0, 100.0), Point(100.0, 100.0), Point(100.0, 50.0))
+        draw_bezier!(canvas, bez; stroke=:purple, pen=:heavier)
+
+        knots = PntSeq([Point(200.0, 100.0), Point(220.0, 140.0), Point(260.0, 110.0), Point(300.0, 150.0)])
+        draw_spline!(canvas, knots; stroke=:darkblue, pen=:fat)
+        draw_bspline!(canvas, knots; stroke=:gray3, dash=:dashed)
+
+        outer_box = PntSeq([Point(50.0, 50.0), Point(150.0, 50.0), Point(150.0, 150.0), Point(50.0, 150.0)])
+        inner_hole = PntSeq([Point(75.0, 75.0), Point(125.0, 75.0), Point(125.0, 125.0), Point(75.0, 125.0)])
+        draw_polygon_with_holes!(canvas, outer_box, inner_hole; fill=:lightgray, stroke=:black)
+
+        ipe_group(canvas; matrix=[1.0, 0.0, 0.0, 1.0, 10.0, 20.0], opacity=Symbol("50%")) do cv
+            draw_point!(cv, 0.0, 0.0; stroke=:red)
+            draw_segment!(cv, Point(0.0, 0.0), Point(20.0, 20.0))
+        end
+
         # 6. File serialization and PDF compilation
         base_fig = joinpath(temp_dir, "test_fig")
         artifacts = export_figure(canvas, base_fig;

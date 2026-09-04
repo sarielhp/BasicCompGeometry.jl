@@ -152,10 +152,14 @@ include("Spheres.jl")
 include("Hyperbolas.jl")
 include("Parabolas.jl")
 include("CurvePolygon.jl")
+include("Ellipses.jl")
+include("Bezier.jl")
 include("IpeDraw.jl")
 
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
+export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F, r_major, r_minor, alpha1, alpha2, area, start_point, end_point
+export CubicBezier, CubicBezier2F, CubicBezier3F, CubicSpline, subdivide, flatten, interpolate_catmull_rom, interpolate_natural_spline
 export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, direction, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
 export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
 export turn_sign,

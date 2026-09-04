@@ -79,6 +79,10 @@ The library implements a variety of classic and modern geometric algorithms:
     - `Segment{D, T}`: Directed line segments.
     - `Line{D, T}`: Infinite lines defined by a point and a direction.
     - `BBox{D, T}`: Axis-aligned bounding boxes.
+- **Curves & Splines**:
+    - `Ellipse{T}` & `EllipticArc{T}`: Exact bounding boxes, containment, area, and uniform sampling.
+    - `CubicBezier{D, T}`: de Casteljau evaluation, exact BBox, subdivision, and adaptive flattening.
+    - `CubicSpline{D, T}`: Composite spline with Catmull-Rom ($C^1$) and Natural Spline ($C^2$) interpolation.
 - **Point Sequences (Polygons)**:
     - `PntSeq{D, T}`: Standard sequence of points.
     - `MatPntSeq{D, T}`: Zero-copy view of a Julia `Matrix` as a point sequence.
@@ -179,11 +183,13 @@ Ready-to-run example scripts are documented in
 
 The `IpeDraw` submodule provides programmatic generation of publication-ready vector figures using the [Ipe extensible drawing editor](http://ipe.otfried.org/) format (`.ipe`).
 
-- **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, and polygon chains.
+- **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, `Ellipse`, `EllipticArc`, `CubicBezier`, and `CubicSpline`.
+- **Advanced Primitives**: Smooth splines (`draw_spline!`), approximating B-splines (`draw_bspline!`), polygons with holes (`draw_polygon_with_holes!`), and scoped groups with affine transforms (`ipe_group`).
 - **Conceptual & Algorithmic Helpers**: Primitives for intervals, spans, dimension lines, and curved arrows (`draw_bar!`, `draw_span!`, `draw_dimension!`, `draw_curved_arrow!`).
 - **LaTeX Math Formulas**: Native math support (accepts `LaTeXStrings` `L"..."` and standard LaTeX strings) with automatic XML escaping.
+- **Hatch Patterns & Opacities**: Vector hatch patterns (`:hatch`, `:crosshatch`, `:vertical`, `:horizontal`, `:falling`, `:rising`) and 10%–90% opacity fills.
 - **Multi-Layer & Multi-View**: Easily define layers and progressive presentation views.
-- **Self-Contained Style**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), extended pens, opacities, and rich color palettes.
+- **Self-Contained Style**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), extended pens, and rich academic color palettes.
 - **Automated Compilation**: Generates editable `.ipe`, cropped vector `.pdf`, and companion `_fig.tex` LaTeX wrappers.
 
 ### Quick Example
