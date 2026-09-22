@@ -30,6 +30,7 @@ BBox(p::Point{D,T}, q::Point{D,T}) where {D,T} = init!(BBox{D,T}(), p, q)
 Construct a bounding box that tightly encloses all vertices of point sequence `P`.
 """
 BBox(P::AbsPntSeq{D,T}) where {D,T} = bound!(BBox{D,T}(), P)
+BBox(P::AbstractVector{<:Point{D,T}}) where {D,T} = bound!(BBox{D,T}(), P)
 
 """
     width(bb, dim=1)
@@ -262,6 +263,20 @@ end
 Return a new bounding box expanded by padding `delta` on each side.
 """
 Base.:+(b::BBox{D,T}, delta::Real) where {D,T} = expand_add!(deepcopy(b), delta)
+
+function Base.:(==)(a::BBox{D}, b::BBox{D}) where {D}
+    if !a.f_init && !b.f_init
+        return true
+    end
+    return a.f_init == b.f_init && a.mini == b.mini && a.maxi == b.maxi
+end
+
+function Base.isapprox(a::BBox{D}, b::BBox{D}; kwargs...) where {D}
+    if !a.f_init && !b.f_init
+        return true
+    end
+    return a.f_init == b.f_init && isapprox(a.mini, b.mini; kwargs...) && isapprox(a.maxi, b.maxi; kwargs...)
+end
 
 """
     is_inside(p, bb)
