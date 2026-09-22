@@ -14,6 +14,10 @@ struct Line{D,T}
 end
 
 Line(l::Line) = l
+function Line(p::Point{D,T1}, u::Point{D,T2}) where {D,T1,T2}
+    T = promote_type(T1, T2)
+    return Line{D,T}(Point{D,T}(p), Point{D,T}(u))
+end
 
 ###############################################
 ### Segment type
