@@ -156,6 +156,23 @@ For other formats, this call is a no-op unless embedded comments are supported.
 function description end
 
 """
+    cairo_draw_halfplane(cr_or_canvas, h, bb; line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing)
+
+Draw the boundary line of `h` clipped to `bb` with inward perpendicular tick marks ("whiskers")
+indicating the interior of the halfplane.
+Requires `Cairo`.
+"""
+function cairo_draw_halfplane end
+
+"""
+    cairo_draw_halfplanes(cr_or_canvas, hps, bb; line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing)
+
+Draw a collection of halfplanes inside `bb` with inward whiskers.
+Requires `Cairo`.
+"""
+function cairo_draw_halfplanes end
+
+"""
     get_file_path(canvas_or_path)
 
 Retrieve the full absolute path of the generated output file.
@@ -164,5 +181,6 @@ For HTML canvas output, returns the absolute path to `index.html`.
 function get_file_path end
 
 export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_set_line_width, cairo_draw_latex, cairo_draw_latex_page, latex_to_pdf, pdf_merge
+export cairo_draw_halfplane, cairo_draw_halfplanes
 export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
 export Canvas, open_canvas, description, get_file_path

@@ -12,6 +12,24 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `draw_halfplanes_arrangement.jl` — Arrangement Faces & Depth Heatmap Visualization
+
+Reads a saved set of halfplanes (or generates random ones), computes their arrangement
+and default view bounding box, reconstructs the convex polygonal faces inside the view
+from chains of adjacent vertical trapezoids, and renders a 2-page publication-quality PDF:
+- **Page 1**: All arrangement faces filled with distinct soft colors and stroking the boundary lines.
+- **Page 2**: Arrangement depth heatmap (colored by face depth using the Viridis palette) with inward directional tick marks ("whiskers") along every halfplane boundary line.
+
+**Usage:**
+```bash
+./examples/draw_halfplanes_arrangement.jl [--input file.txt] [--output file.pdf] [--n 12]
+# Examples:
+./examples/draw_halfplanes_arrangement.jl --input output/pruned_halfplanes_k5.txt
+./examples/draw_halfplanes_arrangement.jl --n 10 --output output/random_arrangement.pdf
+```
+
+---
+
 ## `prune_halfplanes_depth.jl` — Minimal Halfplane Subset Preserving Arrangement Center Depth $\ge k$
 
 Receives a target depth parameter $k$ and generates $6k$ random halfplanes (or reads an

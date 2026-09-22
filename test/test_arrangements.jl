@@ -103,4 +103,44 @@ using BasicCompGeometry
         @test c[1][2] <= c[4][2] + 1e-9
         @test c[2][2] <= c[3][2] + 1e-9
     end
+
+    # 7. Line & Halfplane clipping to BBox
+    bb_clip = BBox(point(0.0, 0.0), point(10.0, 10.0))
+    l_diag = Line(point(0.0, 0.0), point(1.0, 1.0))
+    seg_diag = BasicCompGeometry.clip(l_diag, bb_clip)
+    @test seg_diag isa Segment{2,Float64}
+    @test seg_diag.p ≈ point(0.0, 0.0)
+    @test seg_diag.q ≈ point(10.0, 10.0)
+
+    l_miss = Line(point(20.0, 0.0), point(0.0, 1.0))
+    @test BasicCompGeometry.clip(l_miss, bb_clip) === nothing
+
+    hp_clip = Halfplane(l_diag)
+    seg_hp = BasicCompGeometry.clip(hp_clip, bb_clip)
+    @test seg_hp isa Segment{2,Float64}
+    @test seg_hp.p ≈ point(0.0, 0.0)
+    @test seg_hp.q ≈ point(10.0, 10.0)
+
+    # 8. Trapezoid chains and face reconstruction
+    chains_x = trapezoid_chains(decomp_x)
+    @test length(chains_x) == 4 # 2 crossing lines in box yield 4 faces
+    faces_x = faces(decomp_x)
+    @test length(faces_x) == 4
+    for f in faces_x
+        @test f isa PntSeq{2,Float64}
+        @test length(f) >= 3
+    end
+
+    # Random arrangement face count & partition invariant
+    rand_chains = trapezoid_chains(rand_decomp)
+    rand_faces = faces(rand_decomp)
+    @test length(rand_chains) == length(rand_faces)
+    @test length(rand_faces) > 0
+    # Every face is non-empty and has >= 3 vertices
+    for f in rand_faces
+        @test length(f) >= 3
+    end
+    # The faces function directly from bundle
+    faces_direct = faces(rand_hps, rand_view)
+    @test length(faces_direct) == length(rand_faces)
 end

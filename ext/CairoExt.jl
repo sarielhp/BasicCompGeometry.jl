@@ -15,7 +15,7 @@ The y-axis is flipped so that the coordinate system matches the standard
 mathematical orientation (y increases upward).
 """
 function BasicCompGeometry.cairo_draw_setup(
-    cr, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20
+    cr, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20; center::Bool=true
 ) where {T}
     bl = bottom_left(bb)
     tr = top_right(bb)
@@ -26,9 +26,16 @@ function BasicCompGeometry.cairo_draw_setup(
 
     scale = min((cw - 2margin) / bb_width, (ch - 2margin) / bb_height)
 
+    tx = margin
+    ty = ch - margin
+    if center
+        tx += (cw - 2margin - scale * bb_width) / 2.0
+        ty -= (ch - 2margin - scale * bb_height) / 2.0
+    end
+
     C = Cairo
     C.reset_transform(cr)
-    C.translate(cr, margin, ch - margin)
+    C.translate(cr, tx, ty)
     C.scale(cr, scale, -scale)
     C.translate(cr, -bl[1], -bl[2])
     return scale
@@ -54,13 +61,16 @@ function BasicCompGeometry.cairo_draw_points(cr, points, radius::Real=2)
 end
 
 """
-    cairo_draw_polygon(cr, poly; line_width=nothing, close=true)
+    cairo_draw_polygon(cr, poly; line_width=nothing, close=true, fill=false, stroke=true)
 
-Draw the edges of a polygon (or point sequence) `poly` using the Cairo context `cr`.
+Draw or fill a polygon (or point sequence) `poly` using the Cairo context `cr`.
+If `fill` and `stroke` are both true, the polygon is filled then stroked.
 If `line_width` is provided, `cairo_set_line_width` is called first.
 If `close` is true, the polygon is closed by connecting the last vertex back to the first.
 """
-function BasicCompGeometry.cairo_draw_polygon(cr, poly; line_width=nothing, close::Bool=true)
+function BasicCompGeometry.cairo_draw_polygon(
+    cr, poly; line_width=nothing, close::Bool=true, fill::Bool=false, stroke::Bool=true
+)
     C = Cairo
     n = length(poly)
     n == 0 && return
@@ -74,7 +84,90 @@ function BasicCompGeometry.cairo_draw_polygon(cr, poly; line_width=nothing, clos
     if close && n > 2
         C.close_path(cr)
     end
+    if fill && stroke
+        C.fill_preserve(cr)
+        C.stroke(cr)
+    elseif fill
+        C.fill(cr)
+    elseif stroke
+        C.stroke(cr)
+    end
+    return
+end
+
+"""
+    cairo_draw_halfplane(cr_or_canvas, h::Halfplane, bb::BBox{2};
+                         line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing)
+
+Draw the boundary line of halfplane `h` clipped to `bb` with inward perpendicular tick marks
+("whiskers") indicating the interior of the halfplane.
+"""
+function BasicCompGeometry.cairo_draw_halfplane(
+    cr_or_canvas, h::Halfplane, bb::BBox{2};
+    line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing
+)
+    cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
+    seg = clip(h.boundary, bb)
+    seg === nothing && return
+
+    C = Cairo
+    if !isnothing(color)
+        if length(color) == 3
+            C.set_source_rgb(cr, color[1], color[2], color[3])
+        elseif length(color) == 4
+            C.set_source_rgba(cr, color[1], color[2], color[3], color[4])
+        end
+    end
+
+    BasicCompGeometry.cairo_set_line_width(cr, line_width)
+
+    # Inward normal vector n = (-u_y, u_x) / ||u||
+    u = h.boundary.u
+    u_norm = sqrt(u[1]^2 + u[2]^2)
+    u_norm == 0 && return
+    nx = -u[2] / u_norm
+    ny = u[1] / u_norm
+
+    # Convert tick length and spacing from device pixels to world coordinates
+    m = C.get_matrix(cr)
+    scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
+    eff_tick_len = (scale > 0) ? (Float64(tick_len) / scale) : Float64(tick_len)
+    eff_spacing = (scale > 0) ? (Float64(tick_spacing) / scale) : Float64(tick_spacing)
+
+    # Draw main line segment
+    C.new_path(cr)
+    C.move_to(cr, seg.p[1], seg.p[2])
+    C.line_to(cr, seg.q[1], seg.q[2])
+
+    # Draw perpendicular ticks along the segment pointing inward
+    L = dist(seg.p, seg.q)
+    num_ticks = max(1, round(Int, L / eff_spacing))
+    for i in 1:num_ticks
+        t = (Float64(i) - 0.5) / num_ticks
+        pt = at(seg, t)
+        C.move_to(cr, pt[1], pt[2])
+        C.line_to(cr, pt[1] + eff_tick_len * nx, pt[2] + eff_tick_len * ny)
+    end
     C.stroke(cr)
+    return
+end
+
+"""
+    cairo_draw_halfplanes(cr_or_canvas, hps::AbstractVector{<:Halfplane}, bb::BBox{2};
+                          line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing)
+
+Draw a collection of halfplanes inside `bb` with inward whiskers.
+"""
+function BasicCompGeometry.cairo_draw_halfplanes(
+    cr_or_canvas, hps::AbstractVector{<:Halfplane}, bb::BBox{2};
+    line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing
+)
+    for h in hps
+        BasicCompGeometry.cairo_draw_halfplane(
+            cr_or_canvas, h, bb;
+            line_width=line_width, tick_len=tick_len, tick_spacing=tick_spacing, color=color
+        )
+    end
     return
 end
 
@@ -577,14 +670,20 @@ end
 Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 
-BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20) where {T} =
-    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin))
+BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20; kwargs...) where {T} =
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin; kwargs...))
 
 BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_points(c.cr, points, radius))
 
-BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly; line_width=nothing, close::Bool=true) =
-    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly; line_width=line_width, close=close))
+BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly; kwargs...) =
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_polygon(c.cr, poly; kwargs...))
+
+BasicCompGeometry.cairo_draw_halfplane(c::Canvas, h::Halfplane, bb::BBox{2}; kwargs...) =
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_halfplane(c.cr, h, bb; kwargs...))
+
+BasicCompGeometry.cairo_draw_halfplanes(c::Canvas, hps::AbstractVector{<:Halfplane}, bb::BBox{2}; kwargs...) =
+    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_halfplanes(c.cr, hps, bb; kwargs...))
 
 # Cairo drawing primitives forwarding
 for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
@@ -627,12 +726,15 @@ To ensure consistent rendering across all supported formats without requiring ma
 """
 function BasicCompGeometry.cairo_set_line_width(cr_or_canvas, a::Real)
     cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
-    if a < 1.0
-        m = Cairo.get_matrix(cr)
-        scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
-        if scale > 0
-            effective_w = max(1.0, ceil(Float64(a) * scale))
+    m = Cairo.get_matrix(cr)
+    scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
+    if scale > 0
+        if a < 1.0
+            effective_w = max(Float64(a), 1.0 / scale)
             Cairo.set_line_width(cr, effective_w)
+            return
+        else
+            Cairo.set_line_width(cr, Float64(a) / scale)
             return
         end
     end

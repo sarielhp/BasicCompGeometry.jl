@@ -279,6 +279,62 @@ function clip(poly::PntSeq{2,T}, h::Halfplane; eps::Real = 1e-11) where {T}
 end
 
 """
+    clip(line::Line{2, T}, bb::BBox{2, S}; tol::Real = 1e-11)
+
+Clip an infinite 2D line to bounding box `bb`.
+Returns a `Segment{2, R}` if the line intersects `bb`, or `nothing` otherwise.
+"""
+function clip(line::Line{2,T}, bb::BBox{2,S}; tol::Real = 1e-11) where {T,S}
+    R = promote_type(T, S, Float64)
+    xmin, xmax = R(bb.mini[1]), R(bb.maxi[1])
+    ymin, ymax = R(bb.mini[2]), R(bb.maxi[2])
+    px, py = R(line.p[1]), R(line.p[2])
+    ux, uy = R(line.u[1]), R(line.u[2])
+
+    t_vals = R[]
+    if abs(ux) > 1e-14
+        for x_wall in (xmin, xmax)
+            t = (x_wall - px) / ux
+            y = py + t * uy
+            if ymin - tol <= y <= ymax + tol
+                push!(t_vals, t)
+            end
+        end
+    end
+    if abs(uy) > 1e-14
+        for y_wall in (ymin, ymax)
+            t = (y_wall - py) / uy
+            x = px + t * ux
+            if xmin - tol <= x <= xmax + tol
+                push!(t_vals, t)
+            end
+        end
+    end
+
+    isempty(t_vals) && return nothing
+    sort!(t_vals)
+    unique_t = R[]
+    for t in t_vals
+        if isempty(unique_t) || abs(t - unique_t[end]) > tol
+            push!(unique_t, t)
+        end
+    end
+    length(unique_t) < 2 && return nothing
+
+    p1 = Point{2,R}(px + unique_t[1] * ux, py + unique_t[1] * uy)
+    p2 = Point{2,R}(px + unique_t[end] * ux, py + unique_t[end] * uy)
+    return Segment{2,R}(p1, p2)
+end
+
+"""
+    clip(h::Halfplane, bb::BBox{2}; tol::Real = 1e-11)
+
+Clip the boundary line of halfplane `h` to bounding box `bb`.
+Returns a `Segment` if the boundary line intersects `bb`, or `nothing` otherwise.
+"""
+clip(h::Halfplane, bb::BBox{2}; tol::Real = 1e-11) = clip(h.boundary, bb; tol = tol)
+
+"""
     write_halfplanes(filename::String, hps::AbstractVector{<:Halfplane})
 
 Save a collection of halfplanes to a text file. Each line contains four coordinates:

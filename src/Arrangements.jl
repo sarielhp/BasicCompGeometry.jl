@@ -456,6 +456,113 @@ ArrVertDecomp(bundle::AbstractVector, view::BBox{2}; tol::Real = 1e-11) =
 ArrVertDecomp(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-11) =
     vertical_decomposition(bundle; factor = factor, tol = tol)
 
+###############################################
+### Face reconstruction from Trapezoidal Map
+
+"""
+    trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
+
+Partition the vertical trapezoids in `decomp` into chains of trapezoids that share vertical
+boundaries (which are internal cuts of the arrangement faces).
+Returns a `Vector{Vector{Int}}` where each inner vector is a sequence of trapezoid indices
+ordered from left to right forming a single face of the arrangement.
+"""
+function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
+    traps = decomp.trapezoids
+    n = length(traps)
+    n == 0 && return Vector{Vector{Int}}()
+
+    right_neighbor = fill(0, n)
+    left_neighbor = fill(0, n)
+
+    # Detect vertical lines in original input lines if any (to avoid connecting across them)
+    vert_line_x = Float64[]
+    for l in decomp.lines
+        if abs(l.u[1]) <= 1e-12
+            push!(vert_line_x, l.p[1])
+        end
+    end
+
+    for i in 1:n, j in 1:n
+        i == j && continue
+        ti, tj = traps[i], traps[j]
+        # ti must be to the left of tj
+        if abs(ti.x_right - tj.x_left) <= tol
+            # Make sure this x is not an input vertical line
+            if any(xv -> abs(xv - ti.x_right) <= tol, vert_line_x)
+                continue
+            end
+            # Check vertical boundary overlap between ti's right edge [c2.y, c3.y]
+            # and tj's left edge [c1.y, c4.y]
+            y_bot = max(ti.corners[2][2], tj.corners[1][2])
+            y_top = min(ti.corners[3][2], tj.corners[4][2])
+            if y_top - y_bot > tol
+                right_neighbor[i] = j
+                left_neighbor[j] = i
+            end
+        end
+    end
+
+    chains = Vector{Vector{Int}}()
+    visited = fill(false, n)
+
+    for i in 1:n
+        if left_neighbor[i] == 0
+            chain = Int[i]
+            visited[i] = true
+            curr = i
+            while right_neighbor[curr] != 0
+                curr = right_neighbor[curr]
+                push!(chain, curr)
+                visited[curr] = true
+            end
+            push!(chains, chain)
+        end
+    end
+
+    # Fallback for any unvisited trapezoids (e.g. isolates or cycles)
+    for i in 1:n
+        if !visited[i]
+            push!(chains, Int[i])
+            visited[i] = true
+        end
+    end
+
+    return chains
+end
+
+"""
+    faces(decomp::ArrVertDecomp; tol::Real = 1e-9)
+    faces(bundle, view; tol::Real = 1e-9)
+    faces(bundle; factor::Real = 1.1, tol::Real = 1e-9)
+
+Compute the convex polygonal faces of the arrangement inside the view box.
+Each face corresponds to the union of a chain of vertical trapezoids sharing vertical boundaries.
+Returns a `Vector{PntSeq{2, Float64}}`.
+"""
+function faces(decomp::ArrVertDecomp; tol::Real = 1e-9)
+    chains = trapezoid_chains(decomp; tol = tol)
+    traps = decomp.trapezoids
+    face_polys = PntSeq{2,Float64}[]
+
+    for c in chains
+        corners = Point{2,Float64}[]
+        for trap_idx in c
+            append!(corners, traps[trap_idx].corners)
+        end
+        poly = convex_hull(corners)
+        push!(face_polys, poly)
+    end
+    return face_polys
+end
+
+faces(bundle::AbstractVector, view::BBox{2}; tol::Real = 1e-9) =
+    faces(vertical_decomposition(bundle, view; tol = tol); tol = tol)
+
+faces(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-9) =
+    faces(vertical_decomposition(bundle; factor = factor, tol = tol); tol = tol)
+
 export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F
 export ArrVertDecomp, ArrVertDecomp2F
 export vertical_decomposition, trapezoids, view_box, locate, polygon, lines
+export trapezoid_chains, faces
