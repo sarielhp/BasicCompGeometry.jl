@@ -121,12 +121,12 @@ function BasicCompGeometry.cairo_draw_halfplane(
 
     BasicCompGeometry.cairo_set_line_width(cr, line_width)
 
-    # Inward normal vector n = (-u_y, u_x) / ||u||
+    # Inward normal vector n = (u_y, -u_x) / ||u|| (clockwise/rightward for Halfplane convention)
     u = h.boundary.u
     u_norm = sqrt(u[1]^2 + u[2]^2)
     u_norm == 0 && return
-    nx = -u[2] / u_norm
-    ny = u[1] / u_norm
+    nx = u[2] / u_norm
+    ny = -u[1] / u_norm
 
     # Convert tick length and spacing from device pixels to world coordinates
     m = C.get_matrix(cr)
@@ -726,17 +726,24 @@ To ensure consistent rendering across all supported formats without requiring ma
 """
 function BasicCompGeometry.cairo_set_line_width(cr_or_canvas, a::Real)
     cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
+    surf_ptr = ccall((:cairo_get_target, Cairo._jl_libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cr.ptr)
+    stype = ccall((:cairo_surface_get_type, Cairo._jl_libcairo), Cint, (Ptr{Cvoid},), surf_ptr)
     m = Cairo.get_matrix(cr)
     scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
-    if scale > 0
-        if a < 1.0
-            effective_w = max(Float64(a), 1.0 / scale)
-            Cairo.set_line_width(cr, effective_w)
-            return
-        else
-            Cairo.set_line_width(cr, Float64(a) / scale)
+
+    if stype == 0 # Image / Raster surface
+        if scale > 0
+            if a < 1.0
+                effective_w = max(Float64(a), 1.0 / scale)
+                Cairo.set_line_width(cr, effective_w)
+            else
+                Cairo.set_line_width(cr, Float64(a) / scale)
+            end
             return
         end
+    else # Vector surface (PDF, SVG)
+        Cairo.set_line_width(cr, Float64(a))
+        return
     end
     Cairo.set_line_width(cr, Float64(a))
 end

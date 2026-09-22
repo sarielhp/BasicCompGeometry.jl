@@ -167,18 +167,22 @@ function main()
         # -------------------------------------------------------------
         # PAGE 1: Arrangement Faces with Distinct Colors & Lines
         # -------------------------------------------------------------
+        # White background
+        Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+        Cairo.paint(canvas)
+
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face with a distinct pleasant color
         for i in 1:num_faces
             r, g, b = distinct_face_color(i)
             Cairo.set_source_rgb(canvas, r, g, b)
-            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=true, line_width=1.0)
+            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=false)
         end
 
         # 2. Draw input halfplane boundary lines across the view
         Cairo.set_source_rgb(canvas, 0.1, 0.1, 0.1)
-        cairo_set_line_width(canvas, 2.0)
+        cairo_set_line_width(canvas, 1.8)
         for h in hps
             seg = clip(h.boundary, view)
             if seg !== nothing
@@ -190,7 +194,7 @@ function main()
 
         # 3. Draw view bounding box outline
         Cairo.set_source_rgb(canvas, 0.15, 0.15, 0.15)
-        cairo_set_line_width(canvas, 2.5)
+        cairo_set_line_width(canvas, 2.0)
         Cairo.rectangle(canvas, view.mini[1], view.mini[2], width(view), height(view))
         Cairo.stroke(canvas)
 
@@ -211,6 +215,10 @@ function main()
         # -------------------------------------------------------------
         # PAGE 2: Depth Heatmap with Whiskers
         # -------------------------------------------------------------
+        # White background
+        Cairo.set_source_rgb(canvas, 1.0, 1.0, 1.0)
+        Cairo.paint(canvas)
+
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face according to its arrangement depth
@@ -219,7 +227,7 @@ function main()
             t = d_max == d_min ? 0.5 : (d - d_min) / (d_max - d_min)
             r, g, b = viridis_color(t)
             Cairo.set_source_rgb(canvas, r, g, b)
-            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=true, line_width=0.8)
+            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=false)
         end
 
         # 2. Draw halfplane boundary lines with inward whiskers
