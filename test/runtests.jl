@@ -357,6 +357,7 @@ using BasicCompGeometry
     include("test_parabolas.jl")
     include("test_halfplanes.jl")
     include("test_bundles.jl")
+    include("test_arrangements.jl")
 
     if Base.find_package("Cairo") !== nothing
         include("test_canvas.jl")
