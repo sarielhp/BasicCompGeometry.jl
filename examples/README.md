@@ -12,6 +12,23 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `rand_halfplanes_depth.jl` — Random Halfplanes Arrangement & Vertical Decomposition Depth
+
+Generates $n$ (default 100) random halfplanes, computes their default view rectangle,
+constructs the vertical decomposition of their boundary lines inside the view,
+computes the centroid of each vertical trapezoid, evaluates its depth (the number
+of halfplanes containing the center), and determines the total depth of the arrangement
+(the minimum depth across all trapezoid centers).
+
+**Usage:**
+```bash
+./examples/rand_halfplanes_depth.jl [n] [seed] [--plot]
+# Or:
+julia --project=. examples/rand_halfplanes_depth.jl 100 42
+```
+
+---
+
 ## `ipe_conceptual_figure.jl` — Conceptual Ipe Vector Figure Generation
 
 Demonstrates programmatic generation of publication-ready, vector conceptual figures
