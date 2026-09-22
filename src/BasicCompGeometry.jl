@@ -11,6 +11,7 @@ using Parameters
 using StaticArrays
 using LinearAlgebra
 using DelimitedFiles
+using Printf
 using Distributions
 using Random
 
@@ -161,7 +162,7 @@ include("Bundles.jl")
 include("Arrangements.jl")
 
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
-export Halfplane, Halfplane2F, boundary, boundary_line, complement, depth, rand_halfplane, random_halfplane, in_interior, on_boundary, clip
+export Halfplane, Halfplane2F, boundary, boundary_line, complement, depth, rand_halfplane, random_halfplane, in_interior, on_boundary, clip, write_halfplanes, read_halfplanes
 export vertices, default_view, defaultview, bbox, intersect_lines, pairwise_intersections
 export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F, ArrVertDecomp, ArrVertDecomp2F, vertical_decomposition, trapezoids, view_box, locate, lines
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert

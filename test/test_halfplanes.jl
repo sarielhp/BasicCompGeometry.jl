@@ -145,4 +145,18 @@ using BasicCompGeometry
     ps_clipped = clip(ps_square, h_half)
     @test ps_clipped isa PntSeq{2, Float64}
     @test length(ps_clipped) == 4
+
+    # 7. File I/O: write_halfplanes and read_halfplanes
+    tmp_path = joinpath(mktempdir(), "test_hps.txt")
+    test_hps = [h_left, h_right, h_bottom, h_top]
+    write_halfplanes(tmp_path, test_hps)
+    @test isfile(tmp_path)
+
+    loaded_hps = read_halfplanes(tmp_path)
+    @test length(loaded_hps) == 4
+    for i in 1:4
+        @test loaded_hps[i].boundary.p ≈ test_hps[i].boundary.p
+        @test loaded_hps[i].boundary.u ≈ test_hps[i].boundary.u
+    end
+    rm(tmp_path; force = true)
 end

@@ -278,7 +278,54 @@ function clip(poly::PntSeq{2,T}, h::Halfplane; eps::Real = 1e-11) where {T}
     return PntSeq(clip(poly.pnts, h; eps = eps))
 end
 
+"""
+    write_halfplanes(filename::String, hps::AbstractVector{<:Halfplane})
+
+Save a collection of halfplanes to a text file. Each line contains four coordinates:
+`p_x p_y u_x u_y` representing `Line(Point(p_x, p_y), Point(u_x, u_y))`.
+"""
+function write_halfplanes(filename::String, hps::AbstractVector{<:Halfplane})
+    mkpath(dirname(abspath(filename)))
+    open(filename, "w") do io
+        println(io, "# Halfplanes count: ", length(hps))
+        println(io, "# Format: p_x p_y u_x u_y")
+        for h in hps
+            p = h.boundary.p
+            u = h.boundary.u
+            @printf(io, "%.17g %.17g %.17g %.17g\n", p[1], p[2], u[1], u[2])
+        end
+    end
+    return filename
+end
+
+"""
+    read_halfplanes(filename::String)::Vector{Halfplane2F}
+
+Read a collection of halfplanes from a text file formatted with `p_x p_y u_x u_y` per line.
+Lines starting with `#` and empty lines are ignored.
+"""
+function read_halfplanes(filename::String)::Vector{Halfplane2F}
+    hps = Halfplane2F[]
+    open(filename, "r") do io
+        for line in eachline(io)
+            s = strip(line)
+            isempty(s) && continue
+            startswith(s, "#") && continue
+            tokens = split(s)
+            if length(tokens) >= 4
+                px = parse(Float64, tokens[1])
+                py = parse(Float64, tokens[2])
+                ux = parse(Float64, tokens[3])
+                uy = parse(Float64, tokens[4])
+                push!(hps, Halfplane(Line(Point2F(px, py), Point2F(ux, uy))))
+            end
+        end
+    end
+    return hps
+end
+
 export Halfplane, Halfplane2F
 export boundary, boundary_line, complement, depth
 export rand_halfplane, random_halfplane
 export in_interior, on_boundary, clip
+export write_halfplanes, read_halfplanes

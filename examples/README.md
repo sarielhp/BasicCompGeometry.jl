@@ -12,6 +12,25 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `prune_halfplanes_depth.jl` — Minimal Halfplane Subset Preserving Arrangement Center Depth $\ge k$
+
+Receives a target depth parameter $k$ and generates $6k$ random halfplanes (or reads an
+initial set from a text file). Computes the arrangement's default view and vertical decomposition,
+extracts the centroid of every vertical trapezoid, and greedily prunes halfplanes as long
+as the depth at every center remains $\ge k$. Stops when no further halfplane can be legally
+removed, outputs the final set size, and saves the minimal halfplane set to a text file.
+Can read saved text files back as the initial halfplane set.
+
+**Usage:**
+```bash
+./examples/prune_halfplanes_depth.jl [k] [--input file.txt] [--output file.txt]
+# Examples:
+./examples/prune_halfplanes_depth.jl 5
+./examples/prune_halfplanes_depth.jl 4 --input output/pruned_halfplanes_k5.txt
+```
+
+---
+
 ## `rand_halfplanes_depth.jl` — Random Halfplanes Arrangement & Vertical Decomposition Depth
 
 Generates $n$ (default 100) random halfplanes, computes their default view rectangle,
