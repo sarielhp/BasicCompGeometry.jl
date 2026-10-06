@@ -14,9 +14,10 @@ Entries are sorted by modification date (newest first).
 
 ## `disks_figure.jl` — Compact Geometry-Aware Figure
 
-Uses `figure`, `draw!`, `mark!`, and `label!` to draw two intersecting disks
-with automatic world-to-page fitting. It writes an editable Ipe source and a
-publication PDF.
+Uses the compact drawing API, a named theme, legend, scale bar, and clipped
+inset to draw two intersecting disks with automatic world-to-page fitting. It
+writes an editable Ipe source and a publication PDF. Pass `--preview` to open
+the result in Ipe after generation.
 
 **Usage:** `julia --project=. examples/disks_figure.jl`
 

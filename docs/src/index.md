@@ -204,7 +204,10 @@ match_price
 IpeDraw
 IpeDraw.IpeCanvas
 IpeDraw.Viewport
+IpeDraw.PageBox
 IpeDraw.Style
+IpeDraw.Theme
+IpeDraw.publication_theme
 IpeDraw.figure
 IpeDraw.open_ipe
 IpeDraw.edit_ipe
@@ -235,6 +238,11 @@ IpeDraw.label!
 IpeDraw.layer
 IpeDraw.with_style
 IpeDraw.fit!
+IpeDraw.page_space
+IpeDraw.inset
+IpeDraw.clip_to
+IpeDraw.legend!
+IpeDraw.scale_bar!
 IpeDraw.set_layer!
 IpeDraw.add_layer!
 IpeDraw.add_view!

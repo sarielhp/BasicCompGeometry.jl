@@ -208,8 +208,25 @@ end
 
 This writes `output/disks.pdf` and retains the editable
 `output/disks.ipe` source. Pass `keep_source=false` when only the PDF is
-wanted, or target a `.ipe` path to skip PDF compilation. PDF targets require
+wanted, `preview=true` to open the generated source in Ipe, or target a `.ipe`
+path to skip PDF compilation. PDF targets require
 Ipe's `ipetoipe` command on `PATH`.
+
+Page-space helpers make common figure furniture independent of the fitted world
+coordinates. Named themes keep repeated styles together, while scoped insets
+and clipping preserve the surrounding viewport:
+
+```julia
+theme = Theme(region=Style(fill=:lightblue, stroke=:blue, fill_opacity=0.2))
+
+inset(fig, PageBox(400, 320, 150, 140); fit=detail_bbox) do zoom
+    clip_to(zoom, detail_bbox) do clipped
+        draw!(clipped, circles; style=theme.region)
+    end
+end
+legend!(fig, ["feasible" => theme.region]; position=:northwest)
+scale_bar!(fig, 0.5; label=raw"1/2")
+```
 
 - **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, `Ellipse`, `EllipticArc`, `CubicBezier`, and `CubicSpline`.
 - **Advanced Primitives**: Smooth splines (`draw_spline!`), approximating B-splines (`draw_bspline!`), polygons with holes (`draw_polygon_with_holes!`), and scoped groups with affine transforms (`ipe_group`).
@@ -217,6 +234,7 @@ Ipe's `ipetoipe` command on `PATH`.
 - **LaTeX Math Formulas**: Native math support (accepts `LaTeXStrings` `L"..."` and standard LaTeX strings) with automatic XML escaping.
 - **Hatch Patterns & Opacities**: Vector hatch patterns (`:hatch`, `:crosshatch`, `:vertical`, `:horizontal`, `:falling`, `:rising`) and 10%–90% opacity fills.
 - **Multi-Layer & Multi-View**: Easily define layers and progressive presentation views.
+- **Figure Composition**: Scoped inset viewports, editable clipping groups, named themes, legends, and scale bars.
 - **Self-Contained Style**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), extended pens, and rich academic color palettes.
 - **Automated Compilation**: Generates editable `.ipe`, cropped vector `.pdf`, and companion `_fig.tex` LaTeX wrappers.
 

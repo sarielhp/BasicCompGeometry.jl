@@ -71,6 +71,33 @@ using BasicCompGeometry.IpeDraw
         @test isempty(compact.active_style.values)
         @test occursin("stroke=\"darkred\" pen=\"heavier\"", compact.elements[end])
 
+        # Scoped viewports, clipping, themes, and page-space furniture
+        theme = publication_theme()
+        @test theme.region === theme[:region]
+        @test theme.region.values.fill_opacity == 0.2
+        @test_throws ArgumentError PageBox(0, 0, 0, 10)
+
+        previous_viewport = compact.viewport
+        detail_box = PageBox(110, 10, 80, 70)
+        inset(compact, detail_box; fit=unit_circle, margin=5) do cv
+            draw!(cv, unit_circle; style=theme.region, fill=:lightgreen, stroke=:darkgreen)
+        end
+        @test compact.viewport === previous_viewport
+
+        clipped_box = BBox(point(-0.5, -0.5), point(0.5, 0.5))
+        clip_to(compact, clipped_box) do cv
+            draw!(cv, unit_circle; stroke=:red)
+        end
+        legend!(compact, ["disk" => Style(fill=:lightblue, stroke=:blue)];
+                at=(5, 55), width=70)
+        scale_bar!(compact, 0.5; at=(10, 12), label="0.5")
+        furniture_xml = BasicCompGeometry.IpeDraw.to_xml(compact)
+        @test length(findall(" clip=", furniture_xml)) == 2
+        @test occursin("disk", furniture_xml)
+        @test occursin("0.5", furniture_xml)
+        @test compact.viewport === previous_viewport
+        @test_throws ArgumentError legend!(compact, ["bad" => :blue])
+
         # 5. Conceptual & Algorithmic Helpers
         draw_bar!(canvas, 50.0, 450.0, 120.0;
             label_left = "0",
@@ -158,6 +185,10 @@ using BasicCompGeometry.IpeDraw
         @test isfile(ipe_only.ipe)
         @test ipe_only.pdf === nothing
         @test ipe_only.tex === nothing
+
+        @test_throws ArgumentError open_ipe(joinpath(temp_dir, "no_source");
+                                             outputs=(:tex,), preview=true) do _
+        end
 
     finally
         rm(temp_dir, recursive=true, force=true)

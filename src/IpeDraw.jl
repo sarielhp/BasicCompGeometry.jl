@@ -10,14 +10,16 @@ module IpeDraw
 using ..BasicCompGeometry
 using Printf
 
-export IpeCanvas, Viewport, Style, open_ipe, figure, edit_ipe, add_preamble!
+export IpeCanvas, Viewport, PageBox, Style, Theme, publication_theme
+export open_ipe, figure, edit_ipe, add_preamble!
 export draw_point!, draw_points!, draw_segment!, draw_box!, draw_polygon!
 export draw_circle!, draw_arc!, draw_ellipse!, draw_elliptic_arc!
 export draw_bezier!, draw_spline!, draw_bspline!, draw_polygon_with_holes!, ipe_group
 export draw_bar!, draw_span!, draw_dimension!, draw_arrow!, draw_curved_arrow!
 export draw_label!, set_layer!, add_layer!, add_view!, setup_transform!
 export save_ipe, compile_pdf, save_figure_tex, export_figure
-export draw!, mark!, label!, layer, with_style, fit!
+export draw!, mark!, label!, layer, with_style, fit!, page_space, inset, clip_to
+export legend!, scale_bar!
 
 const DEFAULT_STYLE_FILE = normpath(joinpath(@__DIR__, "..", "assets", "default.ipe"))
 
@@ -29,12 +31,60 @@ struct Viewport
     flip_y::Bool
 end
 
+"""A rectangle in fixed Ipe page coordinates, used to place insets and overlays."""
+struct PageBox
+    x::Float64
+    y::Float64
+    width::Float64
+    height::Float64
+
+    function PageBox(x::Real, y::Real, width::Real, height::Real)
+        width > 0 || throw(ArgumentError("page-box width must be positive"))
+        height > 0 || throw(ArgumentError("page-box height must be positive"))
+        new(Float64(x), Float64(y), Float64(width), Float64(height))
+    end
+end
+
 """Reusable keyword options for `draw!`, `mark!`, and `label!`."""
 struct Style
     values::NamedTuple
 end
 
 Style(; kwargs...) = Style((; kwargs...))
+
+"""A reusable collection of named `Style` objects."""
+struct Theme
+    styles::Dict{Symbol,Style}
+end
+
+function Theme(; kwargs...)
+    styles = Dict{Symbol,Style}()
+    for (name, value) in kwargs
+        styles[name] = value isa Style ? value : Style(value)
+    end
+    return Theme(styles)
+end
+
+Base.getindex(theme::Theme, name::Symbol) = theme.styles[name]
+
+function Base.getproperty(theme::Theme, name::Symbol)
+    name === :styles && return getfield(theme, :styles)
+    haskey(getfield(theme, :styles), name) && return getfield(theme, :styles)[name]
+    return getfield(theme, name)
+end
+
+Base.propertynames(theme::Theme, private::Bool=false) =
+    private ? (:styles, keys(theme.styles)...) : Tuple(keys(theme.styles))
+
+"""Return restrained defaults suitable for papers and lecture notes."""
+function publication_theme()
+    return Theme(
+        region=Style(fill_opacity=0.2, pen=:heavier),
+        boundary=Style(stroke=:black, pen=:heavier),
+        point=Style(stroke=:black, fill=:black, size=:normal),
+        annotation=Style(stroke=:black, size=:small),
+    )
+end
 
 """
     IpeCanvas
@@ -174,6 +224,15 @@ function setup_transform!(
     margin::Real = 30.0,
     flip_y::Bool = false
 ) where {T}
+    return _setup_transform!(canvas, world_bb, PageBox(0, 0, canvas.width, canvas.height);
+                             margin=margin, flip_y=flip_y)
+end
+
+function _setup_transform!(
+    canvas::IpeCanvas, world_bb::BBox{2, T}, page_box::PageBox;
+    margin::Real=0.0,
+    flip_y::Bool=false,
+) where {T}
     bl = bottom_left(world_bb)
     tr = top_right(world_bb)
     w_w = tr[1] - bl[1]
@@ -181,14 +240,15 @@ function setup_transform!(
     w_w <= 0 && (w_w = 1.0)
     w_h <= 0 && (w_h = 1.0)
 
-    avail_w = canvas.width - 2 * margin
-    avail_h = canvas.height - 2 * margin
+    avail_w = page_box.width - 2 * margin
+    avail_h = page_box.height - 2 * margin
+    avail_w > 0 && avail_h > 0 || throw(ArgumentError("margin leaves no room in page box"))
     scale = min(avail_w / w_w, avail_h / w_h)
 
-    x0 = margin + (avail_w - scale * w_w) / 2
-    y0 = margin + (avail_h - scale * w_h) / 2
+    x0 = page_box.x + margin + (avail_w - scale * w_w) / 2
+    y0 = page_box.y + margin + (avail_h - scale * w_h) / 2
     tx = x0 - scale * bl.x
-    ty = flip_y ? canvas.height - y0 + scale * bl.y : y0 - scale * bl.y
+    ty = flip_y ? 2 * page_box.y + page_box.height - y0 + scale * bl.y : y0 - scale * bl.y
     canvas.viewport = Viewport(scale, tx, ty, flip_y)
     return canvas
 end
@@ -583,15 +643,16 @@ function _append_subpath!(lines::Vector{String}, canvas::IpeCanvas, poly::AbsPnt
 end
 
 """
-    ipe_group(f::Function, canvas::IpeCanvas; matrix=nothing, opacity=nothing)
+    ipe_group(f::Function, canvas::IpeCanvas; matrix=nothing, opacity=nothing, clip=nothing)
 
 Group elements emitted inside function `f(canvas)` under an Ipe `<group>` tag,
-optionally applying an affine matrix transformation or group opacity.
+optionally applying an affine matrix, opacity, or Ipe path clip.
 """
 function ipe_group(
     f::Function, canvas::IpeCanvas;
     matrix::Union{Nothing, AbstractVector{<:Real}} = nothing,
-    opacity::Union{Nothing, Symbol, String} = nothing
+    opacity::Union{Nothing, Symbol, String} = nothing,
+    clip::Union{Nothing,AbstractString} = nothing,
 )
     attrs = ""
     if matrix !== nothing
@@ -602,9 +663,13 @@ function ipe_group(
     if opacity !== nothing
         attrs *= " opacity=\"$(opacity)\""
     end
+    clip === nothing || (attrs *= " clip=\"$(_escape_ipe_xml(clip))\"")
     push!(canvas.elements, "<group$attrs>")
-    f(canvas)
-    push!(canvas.elements, "</group>")
+    try
+        f(canvas)
+    finally
+        push!(canvas.elements, "</group>")
+    end
     return canvas
 end
 
@@ -745,6 +810,69 @@ function with_style(f::Function, canvas::IpeCanvas, style::Style=Style(); kwargs
         f(canvas)
     finally
         canvas.active_style = previous
+    end
+    return canvas
+end
+
+"""Draw in fixed page coordinates within `f`, restoring the world viewport afterward."""
+function page_space(f::Function, canvas::IpeCanvas)
+    previous = canvas.viewport
+    canvas.viewport = nothing
+    try
+        f(canvas)
+    finally
+        canvas.viewport = previous
+    end
+    return canvas
+end
+
+function _page_clip_path(box::PageBox)
+    x1, y1 = box.x, box.y
+    x2, y2 = x1 + box.width, y1 + box.height
+    return @sprintf("%.3f %.3f m %.3f %.3f l %.3f %.3f l %.3f %.3f l h",
+                    x1, y1, x2, y1, x2, y2, x1, y2)
+end
+
+function _world_page_box(canvas::IpeCanvas, bb::BBox{2})
+    p = _apply_tf(canvas, bottom_left(bb))
+    q = _apply_tf(canvas, top_right(bb))
+    return PageBox(min(p.x, q.x), min(p.y, q.y), abs(q.x - p.x), abs(q.y - p.y))
+end
+
+"""
+    clip_to(f, canvas, box)
+
+Clip everything emitted by `f` to a world-coordinate `BBox` or page-coordinate
+`PageBox`. Ipe retains the clipped objects for later editing.
+"""
+function clip_to(f::Function, canvas::IpeCanvas, bb::BBox{2})
+    return ipe_group(f, canvas; clip=_page_clip_path(_world_page_box(canvas, bb)))
+end
+
+function clip_to(f::Function, canvas::IpeCanvas, box::PageBox)
+    return ipe_group(f, canvas; clip=_page_clip_path(box))
+end
+
+"""
+    inset(f, canvas, page_box; fit, margin=8, flip_y=false, clip=true)
+
+Draw a fitted world-coordinate scene inside a fixed page rectangle. The prior
+viewport is restored after `f`, so insets compose with a fitted main figure.
+"""
+function inset(
+    f::Function, canvas::IpeCanvas, page_box::PageBox;
+    fit,
+    margin::Real=8.0,
+    flip_y::Bool=false,
+    clip::Bool=true,
+)
+    items = fit isa Tuple || fit isa AbstractVector ? fit : (fit,)
+    previous = canvas.viewport
+    _setup_transform!(canvas, union_bbox(items...), page_box; margin=margin, flip_y=flip_y)
+    try
+        clip ? clip_to(f, canvas, page_box) : f(canvas)
+    finally
+        canvas.viewport = previous
     end
     return canvas
 end
@@ -947,6 +1075,93 @@ function draw_curved_arrow!(
     normal = len > 0 ? Point(-dy / len, dx / len) : Point(0.0, 1.0)
     ctrl = Point(mid[1] + normal[1] * bend, mid[2] + normal[2] * bend)
     return draw_curved_arrow!(canvas, p1, ctrl, p2; stroke=stroke, pen=pen, arrow=arrow)
+end
+
+function _anchored_box(canvas::IpeCanvas, width::Real, height::Real, position::Symbol, margin::Real)
+    position in (:northwest, :north, :northeast, :west, :center, :east,
+                 :southwest, :south, :southeast) ||
+        throw(ArgumentError("unknown page position: $position"))
+    horizontal = position in (:northwest, :west, :southwest) ? :west :
+                 position in (:northeast, :east, :southeast) ? :east : :center
+    vertical = position in (:northwest, :north, :northeast) ? :north :
+               position in (:southwest, :south, :southeast) ? :south : :center
+    x = horizontal == :west ? margin :
+        horizontal == :east ? canvas.width - margin - width : (canvas.width - width) / 2
+    y = vertical == :south ? margin :
+        vertical == :north ? canvas.height - margin - height : (canvas.height - height) / 2
+    return PageBox(x, y, width, height)
+end
+
+"""
+    legend!(canvas, entries; position=:northeast, at=nothing, width=130, ...)
+
+Draw a page-space legend. Each entry is a `label => Style` pair whose style is
+shown as a rectangular swatch. Use `at=(x, y)` for an exact lower-left corner.
+"""
+function legend!(
+    canvas::IpeCanvas, entries;
+    position::Symbol=:northeast,
+    at::Union{Nothing,Tuple{<:Real,<:Real}}=nothing,
+    width::Real=130.0,
+    row_height::Real=18.0,
+    padding::Real=7.0,
+    margin::Real=12.0,
+    background::Symbol=:white,
+    border::Symbol=:black,
+    text_style::Style=Style(stroke=:black, size=:small, style=:normal),
+)
+    rows = collect(entries)
+    all(row -> row isa Pair && last(row) isa Style, rows) ||
+        throw(ArgumentError("legend entries must be label => Style pairs"))
+    height = 2 * padding + row_height * length(rows)
+    box = isnothing(at) ? _anchored_box(canvas, width, height, position, margin) :
+                         PageBox(at[1], at[2], width, height)
+    page_space(canvas) do cv
+        draw_box!(cv, box.x, box.y, box.x + box.width, box.y + box.height;
+                  fill=background, stroke=border)
+        swatch_width = min(22.0, 0.22 * width)
+        for (index, row) in enumerate(rows)
+            cy = box.y + box.height - padding - (index - 0.5) * row_height
+            swatch = BBox(point(box.x + padding, cy - 4),
+                          point(box.x + padding + swatch_width, cy + 4))
+            draw!(cv, swatch; style=last(row))
+            label!(cv, point(box.x + padding + swatch_width + 7, cy), string(first(row));
+                   appearance=text_style, halign=:left, valign=:center)
+        end
+    end
+    return canvas
+end
+
+"""
+    scale_bar!(canvas, length; position=:southwest, at=nothing, label=string(length), ...)
+
+Draw a scale bar whose `length` is measured in current world units and whose
+placement and tick size are fixed page units.
+"""
+function scale_bar!(
+    canvas::IpeCanvas, length::Real;
+    position::Symbol=:southwest,
+    at::Union{Nothing,Tuple{<:Real,<:Real}}=nothing,
+    label=string(length),
+    margin::Real=12.0,
+    tick::Real=4.0,
+    style::Style=Style(stroke=:black, pen=:heavier),
+    text_style::Style=Style(stroke=:black, size=:small, style=:normal),
+)
+    length > 0 || throw(ArgumentError("scale-bar length must be positive"))
+    page_length = _apply_length(canvas, length)
+    box = isnothing(at) ? _anchored_box(canvas, page_length, 2 * tick, position, margin) :
+                         PageBox(at[1], at[2] - tick, page_length, 2 * tick)
+    y = box.y + tick
+    page_space(canvas) do cv
+        draw!(cv, Segment(point(box.x, y), point(box.x + page_length, y)); style=style)
+        draw!(cv, Segment(point(box.x, y - tick), point(box.x, y + tick)); style=style)
+        draw!(cv, Segment(point(box.x + page_length, y - tick),
+                          point(box.x + page_length, y + tick)); style=style)
+        label === nothing || label!(cv, point(box.x + page_length / 2, y + tick + 3), label;
+                                    appearance=text_style, halign=:center, valign=:bottom)
+    end
+    return canvas
 end
 
 # -----------------------------------------------------------------------------
@@ -1206,11 +1421,12 @@ function export_figure(
 end
 
 """
-    open_ipe(base_path; caption="", label="", kwargs...) do canvas
+    open_ipe(base_path; caption="", label="", preview=false, kwargs...) do canvas
         ...
     end
 
-Convenient block syntax to construct, save, compile, and generate LaTeX fragments in one go.
+Convenient block syntax to construct, save, compile, and generate LaTeX fragments
+in one go. With `preview=true`, open the retained `.ipe` source in Ipe.
 """
 function open_ipe(
     f::Function, base_path::String;
@@ -1220,42 +1436,52 @@ function open_ipe(
     fit=nothing,
     margin::Real=30.0,
     flip_y::Bool=false,
+    preview::Bool=false,
     kwargs...
 )
+    requested = Set(Symbol.(outputs isa Symbol ? (outputs,) : outputs))
+    preview && !(:ipe in requested) &&
+        throw(ArgumentError("preview=true requires :ipe in outputs"))
     clean_base = replace(base_path, r"(\.ipe|\.pdf|_fig\.tex)$" => "")
     canvas = IpeCanvas(; kwargs...)
     fit === nothing || fit!(canvas, fit; margin=margin, flip_y=flip_y)
     f(canvas)
     lbl = isempty(label) ? replace(basename(clean_base), "_" => ":") : label
-    return export_figure(canvas, clean_base; caption=caption, label=lbl, outputs=outputs)
+    artifacts = export_figure(canvas, clean_base; caption=caption, label=lbl, outputs=outputs)
+    if preview
+        edit_ipe(artifacts.ipe)
+    end
+    return artifacts
 end
 
 """
-    figure(f, path; keep_source=true, source=:ipe, kwargs...)
+    figure(f, path; keep_source=true, source=:ipe, preview=false, kwargs...)
 
 Generate a figure from geometry. A `.pdf` target is rendered through Ipe so that
 geometry and LaTeX labels remain vector content. The editable `.ipe` source is
 retained by default.
+Set `preview=true` to retain and open the editable source after generation.
 """
 function figure(
     f::Function, path::String;
     keep_source::Bool=true,
     source::Symbol=:ipe,
+    preview::Bool=false,
     kwargs...
 )
     source == :ipe || throw(ArgumentError("the only supported figure source is :ipe"))
     base, extension = splitext(path)
     if isempty(extension)
         base = path
-        outputs = keep_source ? (:ipe, :pdf) : (:pdf,)
+        outputs = keep_source || preview ? (:ipe, :pdf) : (:pdf,)
     elseif extension == ".pdf"
-        outputs = keep_source ? (:ipe, :pdf) : (:pdf,)
+        outputs = keep_source || preview ? (:ipe, :pdf) : (:pdf,)
     elseif extension == ".ipe"
         outputs = (:ipe,)
     else
         throw(ArgumentError("figure target must have extension .pdf or .ipe"))
     end
-    return open_ipe(f, base; outputs=outputs, kwargs...)
+    return open_ipe(f, base; outputs=outputs, preview=preview, kwargs...)
 end
 
 """
