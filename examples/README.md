@@ -12,6 +12,18 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `disks_figure.jl` — Compact Geometry-Aware Figure
+
+Uses `figure`, `draw!`, `mark!`, and `label!` to draw two intersecting disks
+with automatic world-to-page fitting. It writes an editable Ipe source and a
+publication PDF.
+
+**Usage:** `julia --project=. examples/disks_figure.jl`
+
+**Output:** `output/disks_figure.ipe`, `output/disks_figure.pdf`
+
+---
+
 ## `draw_halfplanes_arrangement.jl` — Arrangement Faces & Depth Heatmap Visualization
 
 Reads a saved set of halfplanes (or generates random ones), computes their arrangement
