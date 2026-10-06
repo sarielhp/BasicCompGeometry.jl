@@ -1,7 +1,12 @@
 using Test
 using LinearAlgebra
+using Random
 using StaticArrays
 using BasicCompGeometry
+
+using Aqua
+Random.seed!(0xBADC0DE)
+Aqua.test_all(BasicCompGeometry)
 
 @testset "BasicCompGeometry.jl" begin
 
@@ -38,8 +43,8 @@ using BasicCompGeometry
         @test length(rand_gaussian(3)) == 3
 
         # Min/Max
-        @test max(point(1, 5), point(2, 3)) == point(2, 5)
-        @test min(point(1, 5), point(2, 3)) == point(1, 3)
+        @test point_max(point(1, 5), point(2, 3)) == point(2, 5)
+        @test point_min(point(1, 5), point(2, 3)) == point(1, 3)
     end
 
     @testset "Segments & Lines" begin
@@ -270,35 +275,36 @@ using BasicCompGeometry
 
     @testset "WSPD (Well-Separated Pairs Decomposition)" begin
         using BasicCompGeometry.WSPD
-        pnts = [point(x, 0.0) for x = 1:10] # Points at 1, 2, ..., 10
-        poly = PntSeq(pnts)
-        sep = 2.0
-        W = WSPD.init(poly, sep)
-        finals = WSPD.expand!(W)
+        using BasicCompGeometry.VirtArray: orig_index
 
-        @test length(finals) > 0
+        function covered_point_pairs(W, pair)
+            left = [orig_index(W.tree.PS, i) for i in pair.left.r]
+            right = [orig_index(W.tree.PS, i) for i in pair.right.r]
+            return [(min(i, j), max(i, j)) for i in left for j in right if i != j]
+        end
 
-        # Verify well-separation for all pairs
-        for pair in finals
-            if pair.dist > 0
-                @test (max(diam(pair.left.bb), diam(pair.right.bb)) / pair.dist) <=
-                      sep + 1e-9
+        function test_wspd(points, sep)
+            W = WSPD.init(PntSeq(points), sep)
+            finals = WSPD.expand!(W)
+            @test !isempty(finals)
+
+            for pair in finals
+                @test pair.dist > 0
+                @test WSPD.separation(pair) <= sep + 1e-12
             end
+
+            covered = reduce(vcat, (covered_point_pairs(W, pair) for pair in finals))
+            expected = [(i, j) for i = 1:(length(points)-1) for j = (i+1):length(points)]
+            @test sort(covered) == expected
+            @test length(unique(covered)) == length(covered)
+            return length(finals)
         end
 
-        # Verify all pairs of distinct points are covered by exactly one WSP
-        n = length(pnts)
-        covered_pairs = 0
-        for pair in finals
-            l_range, r_range = get_orig_ranges(W, pair)
-            covered_pairs += length(l_range) * length(r_range)
-        end
-        # In a WSPD of a single set, the number of distinct pairs (i, j) with i < j 
-        # is covered. Since this implementation starts with (root, root), 
-        # it covers all n^2 pairs, but excludes (i, i) if dist > 0 check is used.
-        # Actually, monotone chain and other WSPD algorithms usually cover n(n-1)/2 pairs.
-        # Let's just check that it produces a reasonable number of pairs.
-        @test length(finals) < n^2
+        line = [point(Float64(x), 0.0) for x = 1:10]
+        cloud = [point(randn(), randn(), randn()) for _ = 1:24]
+        @test test_wspd(line, 2.0) < length(line)^2
+        @test test_wspd(cloud, 0.5) < length(cloud)^2
+        @test test_wspd(reverse(cloud), 0.5) < length(cloud)^2
     end
 
     @testset "10-Dimensional Geometry" begin

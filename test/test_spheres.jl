@@ -25,6 +25,24 @@ using BasicCompGeometry
     @test dist(point(5.0, 2.0), c2d) ≈ 1.0
     @test dist(point(1.0, 2.0), c2d) == 0.0
 
+    # Bounding boxes and circle intersections
+    @test bottom_left(bbox(c2d)) == point(-2.0, -1.0)
+    @test top_right(bbox(c2d)) == point(4.0, 5.0)
+    c_left = Circle(point(0.0, 0.0), 1.0)
+    c_right = Circle(point(1.0, 0.0), 1.0)
+    cross = intersections(c_left, c_right)
+    @test length(cross) == 2
+    @test cross[1] ≈ point(0.5, sqrt(3) / 2)
+    @test cross[2] ≈ point(0.5, -sqrt(3) / 2)
+    @test intersections(c_left, Circle(point(2.0, 0.0), 1.0)) ≈ [point(1.0, 0.0)]
+    @test isempty(intersections(c_left, Circle(point(3.0, 0.0), 1.0)))
+    @test isempty(intersections(c_left, Circle(point(0.0, 0.0), 0.5)))
+    @test_throws ArgumentError intersections(c_left, c_left)
+    @test pairwise_intersections(c_left, c_right) ≈ cross
+    both_boxes = union_bbox(c_left, c_right)
+    @test bottom_left(both_boxes) == point(-1.0, -1.0)
+    @test top_right(both_boxes) == point(2.0, 1.0)
+
     # Point inversion
     ref = Circle(point(0.0, 0.0), 1.0)
     p = point(2.0, 0.0)

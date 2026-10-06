@@ -150,23 +150,24 @@ Return a random `Point{D, T}` where each coordinate is sampled uniformly from th
 rand_point(D::Int, T::Type{<:Real} = Float64) = rand(Point{D,T})
 
 """
-    max(p, q)
+    point_max(p, q)
 
 Return a point where each coordinate is the maximum of the corresponding coordinates of `p` and `q`.
 """
-@inline Base.max(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(max.(p, q))
+@inline point_max(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(max.(p, q))
 
 """
-    min(p, q)
+    point_min(p, q)
 
 Return a point where each coordinate is the minimum of the corresponding coordinates of `p` and `q`.
 """
-@inline Base.min(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(min.(p, q))
+@inline point_min(p::Point{D,T}, q::Point{D,T}) where {D,T} = Point{D,T}(min.(p, q))
 
 export Point, Point2F, Point2I, Point3F
 export dist, dist_sq
 export rand_point, rand_gaussian
 export convex_comb
+export point_min, point_max
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
 export point

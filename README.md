@@ -2,25 +2,23 @@
 
 [![Build Status](https://github.com/sarielhp/BasicCompGeometry.jl/workflows/Documentation/badge.svg)](https://github.com/sarielhp/BasicCompGeometry.jl/actions)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sarielhp.github.io/BasicCompGeometry.jl/dev)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-`BasicCompGeometry.jl` is a Julia library for basic computational
-geometry stuff. It contains some code I wrote over the last few years
-in a self contained cleaner form.  Its a bit of a random collection of
-things so far, but hopefully would become more coherent over time. The
-main guideline is to have self-contained code that does not rely on
-heavy external packages (some of the examples use heavier packages for
-visualization).
+`BasicCompGeometry.jl` is a collection of computational-geometry primitives,
+spatial data structures, and algorithms for Julia. The core package keeps a
+small dependency set; Cairo and LaTeX support load through package extensions.
 
-## Disclaimer
+## Status and scope
 
-Much of the code in this package (like the convex hull code in 2 and 3
-dimensions) was written using gemini-cli. Writing robust and efficient
-code for Computational Geometry is notoriously difficult - see
-[CGAL](https://www.cgal.org/) for a library that does it right!
-(Unlike this library!) Some things are naturally robust and should
-work fine, but even convex-hull computation in 2d using floating point
-can become tricky. 
+This package is suitable for research code, experiments, and figure generation.
+The WSPD implementation is actively supported and tested for separation and
+exact pair coverage. Fréchet distance is not implemented in this package.
 
+Most predicates use ordinary floating-point arithmetic rather than exact or
+adaptive predicates. Degenerate or ill-conditioned inputs can therefore produce
+incorrect combinatorial results, especially in convex hull and arrangement code.
+Use a robust geometry library when correctness on adversarial numerical inputs is
+required.
 
 
 ## Overview
@@ -32,7 +30,7 @@ This library provides a flat, idiomatic hierarchy for geometric types and algori
 - **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes in any dimension (2D, 3D, and high-D).
 - **Zero-Copy Matrix Integration**: Use `MatPntSeq` to treat columns of a matrix as points without copying memory.
 - **Coordinate Agnostic**: Works with `Float64`, `Int64`, and other numeric types.
-- **Fast Predicates**: Optimized checks for left/right turns, point-in-box containment, etc.
+- **Geometric Predicates**: Checks for left/right turns, collinearity, and containment.
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling of polygonal curves.
 - **Planar Geometry**: Homogeneous 2D transformations (translation and rotation).
@@ -72,7 +70,7 @@ The library implements a variety of classic and modern geometric algorithms:
 
 ## Data Structures
 
-`BasicCompGeometry` provides highly optimized, type-safe data structures:
+`BasicCompGeometry` provides typed geometric data structures:
 
 - **Geometric Primitives**:
     - `Point{D, T}`: High-dimensional points (using `StaticArrays`).
@@ -161,13 +159,16 @@ The library provides an `AbsPntSeq{D, T}` abstract interface representing a **se
 
 `AbsPolygon`, `Polygon`, and `MatPolygon` are provided as aliases for backward compatibility.
 
-By using Julia's parametric type system, these abstractions incur **zero runtime overhead**.
+The interfaces preserve concrete coordinate and storage types so Julia can specialize
+the corresponding algorithms.
 
 ## Documentation
 
 For detailed information on all types and functions, please see the [Latest Documentation](https://sarielhp.github.io/BasicCompGeometry.jl/dev).
 
 ## Installation
+
+Until the package is registered, install it directly from GitHub:
 
 ```julia
 using Pkg
@@ -182,6 +183,33 @@ Ready-to-run example scripts are documented in
 ## Vector Figure Generation (`IpeDraw`)
 
 The `IpeDraw` submodule provides programmatic generation of publication-ready vector figures using the [Ipe extensible drawing editor](http://ipe.otfried.org/) format (`.ipe`).
+
+The compact API dispatches on geometry types, fits world coordinates to the page,
+keeps label offsets and marks in page units, and renders publication PDFs through
+Ipe so that geometry and LaTeX labels remain vector content:
+
+```julia
+using BasicCompGeometry
+using BasicCompGeometry.IpeDraw
+
+c1 = Circle(point(0.0, 0.0), 1.0)
+c2 = Circle(point(1.0, 0.0), 1.0)
+p, q = sort(intersections(c1, c2); by = p -> -p.y)
+
+figure("output/disks.pdf"; fit=[c1, c2], margin=12) do fig
+    disk = Style(fill_opacity=0.2, pen=:heavier)
+    draw!(fig, c1; style=disk, stroke=:blue, fill=:lightblue)
+    draw!(fig, c2; style=disk, stroke=:darkgreen, fill=:lightgreen)
+    mark!(fig, [p, q])
+    label!(fig, p, raw"p"; offset=(6, 4), anchor=:southwest)
+    label!(fig, q, raw"\sqrt{q}"; offset=(6, -6), anchor=:northwest)
+end
+```
+
+This writes `output/disks.pdf` and retains the editable
+`output/disks.ipe` source. Pass `keep_source=false` when only the PDF is
+wanted, or target a `.ipe` path to skip PDF compilation. PDF targets require
+Ipe's `ipetoipe` command on `PATH`.
 
 - **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, `Ellipse`, `EllipticArc`, `CubicBezier`, and `CubicSpline`.
 - **Advanced Primitives**: Smooth splines (`draw_spline!`), approximating B-splines (`draw_bspline!`), polygons with holes (`draw_polygon_with_holes!`), and scoped groups with affine transforms (`ipe_group`).
@@ -233,9 +261,19 @@ BBT.Tree_draw(tree, "output/tree.pdf")
 ## Origins
 
 The code in this module was originally part of the `FrechetDist`
-package. It has been modernized and reorganized to follow Julia's best
-practices, including:
+package, but this package does not currently provide Fréchet-distance algorithms.
+Sariel Har-Peled wrote the original geometry code. Gemini CLI and OpenAI Codex
+have assisted substantially with later implementation, refactoring, tests,
+documentation, and visualization interfaces.
+
+The package has since been reorganized around:
 - A flat module hierarchy.
 - Type-generic implementations.
 - Integration with the `StaticArrays.jl` ecosystem.
 - Full compatibility with standard `Base` methods through multiple dispatch.
+
+## Maintenance and license
+
+Bug reports with a small reproducing example are welcome. Maintenance is
+best-effort, with correctness bugs prioritized. The package is distributed under
+the [MIT License](LICENSE).

@@ -29,10 +29,18 @@ permutations) from the underlying representation of the points and the distance 
 module MetricSpace
 
 using ..BasicCompGeometry
-using Distances
 using LinearAlgebra
 
 import ..BasicCompGeometry: dist, AbsFMS
+
+function euclidean_distance(x, y)::Float64
+    axes(x) == axes(y) || throw(DimensionMismatch("points must have matching axes"))
+    result = zero(promote_type(eltype(x), eltype(y)))
+    @inbounds for i in eachindex(x, y)
+        result += abs2(x[i] - y[i])
+    end
+    return sqrt(result)
+end
 
 """
     metric(space::AbsFMS, x::Int, y::Int)
@@ -143,7 +151,7 @@ function dist(P::MPointsSpace, x, y)::Float64
     if x == y
         return 0.0
     end
-    return euclidean(@view(P.m[:, x]), @view(P.m[:, y]))
+    return euclidean_distance(@view(P.m[:, x]), @view(P.m[:, y]))
 end
 
 """
@@ -152,7 +160,7 @@ end
 Euclidean distance between column `i` and an external vector `y_real`.
 """
 function dist_real(P::MPointsSpace, x, y_real)
-    return euclidean(@view(P.m[:, x]), y_real)
+    return euclidean_distance(@view(P.m[:, x]), y_real)
 end
 
 function Base.size(P::MPointsSpace)

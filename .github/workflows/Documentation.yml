@@ -8,8 +8,62 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.9', '1.10', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Run package tests
+        uses: julia-actions/julia-runtest@v1
+      - name: Verify the core installs without visualization packages
+        run: |
+          julia -e '
+            using Pkg
+            Pkg.activate(mktempdir())
+            Pkg.develop(path=pwd())
+            Pkg.instantiate()
+            installed = Set(pkg.name for pkg in values(Pkg.dependencies()))
+            @assert isempty(intersect(installed, Set(["Cairo", "Colors", "LaTeXStrings"])))
+            using BasicCompGeometry
+            @assert isnothing(Base.get_extension(BasicCompGeometry, :CairoExt))
+            @assert BasicCompGeometry.dist(point(0.0, 0.0), point(3.0, 4.0)) == 5.0'
+
+  external-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Install figure-generation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ipe poppler-utils qpdf texlive-latex-extra texlive-luatex
+      - name: Run tests with LaTeX and Ipe integration
+        env:
+          BCG_TEST_EXTERNAL_TOOLS: 'true'
+          IPELATEXDIR: ${{ runner.temp }}/ipe-latex
+          TEXMFCACHE: ${{ runner.temp }}/texmf-cache
+          TEXMFVAR: ${{ runner.temp }}/texmf-var
+        run: |
+          mkdir -p "$IPELATEXDIR" "$TEXMFCACHE" "$TEXMFVAR"
+          julia --project=. -e 'using Pkg; Pkg.test()'
+
   build:
+    needs: [test, external-tools]
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -26,11 +80,12 @@ jobs:
         with:
           version: '1'
 
+      - uses: julia-actions/cache@v2
+
       - name: Install dependencies
         run: |
           julia --project=docs -e '
             using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
 
       - name: Build and deploy documentation

@@ -10,15 +10,31 @@ module IpeDraw
 using ..BasicCompGeometry
 using Printf
 
-export IpeCanvas, open_ipe, edit_ipe, add_preamble!
+export IpeCanvas, Viewport, Style, open_ipe, figure, edit_ipe, add_preamble!
 export draw_point!, draw_points!, draw_segment!, draw_box!, draw_polygon!
 export draw_circle!, draw_arc!, draw_ellipse!, draw_elliptic_arc!
 export draw_bezier!, draw_spline!, draw_bspline!, draw_polygon_with_holes!, ipe_group
 export draw_bar!, draw_span!, draw_dimension!, draw_arrow!, draw_curved_arrow!
 export draw_label!, set_layer!, add_layer!, add_view!, setup_transform!
 export save_ipe, compile_pdf, save_figure_tex, export_figure
+export draw!, mark!, label!, layer, with_style, fit!
 
 const DEFAULT_STYLE_FILE = normpath(joinpath(@__DIR__, "..", "assets", "default.ipe"))
+
+"""A uniform world-to-page transformation used by an `IpeCanvas`."""
+struct Viewport
+    scale::Float64
+    tx::Float64
+    ty::Float64
+    flip_y::Bool
+end
+
+"""Reusable keyword options for `draw!`, `mark!`, and `label!`."""
+struct Style
+    values::NamedTuple
+end
+
+Style(; kwargs...) = Style((; kwargs...))
 
 """
     IpeCanvas
@@ -36,21 +52,23 @@ mutable struct IpeCanvas
     layers::Vector{String}
     views::Vector{String}
     elements::Vector{String}
-    transform_fn::Union{Nothing, Function}
+    viewport::Union{Nothing, Viewport}
+    active_style::Style
 
     function IpeCanvas(;
         width::Real = 576.0,
         height::Real = 504.0,
-        paper::String = "576 504",
+        paper::Union{String, Nothing} = nothing,
         bbox::String = "cropbox",
         preamble::String = "\\usepackage{amsmath,amssymb}\\def\\ipeMode{TRUE}\\def\\Sample{\\mathsf{R}}",
         template::Union{String, Nothing} = nothing,
         layer::String = "alpha"
     )
+        paper_value = isnothing(paper) ? "$(Float64(width)) $(Float64(height))" : paper
         new(
             Float64(width),
             Float64(height),
-            paper,
+            paper_value,
             bbox,
             preamble,
             template,
@@ -58,7 +76,8 @@ mutable struct IpeCanvas
             [layer],
             String[],
             String[],
-            nothing
+            nothing,
+            Style()
         )
     end
 end
@@ -82,10 +101,15 @@ function _pt_str(p::Point{2})
 end
 
 function _apply_tf(canvas::IpeCanvas, p::Point{2})
-    canvas.transform_fn === nothing ? p : canvas.transform_fn(p)
+    vp = canvas.viewport
+    vp === nothing && return p
+    y_scale = vp.flip_y ? -vp.scale : vp.scale
+    return Point(vp.tx + vp.scale * p.x, vp.ty + y_scale * p.y)
 end
 
 _apply_tf(canvas::IpeCanvas, x::Real, y::Real) = _apply_tf(canvas, Point(Float64(x), Float64(y)))
+_apply_length(canvas::IpeCanvas, value::Real) =
+    canvas.viewport === nothing ? Float64(value) : canvas.viewport.scale * Float64(value)
 
 # -----------------------------------------------------------------------------
 # Layer Management
@@ -161,12 +185,18 @@ function setup_transform!(
     avail_h = canvas.height - 2 * margin
     scale = min(avail_w / w_w, avail_h / w_h)
 
-    canvas.transform_fn = function(p::Point{2})
-        x_c = margin + (p[1] - bl[1]) * scale
-        y_c = flip_y ? (canvas.height - margin - (p[2] - bl[2]) * scale) : (margin + (p[2] - bl[2]) * scale)
-        return Point(x_c, y_c)
-    end
+    x0 = margin + (avail_w - scale * w_w) / 2
+    y0 = margin + (avail_h - scale * w_h) / 2
+    tx = x0 - scale * bl.x
+    ty = flip_y ? canvas.height - y0 + scale * bl.y : y0 - scale * bl.y
+    canvas.viewport = Viewport(scale, tx, ty, flip_y)
     return canvas
+end
+
+"""Fit bounded geometry into `canvas` with a margin measured in page units."""
+function fit!(canvas::IpeCanvas, objects; margin::Real = 30.0, flip_y::Bool = false)
+    items = objects isa Tuple || objects isa AbstractVector ? objects : (objects,)
+    setup_transform!(canvas, union_bbox(items...); margin=margin, flip_y=flip_y)
 end
 
 # -----------------------------------------------------------------------------
@@ -241,14 +271,15 @@ function draw_box!(
     stroke::Symbol = :black,
     fill::Symbol = :none,
     pen::Symbol = :normal,
-    dash::Symbol = :solid
+    dash::Symbol = :solid,
+    opacity::Union{Symbol, String, Nothing} = nothing
 )
     q1 = _apply_tf(canvas, x1, y1)
     q2 = _apply_tf(canvas, x2, y2)
     min_x, max_x = min(q1[1], q2[1]), max(q1[1], q2[1])
     min_y, max_y = min(q1[2], q2[2]), max(q1[2], q2[2])
     
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))"
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))"
     xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
           @sprintf("%.3f %.3f m\n%.3f %.3f l\n%.3f %.3f l\n%.3f %.3f l\nh\n</path>",
                   min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y)
@@ -273,12 +304,13 @@ function draw_polygon!(
     stroke::Symbol = :black,
     fill::Symbol = :none,
     pen::Symbol = :normal,
-    dash::Symbol = :solid
+    dash::Symbol = :solid,
+    opacity::Union{Symbol, String, Nothing} = nothing
 )
     pts = [_apply_tf(canvas, p) for p in poly]
     length(pts) < 2 && return canvas
 
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))"
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))"
     buf = IOBuffer()
     println(buf, "<path layer=\"$(canvas.active_layer)\"$attrs>")
     println(buf, "$(_pt_str(pts[1])) m")
@@ -302,12 +334,15 @@ function draw_circle!(
     canvas::IpeCanvas, center::Point{2}, radius::Real;
     stroke::Symbol = :black,
     fill::Symbol = :none,
-    pen::Symbol = :normal
+    pen::Symbol = :normal,
+    dash::Symbol = :solid,
+    opacity::Union{Symbol, String, Nothing} = nothing
 )
     c = _apply_tf(canvas, center)
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))"
+    r = _apply_length(canvas, radius)
+    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))"
     xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
-          @sprintf("%.3f 0 0 %.3f %.3f %.3f e\n</path>", radius, radius, c[1], c[2])
+          @sprintf("%.3f 0 0 %.3f %.3f %.3f e\n</path>", r, r, c.x, c.y)
     push!(canvas.elements, xml)
     return canvas
 end
@@ -330,12 +365,14 @@ function draw_arc!(
     rarrow::Symbol = :none
 )
     c = _apply_tf(canvas, center)
-    p1 = Point(c[1] + radius * cos(a1), c[2] + radius * sin(a1))
-    p2 = Point(c[1] + radius * cos(a2), c[2] + radius * sin(a2))
+    r = _apply_length(canvas, radius)
+    direction = canvas.viewport !== nothing && canvas.viewport.flip_y ? -1.0 : 1.0
+    p1 = Point(c.x + r * cos(a1), c.y + direction * r * sin(a1))
+    p2 = Point(c.x + r * cos(a2), c.y + direction * r * sin(a2))
     attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("pen", pen))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
     xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
           @sprintf("%.3f 0 0 %.3f %.3f %.3f %.3f %.3f %.3f %.3f arc\n</path>",
-                  radius, radius, c[1], c[2], p1[1], p1[2], p2[1], p2[2])
+                  r, direction * r, c.x, c.y, p1.x, p1.y, p2.x, p2.y)
     push!(canvas.elements, xml)
     return canvas
 end
@@ -356,14 +393,17 @@ function draw_ellipse!(
     fill::Symbol = :none,
     pen::Symbol = :normal,
     dash::Symbol = :none,
-    opacity::Union{Symbol, Nothing} = nothing,
+    opacity::Union{Symbol, String, Nothing} = nothing,
     tiling::Symbol = :none
 )
     c = _apply_tf(canvas, center)
     ca, sa = cos(Float64(angle)), sin(Float64(angle))
-    a, b = Float64(r_major), Float64(r_minor)
+    a, b = _apply_length(canvas, r_major), _apply_length(canvas, r_minor)
+    direction = canvas.viewport !== nothing && canvas.viewport.flip_y ? -1.0 : 1.0
     m11, m21 = a * ca, a * sa
     m12, m22 = -b * sa, b * ca
+    m21 *= direction
+    m22 *= direction
     attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))$(_fmt_attr("tiling", tiling))"
     xml = "<path layer=\"$(canvas.active_layer)\"$attrs>\n" *
           @sprintf("%.4f %.4f %.4f %.4f %.3f %.3f e\n</path>", m11, m21, m12, m22, c[1], c[2])
@@ -390,9 +430,12 @@ function draw_elliptic_arc!(
 )
     c = _apply_tf(canvas, center)
     ca, sa = cos(Float64(angle)), sin(Float64(angle))
-    a, b = Float64(r_major), Float64(r_minor)
+    a, b = _apply_length(canvas, r_major), _apply_length(canvas, r_minor)
+    direction = canvas.viewport !== nothing && canvas.viewport.flip_y ? -1.0 : 1.0
     m11, m21 = a * ca, a * sa
     m12, m22 = -b * sa, b * ca
+    m21 *= direction
+    m22 *= direction
     p1 = Point(c[1] + m11 * cos(a1) + m12 * sin(a1), c[2] + m21 * cos(a1) + m22 * sin(a1))
     p2 = Point(c[1] + m11 * cos(a2) + m12 * sin(a2), c[2] + m21 * cos(a2) + m22 * sin(a2))
     attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("pen", pen))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
@@ -565,6 +608,147 @@ function ipe_group(
     return canvas
 end
 
+# -----------------------------------------------------------------------------
+# Compact Geometry-Aware Drawing Interface
+# -----------------------------------------------------------------------------
+
+function _style_options(canvas::IpeCanvas, style::Union{Style,Nothing}, overrides::NamedTuple, allowed)
+    unknown = filter(key -> !(key in allowed), keys(overrides))
+    isempty(unknown) || throw(ArgumentError("unsupported drawing options: $(join(unknown, ", "))"))
+    local_style = style === nothing ? NamedTuple() : style.values
+    merged = merge(canvas.active_style.values, local_style, overrides)
+    return (; (key => value for (key, value) in pairs(merged) if key in allowed)...)
+end
+
+function _opacity_name(value::Real)
+    0 < value < 1 || throw(ArgumentError("named Ipe opacity must be strictly between zero and one"))
+    percent = round(Int, 100 * value)
+    percent % 10 == 0 ||
+        throw(ArgumentError("Ipe opacity must be a multiple of 0.1"))
+    return Symbol("$(percent)%")
+end
+
+_opacity_name(value::Union{Symbol,String}) = value
+
+function _draw_fill_opacity!(renderer, canvas, object, options::NamedTuple)
+    fill_opacity = get(options, :fill_opacity, nothing)
+    base = (; (key => value for (key, value) in pairs(options) if key != :fill_opacity)...)
+    fill_opacity === nothing && return renderer(canvas, object; base...)
+
+    fill = get(base, :fill, :none)
+    stroke = get(base, :stroke, :black)
+    visible_fill = fill != :none && !(fill_opacity isa Real && iszero(fill_opacity))
+    if visible_fill
+        opacity = fill_opacity isa Real && isone(fill_opacity) ? nothing : _opacity_name(fill_opacity)
+        fill_options = merge(base, (stroke=:none, opacity=opacity))
+        renderer(canvas, object; fill_options...)
+    end
+    if stroke != :none
+        stroke_options = merge(base, (fill=:none,))
+        renderer(canvas, object; stroke_options...)
+    end
+    return canvas
+end
+
+const PATH_STYLE = (:stroke, :fill, :pen, :dash, :opacity, :fill_opacity)
+const CURVE_STYLE = (:stroke, :pen, :dash, :arrow, :rarrow)
+
+"""Draw a geometric object using multiple dispatch and optional reusable `Style`."""
+function draw!(canvas::IpeCanvas, p::Point{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :size, :shape))
+    return draw_point!(canvas, p; options...)
+end
+
+function draw!(canvas::IpeCanvas, s::Segment{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
+    return draw_segment!(canvas, s; options...)
+end
+
+function draw!(canvas::IpeCanvas, bb::BBox{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), PATH_STYLE)
+    return _draw_fill_opacity!(draw_box!, canvas, bb, options)
+end
+
+function draw!(canvas::IpeCanvas, circle::Sphere{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), PATH_STYLE)
+    return _draw_fill_opacity!(draw_circle!, canvas, circle, options)
+end
+
+function draw!(canvas::IpeCanvas, arc::CircleArc; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
+    return draw_arc!(canvas, arc; options...)
+end
+
+function draw!(canvas::IpeCanvas, ellipse::Ellipse; style::Union{Style,Nothing}=nothing, kwargs...)
+    allowed = (PATH_STYLE..., :tiling)
+    options = _style_options(canvas, style, (; kwargs...), allowed)
+    return _draw_fill_opacity!(draw_ellipse!, canvas, ellipse, options)
+end
+
+function draw!(canvas::IpeCanvas, arc::EllipticArc; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
+    return draw_arc!(canvas, arc; options...)
+end
+
+function draw!(canvas::IpeCanvas, curve::CubicBezier{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :pen, :dash, :arrow, :rarrow))
+    return draw_bezier!(canvas, curve; options...)
+end
+
+function draw!(canvas::IpeCanvas, curve::CubicSpline{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :pen, :dash, :arrow, :rarrow))
+    return draw_spline!(canvas, curve; options...)
+end
+
+function draw!(canvas::IpeCanvas, polygon::AbsPntSeq{2}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (PATH_STYLE..., :close))
+    return _draw_fill_opacity!(draw_polygon!, canvas, polygon, options)
+end
+
+function draw!(canvas::IpeCanvas, polygon::AbstractVector{<:Point{2}}; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (PATH_STYLE..., :close))
+    return _draw_fill_opacity!(draw_polygon!, canvas, polygon, options)
+end
+
+function draw!(canvas::IpeCanvas, objects::AbstractVector; kwargs...)
+    for object in objects
+        draw!(canvas, object; kwargs...)
+    end
+    return canvas
+end
+
+"""Draw one point or a collection of points as fixed-size page marks."""
+mark!(canvas::IpeCanvas, p::Point{2}; kwargs...) = draw!(canvas, p; kwargs...)
+
+function mark!(canvas::IpeCanvas, points; style::Union{Style,Nothing}=nothing, kwargs...)
+    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :size, :shape))
+    return draw_points!(canvas, points; options...)
+end
+
+"""Run `f` on a layer and restore the previously active layer afterward."""
+function layer(f::Function, canvas::IpeCanvas, name::Union{Symbol,AbstractString})
+    previous = canvas.active_layer
+    set_layer!(canvas, string(name))
+    try
+        f(canvas)
+    finally
+        set_layer!(canvas, previous)
+    end
+    return canvas
+end
+
+"""Apply style defaults within `f` and restore the previous defaults afterward."""
+function with_style(f::Function, canvas::IpeCanvas, style::Style=Style(); kwargs...)
+    previous = canvas.active_style
+    canvas.active_style = Style(merge(previous.values, style.values, (; kwargs...)))
+    try
+        f(canvas)
+    finally
+        canvas.active_style = previous
+    end
+    return canvas
+end
+
 
 # -----------------------------------------------------------------------------
 # High-Level Algorithmic & Conceptual Diagram Helpers
@@ -589,9 +773,23 @@ function draw_label!(
     valign::Symbol = :baseline,
     stroke::Symbol = :black,
     size::Symbol = :normal,
-    style::Symbol = :math
+    style::Symbol = :math,
+    offset::Tuple{<:Real,<:Real} = (0.0, 0.0),
+    anchor::Union{Symbol,Nothing} = nothing
 )
     pt = _apply_tf(canvas, p)
+    pt += Point(Float64(offset[1]), Float64(offset[2]))
+    if anchor !== nothing
+        alignments = Dict(
+            :center => (:center, :center),
+            :north => (:center, :top), :south => (:center, :bottom),
+            :east => (:right, :center), :west => (:left, :center),
+            :northeast => (:right, :top), :northwest => (:left, :top),
+            :southeast => (:right, :bottom), :southwest => (:left, :bottom),
+        )
+        haskey(alignments, anchor) || throw(ArgumentError("unknown label anchor: $anchor"))
+        halign, valign = alignments[anchor]
+    end
     clean_text = string(text)
     # If math style and text not already wrapped in $, wrap it
     if style == :math && !startswith(strip(clean_text), "\$") && !startswith(strip(clean_text), "\\begin")
@@ -604,6 +802,16 @@ function draw_label!(
 end
 
 draw_label!(canvas::IpeCanvas, x::Real, y::Real, text; kwargs...) = draw_label!(canvas, Point(Float64(x), Float64(y)), text; kwargs...)
+
+"""Place a LaTeX-aware label at a world point with an optional page-space offset."""
+function label!(canvas::IpeCanvas, p::Point{2}, text; appearance::Union{Style,Nothing}=nothing, kwargs...)
+    allowed = (:halign, :valign, :stroke, :size, :style, :offset, :anchor)
+    options = _style_options(canvas, appearance, (; kwargs...), allowed)
+    return draw_label!(canvas, p, text; options...)
+end
+
+label!(canvas::IpeCanvas, x::Real, y::Real, text; kwargs...) =
+    label!(canvas, Point(Float64(x), Float64(y)), text; kwargs...)
 
 """
     draw_bar!(canvas, x1, x2, y; height=18.0, stroke=:black, fill=:gray7, pen=:heavier, label_left=nothing, label_right=nothing)
@@ -930,6 +1138,7 @@ function compile_pdf(ipe_file::String, output_pdf::String=replace(ipe_file, r"\.
         @warn "ipetoipe command not found in PATH. Please install Ipe 7 to compile PDF figures."
         return false
     end
+    mkpath(dirname(abspath(output_pdf)))
     run(`ipetoipe -pdf $ipe_file $output_pdf`).exitcode == 0
 end
 
@@ -966,17 +1175,34 @@ Export all three companion artifacts in one call:
 function export_figure(
     canvas::IpeCanvas, base_path::String;
     caption::String = "",
-    label::String = replace(basename(base_path), "_" => ":")
+    label::String = replace(basename(base_path), "_" => ":"),
+    outputs = (:ipe, :pdf, :tex)
 )
+    requested = Set(Symbol.(outputs isa Symbol ? (outputs,) : outputs))
+    all(output in (:ipe, :pdf, :tex) for output in requested) ||
+        throw(ArgumentError("outputs may contain only :ipe, :pdf, and :tex"))
     ipe_path = base_path * ".ipe"
     pdf_path = base_path * ".pdf"
     tex_path = base_path * "_fig.tex"
 
-    save_ipe(canvas, ipe_path)
-    compile_pdf(canvas, pdf_path)
-    save_figure_tex(tex_path; figure_name=basename(base_path), caption=caption, label=label)
+    if :ipe in requested || :pdf in requested
+        save_ipe(canvas, ipe_path)
+    end
+    compiled = :pdf in requested ? compile_pdf(ipe_path, pdf_path) : true
+    :tex in requested &&
+        save_figure_tex(tex_path; figure_name=basename(base_path), caption=caption, label=label)
+    if !compiled
+        @warn "PDF compilation failed; preserving Ipe source" path=ipe_path
+        throw(ErrorException("PDF output was requested, but Ipe compilation failed"))
+    elseif !(:ipe in requested)
+        rm(ipe_path; force=true)
+    end
 
-    return (ipe=ipe_path, pdf=pdf_path, tex=tex_path)
+    return (
+        ipe=:ipe in requested ? ipe_path : nothing,
+        pdf=:pdf in requested ? pdf_path : nothing,
+        tex=:tex in requested ? tex_path : nothing,
+    )
 end
 
 """
@@ -986,12 +1212,50 @@ end
 
 Convenient block syntax to construct, save, compile, and generate LaTeX fragments in one go.
 """
-function open_ipe(f::Function, base_path::String; caption::String="", label::String="", kwargs...)
+function open_ipe(
+    f::Function, base_path::String;
+    caption::String="",
+    label::String="",
+    outputs=(:ipe, :pdf, :tex),
+    fit=nothing,
+    margin::Real=30.0,
+    flip_y::Bool=false,
+    kwargs...
+)
     clean_base = replace(base_path, r"(\.ipe|\.pdf|_fig\.tex)$" => "")
     canvas = IpeCanvas(; kwargs...)
+    fit === nothing || fit!(canvas, fit; margin=margin, flip_y=flip_y)
     f(canvas)
     lbl = isempty(label) ? replace(basename(clean_base), "_" => ":") : label
-    return export_figure(canvas, clean_base; caption=caption, label=lbl)
+    return export_figure(canvas, clean_base; caption=caption, label=lbl, outputs=outputs)
+end
+
+"""
+    figure(f, path; keep_source=true, source=:ipe, kwargs...)
+
+Generate a figure from geometry. A `.pdf` target is rendered through Ipe so that
+geometry and LaTeX labels remain vector content. The editable `.ipe` source is
+retained by default.
+"""
+function figure(
+    f::Function, path::String;
+    keep_source::Bool=true,
+    source::Symbol=:ipe,
+    kwargs...
+)
+    source == :ipe || throw(ArgumentError("the only supported figure source is :ipe"))
+    base, extension = splitext(path)
+    if isempty(extension)
+        base = path
+        outputs = keep_source ? (:ipe, :pdf) : (:pdf,)
+    elseif extension == ".pdf"
+        outputs = keep_source ? (:ipe, :pdf) : (:pdf,)
+    elseif extension == ".ipe"
+        outputs = (:ipe,)
+    else
+        throw(ArgumentError("figure target must have extension .pdf or .ipe"))
+    end
+    return open_ipe(f, base; outputs=outputs, kwargs...)
 end
 
 """

@@ -22,6 +22,25 @@ mutable struct Node{D,T,S,V}
     max_index::Union{Nothing,Int}
     split_dim::Union{Nothing,Int}
     split_val::Union{Nothing,T}
+
+    function Node{D,T,S,V}(
+        bb::BBox{D,T},
+        r::UnitRange{Int},
+        left::Union{Nothing,Node{D,T,S,V}},
+        right::Union{Nothing,Node{D,T,S,V}},
+        f_leaf::Bool,
+        diam::S,
+        id::Int,
+        min_index::Union{Nothing,Int},
+        max_index::Union{Nothing,Int},
+        split_dim::Union{Nothing,Int},
+        split_val::Union{Nothing,T},
+    ) where {D,T,S,V}
+        return new{D,T,S,V}(
+            bb, r, left, right, f_leaf, diam, id,
+            min_index, max_index, split_dim, split_val,
+        )
+    end
 end
 
 """
@@ -33,6 +52,14 @@ mutable struct Tree{D,T,S,V}
     PS::VArray{Point{D,T},V}
     root::Union{Nothing,Node{D,T,S,V}}
     id_counter::Int
+
+    function Tree{D,T,S,V}(
+        PS::VArray{Point{D,T},V},
+        root::Union{Nothing,Node{D,T,S,V}},
+        id_counter::Int,
+    ) where {D,T,S,V}
+        return new{D,T,S,V}(PS, root, id_counter)
+    end
 end
 
 function get_min_max_orig_index(
@@ -210,10 +237,9 @@ function Tree_fully_expand(tree::Tree{D,T,S,V}) where {D,T,S,V}
     fully_expand(tree.root, tree)
 end
 
-function depth(node::Union{Nothing, Node{D,T,S,V}})::Int where {D,T,S,V}
-    if isnothing(node)
-        return 0
-    end
+depth(::Nothing)::Int = 0
+
+function depth(node::Node{D,T,S,V})::Int where {D,T,S,V}
     if node.f_leaf
         return 1
     end

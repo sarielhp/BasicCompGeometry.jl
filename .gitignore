@@ -1,4 +1,5 @@
 FrechtDist/
+/Manifest.toml
 docs/build/
 *.pdf
 output/

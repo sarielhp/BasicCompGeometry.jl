@@ -1,8 +1,13 @@
 # BasicCompGeometry.jl
 
-*A comprehensive library for basic computational geometry in Julia.*
+*Computational-geometry primitives and algorithms for Julia.*
 
-`BasicCompGeometry.jl` provides efficient, high-dimensional primitives and algorithms for computational geometry, leveraging Julia's multiple dispatch and the `StaticArrays.jl` ecosystem.
+`BasicCompGeometry.jl` provides high-dimensional primitives and algorithms for computational geometry using Julia's multiple dispatch and the `StaticArrays.jl` ecosystem.
+
+The package targets research code, experiments, and figure generation. Its WSPD
+implementation is tested for separation and exact pair coverage. Fréchet distance
+is not implemented here. Most predicates use ordinary floating-point arithmetic;
+degenerate and ill-conditioned inputs may require a robust geometry library.
 
 A core concept in the library is the `AbsPntSeq`, which is treated as a **sequence of points**. This can represent a simple point set, a polygonal chain, or a classical closed polygon. `AbsPolygon` is provided as an alias for backward compatibility.
 
@@ -11,7 +16,7 @@ A core concept in the library is the `AbsPntSeq`, which is treated as a **sequen
 - **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes (BBox) in any dimension.
 - **Zero-Copy Matrix Integration**: Use `MatPntSeq` to treat columns of a matrix as points without copying memory.
 - **Multiple Coordinate Types**: Works seamlessly with `Float64`, `Int64`, and other numeric types.
-- **Geometric Predicates**: Fast checks for turns (left/right) and containment.
+- **Geometric Predicates**: Checks for turns (left/right) and containment.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling.
 - **Spatial Decomposition**: Efficient Bounding Box Trees (BBT) and Well-Separated Pairs Decompositions (WSPD).
 - **2D Transformations**: Efficient translation and rotation for planar geometry.
@@ -34,7 +39,7 @@ The library implements a variety of classic and modern geometric algorithms:
 
 ## Data Structures
 
-`BasicCompGeometry` provides highly optimized, type-safe data structures:
+`BasicCompGeometry` provides typed geometric data structures:
 
 - **Geometric Primitives**: `Point{D, T}`, `Segment{D, T}`, `Line{D, T}`, and `BBox{D, T}`.
 - **Point Sequences**: `PntSeq{D, T}` and the matrix-backed `MatPntSeq{D, T}`.
@@ -133,6 +138,8 @@ write_plt
 ### Bounding Boxes
 ```@docs
 BBox
+bbox
+union_bbox
 width
 height
 middle
@@ -145,12 +152,10 @@ expand_add!
 
 ### Ellipses & Arcs
 ```@docs
+Circle
+intersections
 Ellipse
 EllipticArc
-r_major
-r_minor
-alpha1
-alpha2
 ```
 
 ### Curves & Splines
@@ -158,7 +163,6 @@ alpha2
 CubicBezier
 CubicSpline
 derivative
-subdivide
 flatten
 interpolate_catmull_rom
 interpolate_natural_spline
@@ -177,7 +181,6 @@ BBT.hybrid_nn
 MVBB.approx_mvbb
 MVBB.approx_diam
 MVBB.OBBox
-MVBB.volume
 ```
 
 ### Transformations (2D)
@@ -189,10 +192,6 @@ apply_transform
 
 ### Algorithms
 ```@docs
-exact_diameter
-approx_diameter
-exact_diameter_subspace
-approx_diameter_subspace
 hausdorff_simplify
 hausdorff_dist_subseg
 distance_infty
@@ -204,6 +203,9 @@ match_price
 ```@docs
 IpeDraw
 IpeDraw.IpeCanvas
+IpeDraw.Viewport
+IpeDraw.Style
+IpeDraw.figure
 IpeDraw.open_ipe
 IpeDraw.edit_ipe
 IpeDraw.add_preamble!
@@ -227,6 +229,12 @@ IpeDraw.draw_dimension!
 IpeDraw.draw_arrow!
 IpeDraw.draw_curved_arrow!
 IpeDraw.draw_label!
+IpeDraw.draw!
+IpeDraw.mark!
+IpeDraw.label!
+IpeDraw.layer
+IpeDraw.with_style
+IpeDraw.fit!
 IpeDraw.set_layer!
 IpeDraw.add_layer!
 IpeDraw.add_view!
@@ -236,4 +244,3 @@ IpeDraw.compile_pdf
 IpeDraw.save_figure_tex
 IpeDraw.export_figure
 ```
-

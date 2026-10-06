@@ -159,13 +159,13 @@ Count how many halfplanes in `halfplanes` contain the query point `q`.
 """
 function depth(
     halfplanes::Union{AbstractVector{<:Halfplane}, Tuple{Vararg{Halfplane}}},
-    q::Point{2},
+    q::Point{2,<:Real},
 )
     return count(h -> is_inside(q, h), halfplanes)
 end
 
 @inline function depth(
-    q::Point{2},
+    q::Point{2,<:Real},
     halfplanes::Union{AbstractVector{<:Halfplane}, Tuple{Vararg{Halfplane}}},
 )
     return depth(halfplanes, q)

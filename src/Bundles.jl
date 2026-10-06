@@ -51,6 +51,9 @@ end
 pairwise_intersections(h1::Halfplane, h2::Halfplane; tol::Real = 1e-12) =
     pairwise_intersections(h1.boundary, h2.boundary; tol = tol)
 
+pairwise_intersections(c1::Sphere{2}, c2::Sphere{2}; tol::Real = 1e-12) =
+    intersections(c1, c2; atol = tol)
+
 function pairwise_intersections(l::Line{2}, c::AbsCurve2D; tol::Real = 1e-12)
     pts_t = intersect_line_curve(Line{2,Float64}(l.p, l.u), c)
     return [Point{2,Float64}(pt) for (pt, _) in pts_t]

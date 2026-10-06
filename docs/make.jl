@@ -1,14 +1,14 @@
 using Documenter
 using BasicCompGeometry
 
-# Ensure we include the module path
-push!(LOAD_PATH, "../src/")
-
 makedocs(
     sitename = "BasicCompGeometry.jl",
     modules = [BasicCompGeometry],
     pages = ["Home" => "index.md"],
-    format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true"),
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        edit_link = "main",
+    ),
     warnonly = [:missing_docs, :cross_references, :autodocs_block],
 )
 

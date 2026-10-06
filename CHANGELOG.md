@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Geometry-aware Ipe figure API with automatic fitting, reusable styles, page-space labels, and direct PDF targets that retain editable Ipe sources.
+- Circle-circle intersections and bounding-box unions.
+- Release CI, package-quality checks, and adversarial WSPD tests.
+
+### Changed
+- Prepared version 0.3.0 with a permanent package UUID.
+- Made Cairo, Colors, and LaTeXStrings optional extension dependencies.
+- Reduced the core dependency set and completed compatibility bounds.
+- Replaced componentwise `min` and `max` methods for points with `point_min` and
+  `point_max`, avoiding method piracy against `StaticArrays.SVector`.
+- Removed the root manifest so each supported Julia release resolves compatible
+  dependency versions.
+- Clarified supported functionality, maintenance expectations, and numerical limitations.
+
 ## [0.2.3] - 2026-07-30
 
 ### Added

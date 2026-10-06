@@ -33,11 +33,12 @@ function Sphere(center::AbstractVector{S}, radius::Real) where {S}
 end
 
 """
-    Sphere(center::NTuple{D, S}, radius::Real)
+    Sphere(center::Tuple{S, Vararg{S}}, radius::Real)
 
 Construct a `Sphere` from a tuple coordinate center.
 """
-function Sphere(center::NTuple{D,S}, radius::Real) where {D,S}
+function Sphere(center::Tuple{S,Vararg{S}}, radius::Real) where {S}
+    D = length(center)
     T = promote_type(S, typeof(radius))
     p = Point{D,T}(center...)
     return Sphere(p, T(radius))
@@ -113,6 +114,55 @@ If `p` is inside `s`, returns 0.0.
 @inline function dist(p::Point{D,T1}, s::Sphere{D,T2}) where {D,T1,T2}
     d_center = dist(p, s.center)
     return max(0.0, d_center - Float64(s.radius))
+end
+
+"""
+    bbox(s::Sphere)
+
+Return the tight axis-aligned bounding box of `s`.
+"""
+function bbox(s::Sphere{D,T}) where {D,T}
+    delta = Point{D,T}(ntuple(_ -> s.radius, D))
+    return BBox(s.center - delta, s.center + delta)
+end
+
+BBox(s::Sphere) = bbox(s)
+
+"""
+    intersections(c1::Circle, c2::Circle; atol=0, rtol=sqrt(eps()))
+
+Return the zero, one, or two finite intersection points of two circles.
+Coincident circles have infinitely many intersections and raise `ArgumentError`.
+"""
+function intersections(
+    c1::Sphere{2,T1}, c2::Sphere{2,T2};
+    atol::Real = 0,
+    rtol::Real = sqrt(eps(Float64)),
+) where {T1,T2}
+    R = promote_type(float(T1), float(T2))
+    p1 = Point{2,R}(c1.center)
+    p2 = Point{2,R}(c2.center)
+    r1, r2 = R(c1.radius), R(c2.radius)
+    delta = p2 - p1
+    d = R(dist(p1, p2))
+    tol = max(R(atol), R(rtol) * max(one(R), d, r1, r2))
+
+    if d <= tol
+        abs(r1 - r2) <= tol &&
+            throw(ArgumentError("coincident circles have infinitely many intersections"))
+        return Point{2,R}[]
+    end
+    (d > r1 + r2 + tol || d < abs(r1 - r2) - tol) && return Point{2,R}[]
+
+    chord_offset = (r1^2 - r2^2 + d^2) / (2d)
+    half_chord_sq = r1^2 - chord_offset^2
+    half_chord_sq < -tol * max(one(R), r1^2) && return Point{2,R}[]
+    midpoint = p1 + (chord_offset / d) * delta
+    half_chord = sqrt(max(zero(R), half_chord_sq))
+    half_chord <= tol && return Point{2,R}[midpoint]
+
+    normal = Point{2,R}(-delta.y / d, delta.x / d)
+    return Point{2,R}[midpoint + half_chord * normal, midpoint - half_chord * normal]
 end
 
 ###############################################
@@ -214,6 +264,7 @@ end
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F
 export CircleArc, CircleArc2F
 export invert
+export intersections
 
 ###############################################
 ### CircleArc type

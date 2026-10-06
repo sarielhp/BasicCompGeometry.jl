@@ -8,6 +8,9 @@ on:
 jobs:
   compat:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: JuliaRegistries/CompatHelper.jl@v3
         with:

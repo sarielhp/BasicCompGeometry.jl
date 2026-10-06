@@ -5,6 +5,7 @@ using BasicCompGeometry.IpeDraw
 @testset "IpeDraw Vector Figure Interface" begin
     @test isdefined(BasicCompGeometry, :IpeDraw)
     temp_dir = mktempdir()
+    test_external = get(ENV, "BCG_TEST_EXTERNAL_TOOLS", "false") == "true"
 
     try
         # 1. Canvas creation and sizing
@@ -45,6 +46,30 @@ using BasicCompGeometry.IpeDraw
         draw_circle!(canvas, 80.0, 80.0, 15.0; stroke=:darkblue)
 
         draw_arc!(canvas, Point(100.0, 100.0), 25.0, 0.0, π / 2; stroke=:darkred)
+
+        # Compact API, reusable styles, fitting, and page-space labels
+        compact = IpeCanvas(width=200.0, height=100.0)
+        unit_circle = Circle(point(0.0, 0.0), 1.0)
+        fit!(compact, unit_circle; margin=30.0)
+        circle_style = Style(fill=:lightblue, fill_opacity=0.2, stroke=:blue, pen=:heavier)
+        draw!(compact, unit_circle; style=circle_style)
+        mark!(compact, point(0.0, 0.0))
+        label!(compact, point(0.0, 1.0), "p"; offset=(4.0, 5.0), anchor=:southwest)
+        compact_xml = BasicCompGeometry.IpeDraw.to_xml(compact)
+        @test compact.viewport.scale == 20.0
+        @test occursin("20.000 0 0 20.000 100.000 50.000 e", compact_xml)
+        @test occursin("opacity=\"20%\"", compact_xml)
+        @test occursin("pos=\"104.000 75.000\"", compact_xml)
+
+        layer(compact, :annotations) do cv
+            mark!(cv, point(0.5, 0.0); stroke=:red)
+        end
+        @test compact.active_layer == "alpha"
+        with_style(compact, Style(stroke=:darkred, pen=:heavier)) do cv
+            draw!(cv, Segment(point(-0.5, 0.0), point(0.5, 0.0)))
+        end
+        @test isempty(compact.active_style.values)
+        @test occursin("stroke=\"darkred\" pen=\"heavier\"", compact.elements[end])
 
         # 5. Conceptual & Algorithmic Helpers
         draw_bar!(canvas, 50.0, 450.0, 120.0;
@@ -103,7 +128,8 @@ using BasicCompGeometry.IpeDraw
         base_fig = joinpath(temp_dir, "test_fig")
         artifacts = export_figure(canvas, base_fig;
             caption = "Test caption referencing the lemma.",
-            label = "fig:test_sample"
+            label = "fig:test_sample",
+            outputs = (:ipe, :tex),
         )
 
         @test isfile(artifacts.ipe)
@@ -111,22 +137,27 @@ using BasicCompGeometry.IpeDraw
         @test occursin("<ipe version=", read(artifacts.ipe, String))
         @test occursin(raw"\figlab{fig:test_sample}", read(artifacts.tex, String))
 
-        # Check PDF compilation via ipetoipe
-        if Sys.which("ipetoipe") !== nothing
-            @test isfile(artifacts.pdf)
-            @test filesize(artifacts.pdf) > 0
+        if test_external
+            pdf_artifacts = export_figure(canvas, base_fig; outputs=(:pdf,))
+            @test isfile(pdf_artifacts.pdf)
+            @test filesize(pdf_artifacts.pdf) > 0
         end
 
         # 7. Block syntax `open_ipe`
-        res = open_ipe(joinpath(temp_dir, "block_fig"); caption="Block test", label="fig:block") do cv
+        res = open_ipe(joinpath(temp_dir, "block_fig");
+            caption="Block test", label="fig:block", outputs=(:ipe, :tex)) do cv
             draw_box!(cv, 0.0, 0.0, 100.0, 100.0; stroke=:darkred)
             draw_label!(cv, 50.0, 50.0, raw"x \in \mathcal{S}")
         end
         @test isfile(res.ipe)
         @test isfile(res.tex)
-        if Sys.which("ipetoipe") !== nothing
-            @test isfile(res.pdf)
+
+        ipe_only = figure(joinpath(temp_dir, "compact.ipe"); fit=unit_circle) do cv
+            draw!(cv, unit_circle; stroke=:blue)
         end
+        @test isfile(ipe_only.ipe)
+        @test ipe_only.pdf === nothing
+        @test ipe_only.tex === nothing
 
     finally
         rm(temp_dir, recursive=true, force=true)

@@ -7,7 +7,7 @@
 Axis parallel bounding box in D dimensions. 
 The fields `mini` and `maxi` store the lower and upper bounds of the box for each dimension.
 """
-@with_kw_noshow mutable struct BBox{D,T}
+Base.@kwdef mutable struct BBox{D,T}
     """Whether the box has been initialized with at least one point."""
     f_init::Bool = false
     """Lower bounds vector."""
@@ -31,6 +31,40 @@ Construct a bounding box that tightly encloses all vertices of point sequence `P
 """
 BBox(P::AbsPntSeq{D,T}) where {D,T} = bound!(BBox{D,T}(), P)
 BBox(P::AbstractVector{<:Point{D,T}}) where {D,T} = bound!(BBox{D,T}(), P)
+
+"""Return the tight bounding box of a point."""
+bbox(p::Point{D,T}) where {D,T} = BBox(p, p)
+
+"""Return the tight bounding box of a segment."""
+bbox(s::Segment{D,T}) where {D,T} = BBox(s.p, s.q)
+
+"""Return `bb` itself, allowing boxes to participate in `union_bbox`."""
+bbox(bb::BBox) = bb
+
+"""
+    union_bbox(objects...)
+    union_bbox(objects)
+
+Return the smallest axis-aligned box containing all bounded geometric objects.
+Each object must implement `bbox`.
+"""
+function union_bbox(objects...)
+    isempty(objects) && throw(ArgumentError("union_bbox requires at least one object"))
+    boxes = map(bbox, objects)
+    D = length(boxes[1].mini)
+    all(length(bb.mini) == D for bb in boxes) ||
+        throw(DimensionMismatch("all objects must have the same dimension"))
+    T = promote_type((eltype(bb.mini) for bb in boxes)...)
+    result = BBox{D,T}()
+    for bb in boxes
+        bb.f_init || continue
+        bound!(result, Point{D,T}(bb.mini))
+        bound!(result, Point{D,T}(bb.maxi))
+    end
+    return result
+end
+
+union_bbox(objects::AbstractVector) = union_bbox(objects...)
 
 """
     width(bb, dim=1)
