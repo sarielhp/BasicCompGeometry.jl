@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-13
+
+### Added
+- Pluggable geometric predicate kernels (`AbstractKernel`, `FloatingKernel`, `ExactKernel`).
+- Exact predicates for arbitrary-precision integer and rational coordinates, and exact binary float values.
+- Exact algebraic radical isolation for circle boundary comparisons (`compare_right_arcs`, `compare_right_arc_to_point`) without floating-point square root approximations.
+- Predicates `compare_xy`, `compare_squared_distance`, `compare_distance`.
+- Kernel-aware 2D convex hull via Monotone Chain.
+
+### Changed
+- `turn_sign` and related orientation predicates (`is_left_turn`, `is_right_turn`, etc.) now accept an optional `kernel` parameter, defaulting to `FloatingKernel{Float64}()`.
+- `turn_sign` now returns `Float64` by default for integer and `Float32` inputs; use `kernel=ExactKernel()` when exact arithmetic is required.
+- Non-finite coordinates in predicates now raise `DomainError`.
+
+## [0.3.0] - 2026-10-05
 
 ### Added
 - Geometry-aware Ipe figure API with automatic fitting, reusable styles, page-space labels, and direct PDF targets that retain editable Ipe sources.
