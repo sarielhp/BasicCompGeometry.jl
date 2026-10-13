@@ -50,7 +50,11 @@ The complete, working script produced from this prompt is available at [`example
 ```bash
 ./examples/convex_hull_figure.jl
 ```
-runs completely standalone via `QuickEnv` and produces both the editable `output/convex_hull_figure.ipe` and the compiled vector `output/convex_hull_figure.pdf`.
+runs completely standalone via `QuickEnv` and produces both the editable `output/convex_hull_figure.ipe` and the compiled vector `output/convex_hull_figure.pdf`:
+
+<p align="center">
+  <img src="assets/convex_hull_figure.svg" alt="Convex Hull and Diameter Figure" width="550" />
+</p>
 
 ## Overview
 
