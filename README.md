@@ -306,19 +306,21 @@ using Cairo, Colors # This triggers the BBTCairoExt extension
 BBT.Tree_draw(tree, "output/tree.pdf")
 ```
 
-## Origins & AI Contribution Notice
+## Origins
 
 The basic library was originally written by Sariel Har-Peled (initially developed as part of the `FrechetDist` package, with large portions based on computational geometry algorithms and code originally written in C++ 25 years ago).
-
-More recent versions, modernizations, extensions, tests, documentation, and predicate kernels were written and generated with the assistance of AI coding tools (including Google Gemini CLI and OpenAI Codex). 
-
-As the author and maintainer, I fully understand the codebase, curate its mathematical and algorithmic design, take full responsibility for the code, and actively support maintenance, bug fixes, and future improvements.
 
 The package has since been reorganized around:
 - A flat module hierarchy.
 - Type-generic implementations.
 - Integration with the `StaticArrays.jl` ecosystem.
 - Full compatibility with standard `Base` methods through multiple dispatch.
+
+## AI Contribution & Code Ownership
+
+More recent versions, modernizations, extensions, tests, documentation, and predicate kernels were written and generated with the assistance of AI coding tools (including Google Gemini CLI and OpenAI Codex). 
+
+As the author and maintainer, I fully understand the codebase, curate its mathematical and algorithmic design, take full responsibility for all code, and actively support maintenance, bug fixes, and future development.
 
 ## Maintenance and license
 
