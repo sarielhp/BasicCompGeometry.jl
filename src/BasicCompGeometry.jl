@@ -30,7 +30,9 @@ Concrete subtypes: `Segment{2, T}`, `CircleArc{T}`, `Hyperbola{T}`.
 """
 abstract type AbsCurve2D{T} end
 
+include("Kernels.jl")
 include("Points.jl")
+include("KernelPredicates.jl")
 include("Segments.jl")
 include("Planes.jl")
 include("PntSeqs.jl")

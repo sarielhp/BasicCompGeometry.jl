@@ -97,12 +97,13 @@ function Base.show(io::IO, s::Sphere{D,T}) where {D,T}
 end
 
 """
-    is_inside(p::Point{D, T1}, s::Sphere{D, T2})
+    is_inside(p::Point{D, T1}, s::Sphere{D, T2}; kernel=FloatingKernel())
 
 Return `true` if point `p` is inside or on the boundary of sphere `s`.
 """
-@inline function is_inside(p::Point{D,T1}, s::Sphere{D,T2}) where {D,T1,T2}
-    return dist_sq(p, s.center) <= s.radius^2
+@inline function is_inside(p::Point{D,T1}, s::Sphere{D,T2};
+    kernel::AbstractKernel=FloatingKernel()) where {D,T1,T2}
+    return compare_distance(kernel, p, s.center, s.radius) <= 0
 end
 
 """

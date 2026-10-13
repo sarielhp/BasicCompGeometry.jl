@@ -23,6 +23,36 @@ required.
 
 ## Overview
 
+### Optional predicate kernels
+
+Ordinary calls need no setup and use floating-point predicates. Opt into exact
+arithmetic only where needed:
+
+```julia
+convex_hull(points)                       # floating point, as usual
+convex_hull(points; kernel=ExactKernel()) # exact decisions, same point types
+is_left_turn(p, q, r; kernel=ExactKernel())
+```
+
+The same kernel is passed through every predicate in a kernel-aware algorithm.
+`FloatingKernel()` uses `Float64`; `FloatingKernel(Float32)` is also available.
+`ExactKernel()` uses arbitrary-precision integers and rationals and compares
+circular radicals algebraically. Finite floating-point inputs are interpreted
+as their stored binary values. No global setting, context object, or new point
+type is required. Existing integer predicate results now use floating-point
+arithmetic by default; request the exact kernel when integer exactness matters.
+
+Currently kernel-aware: 2D turn predicates, lexicographic point comparison,
+distance-threshold comparisons, sphere containment, right-circle-boundary
+comparisons, and the 2D convex hull. Other algorithms and coordinate
+constructions have not been converted. An exact predicate cannot repair an
+already rounded intersection. `BigFloat` alone is not an exact kernel.
+
+Custom kernels subtype `AbstractKernel` and implement kernel-first predicate
+methods such as `turn_sign(kernel, p, q, r)` and `compare_xy(kernel, p, q)`.
+Missing methods do not fall back silently. A future certified filtered kernel
+can use this same interface; no filtered kernel is claimed in this release.
+
 This library provides a flat, idiomatic hierarchy for geometric types and algorithms that are useful across various computational geometry tasks.
 
 ## Features

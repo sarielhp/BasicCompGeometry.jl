@@ -72,15 +72,17 @@ When `t=0`, returns `p`. When `t=1`, returns `q`.
 end
 
 """
-    turn_sign(p, q, r)
+    turn_sign(p, q, r; kernel=FloatingKernel())
 
 Return the sign of the turn formed by the sequence of 2D points `p -> q -> r`.
 A positive value indicates a counter-clockwise (left) turn, 
 a negative value indicates a clockwise (right) turn, 
-and zero indicates the points are collinear.
+and zero indicates the points are collinear. Returns the signed determinant,
+not a normalized sign. Use `kernel=ExactKernel()` for exact predicate arithmetic.
 """
-@inline function turn_sign(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T}
-    return (q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1])
+@inline function turn_sign(p::Point{2}, q::Point{2}, r::Point{2};
+    kernel::AbstractKernel=FloatingKernel())
+    return turn_sign(kernel, p, q, r)
 end
 
 """
@@ -88,16 +90,20 @@ end
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn.
 """
-@inline is_left_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
-    turn_sign(p, q, r) > zero(T)
+@inline is_left_turn(p::Point{2}, q::Point{2}, r::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+    is_left_turn(kernel, p, q, r)
+@inline is_left_turn(kernel::AbstractKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+    turn_sign(kernel, p, q, r) > 0
 
 """
     is_right_turn(p, q, r)
 
 Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn.
 """
-@inline is_right_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
-    turn_sign(p, q, r) < zero(T)
+@inline is_right_turn(p::Point{2}, q::Point{2}, r::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+    is_right_turn(kernel, p, q, r)
+@inline is_right_turn(kernel::AbstractKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+    turn_sign(kernel, p, q, r) < 0
 
 """
     is_left_eq_turn(p, q, r)
@@ -105,8 +111,10 @@ Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (r
 Return `true` if the sequence of 2D points `p -> q -> r` performs a counter-clockwise (left) turn 
 or if the points are collinear.
 """
-@inline is_left_eq_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
-    turn_sign(p, q, r) >= zero(T)
+@inline is_left_eq_turn(p::Point{2}, q::Point{2}, r::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+    is_left_eq_turn(kernel, p, q, r)
+@inline is_left_eq_turn(kernel::AbstractKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+    turn_sign(kernel, p, q, r) >= 0
 
 """
     is_right_eq_turn(p, q, r)
@@ -114,16 +122,20 @@ or if the points are collinear.
 Return `true` if the sequence of 2D points `p -> q -> r` performs a clockwise (right) turn 
 or if the points are collinear.
 """
-@inline is_right_eq_turn(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
-    turn_sign(p, q, r) <= zero(T)
+@inline is_right_eq_turn(p::Point{2}, q::Point{2}, r::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+    is_right_eq_turn(kernel, p, q, r)
+@inline is_right_eq_turn(kernel::AbstractKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+    turn_sign(kernel, p, q, r) <= 0
 
 """
     is_collinear(p, q, r)
 
 Return `true` if the three 2D points `p`, `q`, and `r` are collinear.
 """
-@inline is_collinear(p::Point{2,T}, q::Point{2,T}, r::Point{2,T}) where {T} =
-    turn_sign(p, q, r) == zero(T)
+@inline is_collinear(p::Point{2}, q::Point{2}, r::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+    is_collinear(kernel, p, q, r)
+@inline is_collinear(kernel::AbstractKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+    turn_sign(kernel, p, q, r) == 0
 
 """
     point(args...)

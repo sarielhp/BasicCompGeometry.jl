@@ -349,6 +349,7 @@ Aqua.test_all(BasicCompGeometry)
         end
     end
 
+    include("test_kernels.jl")
     include("test_metric_space.jl")
     include("test_read_write.jl")
     include("test_longest_convex_subset.jl")
