@@ -306,13 +306,13 @@ using Cairo, Colors # This triggers the BBTCairoExt extension
 BBT.Tree_draw(tree, "output/tree.pdf")
 ```
 
-## Origins
+## Origins & AI Contribution Notice
 
-The code in this module was originally part of the `FrechetDist`
-package, but this package does not currently provide Fréchet-distance algorithms.
-Sariel Har-Peled wrote the original geometry code. Gemini CLI and OpenAI Codex
-have assisted substantially with later implementation, refactoring, tests,
-documentation, and visualization interfaces.
+The basic library was originally written by Sariel Har-Peled (initially developed as part of the `FrechetDist` package, with large portions based on computational geometry algorithms and code originally written in C++ 25 years ago).
+
+More recent versions, modernizations, extensions, tests, documentation, and predicate kernels were written and generated with the assistance of AI coding tools (including Google Gemini CLI and OpenAI Codex). 
+
+As the author and maintainer, I fully understand the codebase, curate its mathematical and algorithmic design, take full responsibility for the code, and actively support maintenance, bug fixes, and future improvements.
 
 The package has since been reorganized around:
 - A flat module hierarchy.
