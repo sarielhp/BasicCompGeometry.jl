@@ -12,6 +12,24 @@ Entries are sorted by modification date (newest first).
 
 ---
 
+## `convex_hull_figure.jl` — AI-Generated Standalone Convex Hull & Diameter Figure
+
+Demonstrates a standalone figure script using `QuickEnv`, `BasicCompGeometry`, and `IpeDraw`.
+Generates 35 deterministic 2D points, computes their 2D convex hull, finds the diameter pair and segment,
+and renders a publication-ready Ipe/PDF figure with LaTeX formulas, a named theme, legend, scale bar,
+and a zoomed-in inset viewport. Can be run completely standalone without `--project` flags via `QuickEnv`.
+
+**Usage:**
+```bash
+./examples/convex_hull_figure.jl
+# or:
+julia examples/convex_hull_figure.jl
+```
+
+**Output:** `output/convex_hull_figure.ipe`, `output/convex_hull_figure.pdf`
+
+---
+
 ## `disks_figure.jl` — Compact Geometry-Aware Figure
 
 Uses the compact drawing API, a named theme, legend, scale bar, and clipped

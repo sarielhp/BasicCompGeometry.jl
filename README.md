@@ -21,6 +21,37 @@ Use a robust geometry library when correctness on adversarial numerical inputs i
 required.
 
 
+## Highlights
+
+- **AI-Assisted Figure Generation with `IpeDraw`**:
+  A powerful workflow for researchers is prompting AI coding agents (such as Google Gemini, Claude, or ChatGPT) to write self-contained Julia scripts that compute geometric algorithms and produce publication-ready vector figures (`.ipe` and `.pdf`). With the native `IpeDraw` submodule, output figures retain editable vector layers, native LaTeX formulas, automatic page fitting, custom styles/themes, legends, scale bars, and inset zoom viewports.
+- **Zero-Ceremony Standalone Scripts with [`QuickEnv.jl`](https://github.com/sarielhp/QuickEnv.jl)**:
+  Instead of managing virtual environments or remembering `--project` flags, standalone figure scripts can simply start with `using QuickEnv` followed by `using BasicCompGeometry, BasicCompGeometry.IpeDraw`. QuickEnv automatically isolates dependencies without polluting the global environment, allowing scripts to be executed directly via `./script.jl` or `julia script.jl`.
+- **Live Tested AI Prompt**:
+  See below for a live test prompt and the resulting standalone script in [`examples/convex_hull_figure.jl`](examples/convex_hull_figure.jl), generated end-to-end by an AI agent (Gemini Flash).
+- **Exact & Pluggable Predicate Kernels**:
+  Easily opt into exact arithmetic decisions (`kernel=ExactKernel()`) for robust geometric decisions (arbitrary-precision integer/rational coordinates and algebraic radical isolation) without changing point storage types or incurring overhead on default floating-point calls.
+
+### AI-Assisted Figure Generation: Live Test
+
+To demonstrate how AI agents can leverage `BasicCompGeometry.jl` and `QuickEnv.jl` to generate figures on demand, here is an actual prompt tested with **Gemini Flash**:
+
+> **Prompt:**  
+> *"Using Julia, QuickEnv, and BasicCompGeometry (with IpeDraw), write a standalone executable script that generates a publication-quality Ipe/PDF figure illustrating the convex hull and diameter of a 2D point set:*  
+> *1. Generate 35 deterministic 2D points inside a $[0, 10]^2$ box.*  
+> *2. Compute their 2D convex hull with `convex_hull`.*  
+> *3. Find the diameter pair $(p, q)$ among the hull vertices and the diameter segment.*  
+> *4. Draw the bounding box, points (as small gray dots), the convex hull (as a translucent light-blue polygon with a navy border), hull vertices, and the diameter segment (as a dashed red line).*  
+> *5. Add LaTeX labels: label vertex $p$ with $p$, vertex $q$ with $q$, and label the midpoint of the diameter segment with $D = \mathrm{diam}(P)$.*  
+> *6. Add a legend in the top-left corner with LaTeX math labels ($\mathcal{CH}(P)$ and $D$), a scale bar of length $2.0$, and an inset zoom box in the top-right corner focusing on vertex $p$.*  
+> *7. Save the output to `output/convex_hull_figure.pdf` and keep the editable `.ipe` file."*
+
+The complete, working script produced from this prompt is available at [`examples/convex_hull_figure.jl`](examples/convex_hull_figure.jl). Running it directly:
+```bash
+./examples/convex_hull_figure.jl
+```
+runs completely standalone via `QuickEnv` and produces both the editable `output/convex_hull_figure.ipe` and the compiled vector `output/convex_hull_figure.pdf`.
+
 ## Overview
 
 ### Optional predicate kernels
