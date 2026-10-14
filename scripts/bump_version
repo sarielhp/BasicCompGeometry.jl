@@ -47,7 +47,8 @@ exit if ARGV.include?('--dry-run')
 abort 'Release from main.' unless git('branch', '--show-current') == 'main'
 abort 'Commit all changes before releasing.' unless git('status', '--porcelain').empty?
 run('rtk', 'proxy', 'ruby', '-cw', 'scripts/bump_version')
-run('rtk', 'proxy', 'ruby-audit', '--strict', 'scripts/bump_version')
+run('rtk', 'proxy', 'ruby', '-cw', 'tools/push')
+run('rtk', 'proxy', 'ruby-audit', '--strict', 'scripts/bump_version', 'tools/push')
 github('auth', 'status')
 remote_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
 abort 'Local main must match GitHub main before bumping.' unless git('rev-parse', 'HEAD') == remote_head
@@ -56,8 +57,7 @@ File.write(PROJECT_FILE, content)
 git('add', 'Project.toml')
 git('commit', '-m', "Bump version to #{new_ver}")
 commit = git('rev-parse', 'HEAD')
-git('-c', 'credential.helper=', '-c', 'credential.helper=!rtk proxy gh auth git-credential', 'push',
-    "https://github.com/#{GITHUB_REPO}.git", 'HEAD:refs/heads/main')
+run('rtk', 'proxy', 'ruby', 'tools/push')
 published_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
 abort 'Remote main does not match the release commit.' unless published_head == commit
 

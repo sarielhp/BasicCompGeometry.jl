@@ -151,5 +151,6 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
 
 ## 8. Keyword Triggers
 
-- **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push over HTTPS, wait for release CI, and request JuliaRegistrator registration. TagBot creates the tag and GitHub release after registration merges. JuliaRegistrator must be enabled for this repository. Use `--dry-run` to preview the next version.
+- **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push through `tools/push`, wait for release CI, and request JuliaRegistrator registration. TagBot creates the tag and GitHub release after registration merges. JuliaRegistrator must be enabled for this repository. Use `--dry-run` to preview the next version.
+- **Pushing**: Use `tools/push` to push the current branch to the configured `origin` and verify its remote commit. It never forces updates or pushes tags. Use `--dry-run` to preview. SSH remotes still require the explicit authorization specified by the global instructions.
 

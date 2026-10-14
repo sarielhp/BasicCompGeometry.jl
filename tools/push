@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Push the current branch to origin and verify the published commit.
+
+require 'open3'
+
+REPO = File.expand_path('..', __dir__).freeze
+
+def git(*args)
+  stdout, stderr, status = Open3.capture3('rtk', 'proxy', 'git', *args, chdir: REPO)
+  abort "git #{args.first} failed:\n#{stderr}\n#{stdout}" unless status.success?
+  stdout.strip
+end
+
+abort 'Usage: tools/push [--dry-run]' unless (ARGV - ['--dry-run']).empty?
+branch = git('branch', '--show-current')
+abort 'Cannot push a detached HEAD; check out a branch first.' if branch.empty?
+commit = git('rev-parse', 'HEAD')
+ref = "refs/heads/#{branch}"
+puts "Push #{branch} (#{commit}) to origin"
+exit if ARGV.include?('--dry-run')
+
+git('push', 'origin', "#{commit}:#{ref}")
+remote_commit = git('ls-remote', 'origin', ref).split.first
+abort 'Remote branch does not match the pushed commit.' unless remote_commit == commit
+puts "Verified origin/#{branch} at #{commit}"
