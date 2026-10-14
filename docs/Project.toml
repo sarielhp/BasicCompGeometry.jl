@@ -2,5 +2,8 @@
 BasicCompGeometry = "0c31748f-8c26-4873-98d7-afbf071564da"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 
+[sources]
+BasicCompGeometry = {path = ".."}
+
 [compat]
 Documenter = "1"

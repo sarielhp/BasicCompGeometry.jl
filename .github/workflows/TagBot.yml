@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: JuliaRegistries/TagBot@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build documentation for the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          release_tag=$(gh release view --json tagName --jq '.tagName')
+          gh workflow run Documentation.yml --ref "$release_tag"

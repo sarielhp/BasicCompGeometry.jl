@@ -14,11 +14,21 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         julia-version: ['1.9', '1.10', '1']
+        include:
+          - os: macos-latest
+            julia-version: '1'
+          - os: windows-latest
+            julia-version: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -27,6 +37,18 @@ jobs:
       - uses: julia-actions/cache@v2
       - name: Run package tests
         uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1' }}
+      - name: Process coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+        uses: julia-actions/julia-processcoverage@v1
+      - name: Save coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: error
       - name: Verify the core installs without visualization packages
         run: |
           julia -e '
@@ -86,6 +108,7 @@ jobs:
         run: |
           julia --project=docs -e '
             using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
 
       - name: Build and deploy documentation

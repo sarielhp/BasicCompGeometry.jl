@@ -151,5 +151,5 @@ Temporary files (test outputs, intermediate data, scratch plots, etc.) should be
 
 ## 8. Keyword Triggers
 
-- **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push, and tag on GitHub.
+- **"bump"**: Run `ruby scripts/bump_version` to bump the patch version, commit, push over HTTPS, wait for release CI, and request JuliaRegistrator registration. TagBot creates the tag and GitHub release after registration merges. JuliaRegistrator must be enabled for this repository. Use `--dry-run` to preview the next version.
 

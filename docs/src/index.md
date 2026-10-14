@@ -70,6 +70,10 @@ All metric spaces subtype `AbsFMS`. They represent a set of $n$ points identifie
 
 ## Quick Start
 
+Requires Julia 1.9 or newer. Before General registration, install with
+`Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")`; after
+registration, use `Pkg.add("BasicCompGeometry")`.
+
 ```julia
 using BasicCompGeometry
 
@@ -92,6 +96,12 @@ is_inside(point(1.0, 1.0), bb) # true
 ps = PntSeq([p1, p2, point(0.0, 4.0)])
 cardin(ps) # 3
 ```
+
+Ordinary calls use floating-point predicates. Kernel-aware operations, including
+the 2D convex hull, support `convex_hull(ps; kernel=ExactKernel())` for exact
+decisions on the stored coordinates. This does not make every algorithm or
+construction in the package exact. See the README's predicate-kernel section for
+the supported operations and limits.
 
 ## API Reference
 

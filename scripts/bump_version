@@ -1,26 +1,70 @@
 #!/usr/bin/env ruby
-# Bump patch version (0.0.1), commit, push, and tag on GitHub.
+# frozen_string_literal: true
+# Bump, push, verify CI, and request registration; TagBot handles tagging.
 
-PROJECT_FILE = File.join(__dir__, '..', 'Project.toml')
+require 'json'
+require 'open3'
 
+REPO = File.expand_path('..', __dir__).freeze
+PROJECT_FILE = File.join(REPO, 'Project.toml').freeze
+GITHUB_REPO = 'sarielhp/BasicCompGeometry.jl'
+VERSION_PATTERN = /^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"$/.freeze
+
+def run(*command)
+  stdout, stderr, status = Open3.capture3(*command, chdir: REPO)
+  abort "#{command.first(3).join(' ')} failed:\n#{stderr}\n#{stdout}" unless status.success?
+  stdout.strip
+end
+
+def git(*args)
+  run('rtk', 'proxy', 'git', *args)
+end
+
+def github(*args)
+  run('rtk', 'proxy', 'gh', *args)
+end
+
+def ci_run_for(commit)
+  30.times do
+    runs = JSON.parse(github('run', 'list', '--repo', GITHUB_REPO,
+                            '--workflow', 'Documentation.yml', '--commit', commit,
+                            '--limit', '1', '--json', 'databaseId'))
+    return runs.first.fetch('databaseId').to_s unless runs.empty?
+    sleep 2
+  end
+  abort "No CI run found for #{commit}; inspect Actions before registering."
+end
+
+abort 'Usage: ruby scripts/bump_version [--dry-run]' unless (ARGV - ['--dry-run']).empty?
 content = File.read(PROJECT_FILE)
-old_ver = content[/^version\s*=\s*"(.+?)"/, 1]
-abort 'Could not find version in Project.toml' unless old_ver
-
-major, minor, patch = old_ver.split('.').map(&:to_i)
+version_match = VERSION_PATTERN.match(content)
+abort 'Could not find a semantic version in Project.toml' unless version_match
+major, minor, patch = version_match.captures.map(&:to_i)
 new_ver = "#{major}.#{minor}.#{patch + 1}"
+puts "Patch release: #{major}.#{minor}.#{patch} -> #{new_ver}"
+exit if ARGV.include?('--dry-run')
 
-content.sub!(/^version\s*=\s*".*?"/, "version = \"#{new_ver}\"")
+abort 'Release from main.' unless git('branch', '--show-current') == 'main'
+abort 'Commit all changes before releasing.' unless git('status', '--porcelain').empty?
+run('rtk', 'proxy', 'ruby', '-cw', 'scripts/bump_version')
+run('rtk', 'proxy', 'ruby-audit', '--strict', 'scripts/bump_version')
+github('auth', 'status')
+remote_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
+abort 'Local main must match GitHub main before bumping.' unless git('rev-parse', 'HEAD') == remote_head
+content.sub!(VERSION_PATTERN, "version = \"#{new_ver}\"")
 File.write(PROJECT_FILE, content)
+git('add', 'Project.toml')
+git('commit', '-m', "Bump version to #{new_ver}")
+commit = git('rev-parse', 'HEAD')
+git('-c', 'credential.helper=!rtk proxy gh auth git-credential', 'push',
+    "https://github.com/#{GITHUB_REPO}.git", 'HEAD:refs/heads/main')
+published_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
+abort 'Remote main does not match the release commit.' unless published_head == commit
 
-puts "Bumped version: #{old_ver} -> #{new_ver}"
-
-repo = File.join(__dir__, '..')
-system('git', '-C', repo, 'add', 'Project.toml') || abort('git add failed')
-system('git', '-C', repo, 'commit', '-m', "Bump version to #{new_ver}") || abort('git commit failed')
-system('git', '-C', repo, 'push') || abort('git push failed')
-system('git', '-C', repo, 'tag', '-a', "v#{new_ver}", '-m', "Version #{new_ver}") || abort('git tag failed')
-system('git', '-C', repo, 'push', '--tags') || abort('git push --tags failed')
-
-puts "Tagged and pushed v#{new_ver}"
-puts 'GitHub: https://github.com/sarielhp/BasicCompGeometry.jl'
+puts "Waiting for CI on #{commit}"
+github('run', 'watch', ci_run_for(commit), '--repo', GITHUB_REPO, '--exit-status', '--interval', '20')
+comment_url = github('api', "repos/#{GITHUB_REPO}/commits/#{commit}/comments",
+                     '-f', "body=@JuliaRegistrator register\n\nRelease notes:\nSee CHANGELOG.md.",
+                     '--jq', '.html_url')
+puts "Registration requested for #{new_ver}: #{comment_url}"
+puts 'Check Registrator and AutoMerge results. TagBot creates the tag after registration merges.'

@@ -17,6 +17,8 @@ exact pair coverage. Fréchet distance is not implemented in this package.
 Most predicates use ordinary floating-point arithmetic rather than exact or
 adaptive predicates. Degenerate or ill-conditioned inputs can therefore produce
 incorrect combinatorial results, especially in convex hull and arrangement code.
+Kernel-aware operations, including the 2D convex hull, can use `ExactKernel()`;
+see the supported operations below. Other algorithms retain floating-point decisions.
 Use a robust geometry library when correctness on adversarial numerical inputs is
 required.
 
@@ -233,12 +235,16 @@ For detailed information on all types and functions, please see the [Latest Docu
 
 ## Installation
 
+Requires Julia 1.9 or newer.
+
 Until the package is registered, install it directly from GitHub:
 
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/sarielhp/BasicCompGeometry.jl")
 ```
+
+After registration in General, install with `Pkg.add("BasicCompGeometry")`.
 
 ## Examples
 

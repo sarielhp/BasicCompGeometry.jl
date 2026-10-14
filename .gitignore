@@ -1,6 +1,9 @@
 FrechtDist/
 /Manifest.toml
 docs/build/
+docs/Manifest.toml
+*.cov
+lcov.info
 *.pdf
 output/
 .agents/
