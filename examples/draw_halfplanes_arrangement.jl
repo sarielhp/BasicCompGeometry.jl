@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 # Example: draw_halfplanes_arrangement.jl
@@ -70,7 +72,7 @@ end
 
 function parse_args()
     input_file = nothing
-    output_file = joinpath(@__DIR__, "..", "output", "halfplanes_arrangement.pdf")
+    output_file = example_output("halfplanes_arrangement.pdf")
     n_rand = 12
     cw = 800.0
     ch = 800.0
@@ -124,7 +126,7 @@ function main()
         hps = read_halfplanes(opts.input_file)
         source_desc = "Loaded $(length(hps)) halfplanes from $(opts.input_file)"
     else
-        default_candidate = joinpath(@__DIR__, "..", "output", "pruned_halfplanes_k5.txt")
+        default_candidate = example_output("pruned_halfplanes_k5.txt")
         if isfile(default_candidate)
             hps = read_halfplanes(default_candidate)
             source_desc = "Loaded $(length(hps)) halfplanes from $(default_candidate)"

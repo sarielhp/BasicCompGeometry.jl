@@ -23,7 +23,7 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
 
     # Utility to draw a single bounding box
     function bbox_draw(canvas, bb, color)
-        C.set_source(canvas, color)
+        C.set_source(canvas.cr, color)
         bl = bottom_left(bb)
         w = width(bb, 1)
         h = height(bb, 2)
@@ -36,7 +36,7 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
         node.f_leaf && return
         if level ∈ range
             yellow_transparent = Clr.coloralpha(Clr.parse(Clr.Colorant, "yellow"), 0.1)
-            C.set_source(canvas, yellow_transparent)
+            C.set_source(canvas.cr, yellow_transparent)
 
             # Expand slightly for better visibility
             bb = node.bb + (diam(node.bb) * 0.01)
@@ -47,7 +47,7 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
             C.rectangle(canvas, bl[1], bl[2], w, h)
             C.fill_preserve(canvas)
 
-            C.set_source(canvas, Clr.parse(Clr.Colorant, "blue"))
+            C.set_source(canvas.cr, Clr.parse(Clr.Colorant, "blue"))
             cairo_set_line_width(canvas, 1.5)
             C.stroke(canvas)
         end

@@ -1,6 +1,8 @@
 #!/usr/bin/env julia
 
 # Using QuickEnv for zero-ceremony standalone execution without managing environments.
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 using BasicCompGeometry
 using BasicCompGeometry.IpeDraw
@@ -28,7 +30,7 @@ diam_seg = Segment(p_diam, q_diam)
 diam_mid = point((p_diam.x + q_diam.x) / 2, (p_diam.y + q_diam.y) / 2)
 
 # 3. Output directory setup
-output_dir = joinpath(@__DIR__, "..", "output")
+output_dir = example_output()
 mkpath(output_dir)
 pdf_path = joinpath(output_dir, "convex_hull_figure.pdf")
 

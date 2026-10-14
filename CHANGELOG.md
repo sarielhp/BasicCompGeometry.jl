@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - Unreleased
 
 ### Added
+- Reproducible examples environment and bounded smoke tests for all 22 example
+  programs, including all three prophet modes, with output validation.
 - Opt-in `BasicCompGeometry.Extras` submodule exporting 89 additional supported
   public API names, with their original bindings.
-- CI publication of coverage to Codecov, alongside downloadable coverage reports.
+- CI publication of unit, example, and external-tool integration coverage to
+  Codecov, alongside downloadable coverage reports.
 
 ### Changed
+- Fixed stale polygon-drawing calls, bounding-box-tree color rendering, late Cairo
+  loading in the halfplane example, and the sphere example's table backend.
 - **Breaking:** Reduced the default export list to 130 public API names. The
   89 names listed below are available through qualification, explicit imports,
   or `Extras`. Their definitions, signatures, and behavior are unchanged.

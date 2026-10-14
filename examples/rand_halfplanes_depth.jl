@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 #
@@ -20,8 +22,9 @@ using LinearAlgebra
 using Printf
 using Random
 using Statistics
+using Cairo
 
-function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool = false, plot_path::String = "output/rand_halfplanes_depth.pdf")
+function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool = false, plot_path::String = example_output("rand_halfplanes_depth.pdf"))
     rng = Random.Xoshiro(seed)
 
     println("="^70)
@@ -54,6 +57,7 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
     num_verts = length(vertices(decomp))
     total_area = area(decomp)
     rel_area_err = abs(total_area - view_area) / view_area
+    EXAMPLE_SMOKE && @assert rel_area_err < 1e-8
     @printf("      Decomposition time:       %.3f s\n", t_decomp)
     @printf("      Vertices in view:         %d\n", num_verts)
     @printf("      Vertical trapezoids:      %d\n", num_traps)
@@ -65,6 +69,7 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
     centers = [centroid(trap.corners) for trap in decomp]
 
     t_depth = @elapsed depths = [depth(hps, c) for c in centers]
+    EXAMPLE_SMOKE && @assert all(d -> 0 <= d <= n, depths)
     @printf("      Depth query time:         %.3f s (%.1f µs/trapezoid)\n\n",
             t_depth, (t_depth / num_traps) * 1e6)
 
@@ -95,23 +100,6 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
 end
 
 function render_plot(decomp, depths, min_d, max_d, outfile)
-    if Base.find_package("Cairo") === nothing
-        println("Note: Cairo not available in environment; skipping plot rendering.")
-        return
-    end
-
-    # Use Cairo via extension
-    cairo_mod = Base.get_extension(BasicCompGeometry, :CairoExt)
-    if cairo_mod === nothing
-        # Try loading Cairo if possible
-        try
-            @eval using Cairo
-        catch
-            println("Note: Could not activate CairoExt; skipping plot.")
-            return
-        end
-    end
-
     mkpath(dirname(outfile))
     view = decomp.view
     cw = 900

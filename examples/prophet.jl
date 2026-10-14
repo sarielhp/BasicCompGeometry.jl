@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 """
@@ -1142,7 +1144,7 @@ Examples:
         end
     end
 
-    outdir = normpath(joinpath(@__DIR__, "..", "output"))
+    outdir = example_output()
     mkpath(outdir)
     pdf_path = joinpath(outdir, "prophet.pdf")
     svg_dir = joinpath(outdir, "svg")
@@ -1184,7 +1186,7 @@ Examples:
     elseif mode_str in ["2", "mode2", "powers"]
         println("Prophet Voronoi Diagram - Mode 2 (Powers of 2: N = 2^3..2^12)")
         println("="^70)
-        generate_mode2(pdf_path, svg_dir; powers=3:12, seed=seed_arg)
+        generate_mode2(pdf_path, svg_dir; powers=example_size(3:12, 3:4), seed=seed_arg)
     elseif mode_str in ["3", "mode3", "prophet"]
         N = !isnothing(N_arg) ? N_arg : 100
         println("Prophet Voronoi Diagram - Mode 3 [Default] (9-Page Prophet Comparison, N = $N)")

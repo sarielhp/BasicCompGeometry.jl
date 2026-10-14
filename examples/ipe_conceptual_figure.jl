@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 using BasicCompGeometry
 using BasicCompGeometry.IpeDraw
@@ -120,7 +122,7 @@ function generate_inverse_estimation_figure(output_base::String)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    out_dir = normpath(joinpath(@__DIR__, "..", "output"))
+    out_dir = example_output()
     mkpath(out_dir)
     target = joinpath(out_dir, "inverse_estimation_demo")
     artifacts = generate_inverse_estimation_figure(target)

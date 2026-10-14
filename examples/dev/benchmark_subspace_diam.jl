@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 
 # High-scale comparison of subspace diameter implementations:
@@ -58,6 +60,11 @@ function run_benchmark(n, num_tests, ε, run_exact=true)
     for i in 1:num_tests
         res = MVBB.approx_diam_subspace(datasets[i], ε, directions[i])
         results_fst[i] = res.distance
+        if EXAMPLE_SMOKE
+            exact = exact_diameter_subspace(datasets[i], directions[i])
+            @assert exact / (1 + ε + 1e-12) <= results_wspd[i] <= exact + 1e-12
+            @assert exact / (1 + ε + 1e-12) <= results_fst[i] <= exact + 1e-12
+        end
     end
     t_fst = (time() - t_start_fst) / num_tests
 
@@ -79,7 +86,7 @@ function run_benchmark(n, num_tests, ε, run_exact=true)
 end
 
 function (@main)(args)
-    num_tests = 100
+    num_tests = example_size(100, 2)
     
     @printf("Benchmark: High-Scale Subspace Diameter Comparison\n")
     @printf("Settings: num_tests=%d\n\n", num_tests)
@@ -94,7 +101,7 @@ function (@main)(args)
 
     # Table 1: Standard sizes
     @printf("Table 1: Standard Sizes (ε=0.010)\n")
-    sizes = [100, 1000, 10000]
+    sizes = example_size([100, 1000, 10000], [32, 64])
     results1 = []
     for n in sizes
         @printf("  Running n=%d...\n", n)
@@ -115,7 +122,7 @@ function (@main)(args)
     results2 = []
     for ε in eps_values
         @printf("  Running ε=%.1f...\n", ε)
-        push!(results2, run_benchmark(200000, num_tests, ε, false))
+        push!(results2, run_benchmark(example_size(200000, 64), num_tests, ε, false))
     end
 
     @printf("\n| %-7s | %-8s | %-12s | %-12s | %-12s | %-8s |\n", 

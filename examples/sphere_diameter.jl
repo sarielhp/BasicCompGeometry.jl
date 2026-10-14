@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 #
@@ -28,6 +30,7 @@ function test_diameter(P, N::Int, D::Int)
 
     t_approx = @timed approx_diam = approx_diameter(P, 0.1)
     t_exact = @timed exact_diam = exact_diameter(P)
+    EXAMPLE_SMOKE && @assert exact_diam / (1.1 + 1e-12) <= approx_diam <= exact_diam + 1e-12
 
     @printf(
         "D: %d  N: %8d  Approx: %10.6f  Exact: %10.6f    T_approx: %10.4fs  T_exact: %10.4fs\n",
@@ -73,7 +76,7 @@ function diam_test_sphere(D, iters, filename)
             :exact_runtime => "RT Exact",
             :approx_ratio => "Ratio",
         )
-        pretty_table(fl, df_display, alignment = :r, backend = :markdown)
+        pretty_table(fl, df_display, alignment = :r, backend = Val(:markdown))
     end
     println("Results saved to: ", relpath(filename, normpath(joinpath(@__DIR__, ".."))))
 end
@@ -83,21 +86,21 @@ function main()
 
     # 1. BBT Visualization Example (2D)
     println("\nGenerating BBT visualization...")
-    P_viz = Polygon_random_sphere(2, Float64, 200)
+    P_viz = Polygon_random_sphere(2, Float64, example_size(200, 24))
     translate!(P_viz, point(400.0, 400.0))
     scale!(P_viz, 300.0)
     tree = BBT.Tree_init(P_viz)
     BBT.Tree_fully_expand(tree)
-    mkpath(joinpath(@__DIR__, "..", "output"))
-    bbt_path = joinpath(@__DIR__, "..", "output", "sphere_bbt.pdf")
+    mkpath(example_output())
+    bbt_path = example_output("sphere_bbt.pdf")
     BBT.Tree_draw(tree, bbt_path)
     println("BBT visualization: ", relpath(bbt_path, normpath(joinpath(@__DIR__, ".."))))
 
     # 2. Performance Comparison
     println("\nRunning diameter tests (Approx vs Exact)...")
     # Using smaller iters for the example run
-    diam_test_sphere(2, 12, joinpath(@__DIR__, "..", "output", "results", "example_2d.md"))
-    diam_test_sphere(3, 10, joinpath(@__DIR__, "..", "output", "results", "example_3d.md"))
+    diam_test_sphere(2, example_size(12, 4), example_output("results", "example_2d.md"))
+    diam_test_sphere(3, example_size(10, 4), example_output("results", "example_3d.md"))
 
     println("\nExample completed successfully.")
 end

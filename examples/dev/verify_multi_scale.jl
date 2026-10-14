@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 
 # Multi-scale verification of approx_diam_subspace implementations:
@@ -58,6 +60,10 @@ function run_verify(n, num_tests, ε)
 
         ratios_wspd[i] = exact / wspd
         ratios_fst[i] = exact / fst
+        if EXAMPLE_SMOKE
+            @assert 1 - 1e-12 <= ratios_wspd[i] <= 1 + ε + 1e-12
+            @assert 1 - 1e-12 <= ratios_fst[i] <= 1 + ε + 1e-12
+        end
     end
 
     return (
@@ -82,7 +88,7 @@ function (@main)(args)
     _ = exact_diameter_subspace(warm_ps, warm_dir)
 
     # (n, num_tests)
-    configs = [(100, 100), (1000, 50), (10000, 5)]
+    configs = example_size([(100, 100), (1000, 50), (10000, 5)], [(32, 2), (64, 2)])
 
     @printf("Multi-Scale Verification (ε=%.3f)\n", ε)
     @printf("| %-7s | %-12s | %-12s | %-12s | %-10s | %-10s |\n", 

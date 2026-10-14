@@ -10,7 +10,8 @@ require 'yaml'
 
 ROOT = File.expand_path('..', __dir__).freeze
 CASES = YAML.safe_load_file(File.join(__dir__, 'example_smoke.yml')).freeze
-RUN_DIR = File.join(ROOT, 'output', 'tmp', 'example-smoke', "run-#{Process.pid}").freeze
+RUN_DIR = File.expand_path(ENV.fetch('BCG_EXAMPLE_RUN_DIR', "output/tmp/example-smoke/run-#{Process.pid}"), ROOT).freeze
+abort "Smoke output directory already exists: #{RUN_DIR}" if File.exist?(RUN_DIR)
 
 class ExampleSmokeTest < Minitest::Test
   def test_every_example_has_a_smoke_case
@@ -38,6 +39,7 @@ class ExampleSmokeTest < Minitest::Test
       terminate_example(pid) unless status
     end
     assert status.success?, "#{spec.fetch('name')} failed; log: #{log_path}\n#{File.read(log_path).lines.last(35).join}"
+    assert File.file?(File.join(directory, 'coverage.info')), 'Missing Julia coverage report' if ENV['BCG_EXAMPLE_COVERAGE'] == 'true'
     File.read(log_path)
   end
 

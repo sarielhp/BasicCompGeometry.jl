@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 #
@@ -191,7 +193,8 @@ function run_prune_halfplanes_depth(
     println("="^70)
 
     # 6. Save pruned halfplanes to text file
-    out_path = output_file !== nothing ? output_file : "output/pruned_halfplanes_k$(k).txt"
+    EXAMPLE_SMOKE && @assert final_min_d >= k
+    out_path = output_file !== nothing ? output_file : example_output("pruned_halfplanes_k$(k).txt")
     write_halfplanes(out_path, final_hps)
     println("\nSaved pruned set of $(final_size) halfplanes to: ", out_path)
 

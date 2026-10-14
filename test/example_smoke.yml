@@ -22,7 +22,7 @@
 - name: ipe_conceptual_figure
   program: ipe_conceptual_figure.jl
   purpose: Generate a layered inverse-estimation diagram and its LaTeX wrapper.
-  files: {inverse_estimation_demo.pdf: 1, inverse_estimation_demo.ipe: null, inverse_estimation_demo.tex: null}
+  files: {inverse_estimation_demo.pdf: 1, inverse_estimation_demo.ipe: null, inverse_estimation_demo_fig.tex: null}
 - name: longest_convex_subset
   program: longest_convex_subset.jl
   purpose: Compute and draw largest convex subsets for two random point sets.

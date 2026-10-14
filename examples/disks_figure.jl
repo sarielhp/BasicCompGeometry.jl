@@ -1,9 +1,11 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using BasicCompGeometry
 using BasicCompGeometry.IpeDraw
 
-output_dir = joinpath(@__DIR__, "..", "output")
+output_dir = example_output()
 mkpath(output_dir)
 
 left = Circle(point(0.0, 0.0), 1.0)

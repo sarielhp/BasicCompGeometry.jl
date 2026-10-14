@@ -2,11 +2,57 @@
 
 This directory contains runnable example scripts demonstrating the
 capabilities of `BasicCompGeometry.jl`. Each example is self-contained
-and can be run with:
+and can be run with Julia 1.11 or newer (some entry points use `@main`).
+Prepare the environment against this checkout once:
+
+```bash
+julia --startup-file=no --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+```
+
+Then run an example with:
 
 ```bash
 julia --project=examples examples/<script>.jl [args...]
 ```
+
+For reproducible runs in this environment, set `QUICKENV_DISABLE_AUTO=true`.
+Otherwise scripts importing QuickEnv may select its automatic shared environment.
+Figure examples require Ipe, a LaTeX installation, `pdftocairo`, and `qpdf`;
+animated examples also require `ffmpeg`. The Julia library itself supports Julia 1.9.
+
+## Automated smoke tests
+
+`test/example_smoke.yml` records what every program does, its small-run arguments,
+expected output files, and PDF page counts. `test/example_smoke.rb` runs each
+program in a fresh Julia process, with a 240-second timeout and its own output
+directory under `output/tmp/example-smoke/`. An inventory check fails if a new
+example has no smoke case. All three `prophet.jl` modes have separate cases.
+
+```bash
+ruby test/example_smoke.rb
+# Collect library and extension coverage as well:
+BCG_EXAMPLE_COVERAGE=true ruby test/example_smoke.rb
+# Run one case while fixing it:
+ruby test/example_smoke.rb --name test_example_sq_vs_point
+```
+
+The runner enables `BCG_EXAMPLE_SMOKE=true` to reduce benchmark sizes, sample
+counts, heatmap grids, and animation frames while retaining the main computation
+and rendering paths. It checks numerical approximation bounds and area/polarity
+invariants, validates PDFs and page counts, parses Ipe/SVG XML, and checks PNG
+signatures and GIF frame counts. It does not assess visual layout or exhaustively
+test every command-line option; the polar-bisector movie modes are not included.
+CI merges these runs and the external-tool integration tests into Codecov.
+
+To run a small example directly:
+
+```bash
+QUICKENV_DISABLE_AUTO=true BCG_EXAMPLE_SMOKE=true \
+  julia --project=examples examples/sq_vs_point.jl
+```
+
+`BCG_EXAMPLE_OUTPUT_DIR` can redirect generated files into a chosen output
+subdirectory. Ordinary runs keep the original input sizes and animation lengths.
 
 Entries are sorted by modification date (newest first).
 

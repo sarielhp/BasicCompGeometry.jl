@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 #
@@ -92,6 +94,11 @@ function main()
     @printf("Plane p match:  %s (equivalent representation)\n", same_plane(pl, pl2))
 
     max_err = max(e2, e2b, e3, e3b, e5)
+    if EXAMPLE_SMOKE
+        @assert max_err < 1e-12
+        @assert pt_from_line ≈ pt_from_plane
+        @assert match_geom && same_plane(pl, pl2)
+    end
     println("\n" * "="^60)
     @printf("Maximum round-trip error: %.2e\n", max_err)
     println("All round-trip tests passed!")

@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 
 # Comparison of two approx_diam_subspace implementations against exact naive version.
@@ -25,8 +27,8 @@ function generate_random_points(n, rng)
 end
 
 function (@main)(args)
-    num_tests = 100
-    n = 100
+    num_tests = example_size(100, 3)
+    n = example_size(100, 32)
     ε = 0.01
     
     @printf("Verifying approx_diam_subspace against Naive Exact (ε=%.3f, n=%d)\n\n", ε, n)
@@ -64,6 +66,10 @@ function (@main)(args)
     # Analysis
     ratio_wspd = res_exact ./ res_wspd
     ratio_fst = res_exact ./ res_fst
+    if EXAMPLE_SMOKE
+        @assert all(r -> 1 - 1e-12 <= r <= 1 + ε + 1e-12, ratio_wspd)
+        @assert all(r -> 1 - 1e-12 <= r <= 1 + ε + 1e-12, ratio_fst)
+    end
     
     @printf("| %-10s | %-12s | %-12s | %-12s | %-12s |\n", 
             "Metric", "Min Ratio", "Max Ratio", "Avg Ratio", "Max % Error")

@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 # local
 
@@ -115,7 +117,7 @@ end
 function draw_bisector_cell(lines, origin=point(0.0, 0.0))
     cell, bisectors = cell_containing_origin(lines, origin)
     bb = BBox(point(-3.0, -3.0), point(3.0, 3.0))
-    canvas_path = joinpath(@__DIR__, "..", "output", "bisector_cell.pdf")
+    canvas_path = example_output("bisector_cell.pdf")
     mkpath(dirname(canvas_path))
     open_canvas(canvas_path, 800, 800; title="Bisector Cell") do canvas
         cairo_draw_setup(canvas, bb, 800, 800, 40)

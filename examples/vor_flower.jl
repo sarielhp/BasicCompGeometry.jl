@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using Pkg
 Pkg.activate(@__DIR__)
 
@@ -700,7 +702,7 @@ end
 
 # CLI entry point
 if abspath(PROGRAM_FILE) == @__FILE__
-    out = length(ARGS) >= 1 ? ARGS[1] : "output/flower.pdf"
+    out = length(ARGS) >= 1 ? ARGS[1] : example_output("flower.pdf")
     generate_flower_pdf(out)
 end
 

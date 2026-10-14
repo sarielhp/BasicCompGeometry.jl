@@ -1,6 +1,8 @@
 #!/usr/bin/env julia
 # Voronoi cell of a point w.r.t. the boundary lines of the unit square.
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 using BasicCompGeometry
@@ -251,7 +253,7 @@ draw_page1(canvas, p=point(0.3, 0.4)) = draw_cell_diagram(canvas, p)
 
 function draw_page2(canvas)
     Cairo.reset_transform(canvas)
-    n = 40
+    n = example_size(40, 8)
     xs = range(0.01, 0.99, length=n)
     ys = range(0.01, 0.99, length=n)
     vals = zeros(n, n)
@@ -794,7 +796,7 @@ function draw_page10(canvas)
     Cairo.set_source_rgb(canvas, 1, 1, 1)
     Cairo.paint(canvas)
     
-    n = 150
+    n = example_size(150, 8)
     xs = range(0.005, 0.995, length=n)
     ys = range(0.005, 0.995, length=n)
     dx = 1.0 / n
@@ -843,7 +845,7 @@ function main()
     computed_area = cell_area(p)
     println("Computed area: ", @sprintf("%.6f", computed_area))
     
-    output_dir = joinpath(@__DIR__, "..", "output")
+    output_dir = example_output()
     isdir(output_dir) || mkpath(output_dir)
     canvas_path = joinpath(output_dir, "sq_vs_point.pdf")
     open_canvas(canvas_path, 800, 800; title="Point vs Square Voronoi Cell") do canvas
@@ -879,14 +881,14 @@ function main()
     # Generate animated GIF (60 frames from (0.5, 0.5) to (0.5, 0.001) at 6 fps, last frame repeated 10 times)
     gif_path = joinpath(output_dir, "sq_vs_point.gif")
     open_canvas(gif_path, 800, 800; fps=6) do canvas
-        ys = range(0.5, 0.001, length=60)
+        ys = range(0.5, 0.001, length=example_size(60, 2))
         for y in ys
             draw_cell_diagram(canvas, point(0.5, y))
             Cairo.show_page(canvas)
         end
         # Repeat the last frame 10 times
         p_last = point(0.5, 0.001)
-        for _ in 1:9
+        for _ in 1:example_size(9, 1)
             draw_cell_diagram(canvas, p_last)
             Cairo.show_page(canvas)
         end

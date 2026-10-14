@@ -1,5 +1,7 @@
 #! /bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 """
@@ -97,6 +99,10 @@ function (@main)(args)
         ann_ratio = exact_results[i] > 0 ? ann_results[i] / exact_results[i] : 1.0
         silly_ratio = exact_results[i] > 0 ? silly_results[i] / exact_results[i] : 1.0
         hybrid_ratio = exact_results[i] > 0 ? hybrid_results[i] / exact_results[i] : 1.0
+        if EXAMPLE_SMOKE
+            @assert 1 - 1e-12 <= ann_ratio <= c + 1e-12
+            @assert 1 - 1e-12 <= hybrid_ratio <= c + 1e-12
+        end
         
         sum_ann_ratio += ann_ratio
         sum_silly_ratio += silly_ratio

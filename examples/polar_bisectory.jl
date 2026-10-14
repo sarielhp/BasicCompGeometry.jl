@@ -1,5 +1,7 @@
 #! /bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 
@@ -206,7 +208,7 @@ function render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, c
     # 3. Stroke boundary of original polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
 
     # 4. Draw polar points in their corresponding colors
     for (x_i, col) in stair_v_info
@@ -401,7 +403,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # Create PDF surface
     cw, ch = 1000, 1000
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     mkpath(outdir)
     pdf_path = joinpath(outdir, filename)
     surface = CairoPDFSurface(pdf_path, cw, ch)
@@ -424,7 +426,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     cairo_draw_points(cr, Points(ps), 5 / s)
     set_source_rgb(cr, 1.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
     set_source_rgb(cr, 0.0, 0.6, 0.0)
     draw_origin(cr, s, 10)
     Cairo.restore(cr)
@@ -453,7 +455,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw original convex hull in black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
 
     # Draw origin in green square
     set_source_rgb(cr, 0.0, 0.6, 0.0)
@@ -466,7 +468,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw dual convex hull polygon of polar points in green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull, true)
+    cairo_draw_polygon(cr, dual_hull; close=true)
 
     Cairo.restore(cr)
     Cairo.show_page(cr)
@@ -524,12 +526,12 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 4. Draw edges of the polar polygon (dual_hull) in Green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull, true)
+    cairo_draw_polygon(cr, dual_hull; close=true)
 
     # 5. Draw original convex hull polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
 
     # 6. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
@@ -628,12 +630,12 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 5. Draw edges of the polar polygon (dual_hull) in Green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull, true)
+    cairo_draw_polygon(cr, dual_hull; close=true)
 
     # 6. Draw original convex hull polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
 
     # 7. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
@@ -1179,7 +1181,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 3. Stroke boundary of original polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull, true)
+    cairo_draw_polygon(cr, hull; close=true)
 
     # 4. Draw polar points in their corresponding colors
     for (x_i, col) in stair_v_info
@@ -1698,7 +1700,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
 
     x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
 
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     frames_dir = joinpath(outdir, "frames")
     mkpath(frames_dir)
 
@@ -1816,7 +1818,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
 
     x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
 
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     frames_dir = joinpath(outdir, "frames_12")
     mkpath(frames_dir)
 
@@ -2024,7 +2026,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
 
     x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
 
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     frames_dir = joinpath(outdir, "frames_cover")
     mkpath(frames_dir)
 
@@ -2096,7 +2098,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
         # 3. Stroke boundary of original polygon in Black
         set_source_rgb(cr, 0.0, 0.0, 0.0)
         set_line_width(cr, 2.0)
-        cairo_draw_polygon(cr, hull, true)
+        cairo_draw_polygon(cr, hull; close=true)
 
         # 4. Draw polar points in their corresponding colors
         for (x_i, col) in stair_v_info
@@ -2255,7 +2257,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     bb_cover_global = bb_cover_global + 0.2
 
     cw_video, ch_video = 2000, 1000
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     frames_dir = joinpath(outdir, "frames_all")
     mkpath(frames_dir)
 
@@ -2468,7 +2470,7 @@ function main(args=ARGS)
     do_movie = any(a -> a in ("movie", "-movie", "--movie", "staircase"), args)
 
     # 1. Random points example (bisectory_random.pdf)
-    n = 20
+    n = example_size(20, 8)
     pts = Point{2,Float64}[]
     c_disk = point(0.1, 0.0)
     for _ = 1:n
@@ -2503,22 +2505,22 @@ function main(args=ARGS)
 
     # 4. Generate PNG frames and MP4 movie of Page 10 for random points
     if do_movie
-        generate_staircase_movie(ps_random; num_frames=200, fps=10)
+        generate_staircase_movie(ps_random; num_frames=example_size(200, 2), fps=10)
     end
 
     # 5. Generate PNG frames and MP4 movie of Page 12 for random points
     if do_movie12
-        generate_staircase_movie_12(ps_random; num_frames=200, fps=10)
+        generate_staircase_movie_12(ps_random; num_frames=example_size(200, 2), fps=10)
     end
 
     # 6. Generate PNG frames and MP4 movie of Page 13 for random points (movie_cover)
     if do_cover
-        generate_staircase_movie_cover(ps_random; num_frames=200, fps=10)
+        generate_staircase_movie_cover(ps_random; num_frames=example_size(200, 2), fps=10)
     end
 
     # 7. Generate 1000-frame combined movie for movie_all
     if do_movieall
-        generate_staircase_movie_all(ps_random; num_frames=200, fps=10)
+        generate_staircase_movie_all(ps_random; num_frames=example_size(200, 2), fps=10)
     end
 end
 

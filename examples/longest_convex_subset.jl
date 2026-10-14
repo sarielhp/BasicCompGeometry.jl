@@ -1,5 +1,7 @@
 #! /bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 """
@@ -141,7 +143,7 @@ function main(n::Int)
 
     @printf("Time: %.3f seconds, Largest convex subset size: %d\n", t.time, length(sol))
 
-    outdir = joinpath(@__DIR__, "..", "output")
+    outdir = example_output()
     mkpath(outdir)
     filename = joinpath(outdir, "longest_convex_subset_$n.pdf")
     output_to_pdf(ps, sol, filename)
@@ -149,6 +151,6 @@ end
 
 # Run the example
 if abspath(PROGRAM_FILE) == @__FILE__
-    main(50)
-    main(100)
+    main(example_size(50, 12))
+    main(example_size(100, 16))
 end

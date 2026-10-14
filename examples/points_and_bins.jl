@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+include(joinpath(@__DIR__, "support/runtime.jl"))
+
 using QuickEnv
 
 using BasicCompGeometry
@@ -152,8 +154,8 @@ end
 # ==============================================================================
 
 function main(; show_page_numbers::Bool=true)
-    N = 300
-    grid_n = 10
+    N = example_size(300, 60)
+    grid_n = example_size(10, 5)
     cell_size = 1.0 / grid_n
 
     Random.seed!(42)
@@ -201,13 +203,13 @@ function main(; show_page_numbers::Bool=true)
     singleton_indices = [findfirst(p -> p == cell_points[sx, sy][1], pts) for (sx, sy) in all_singletons]
     singleton_voronoi_cells = [compute_voronoi_cell(tiled_pts, idx, outer_box) for idx in singleton_indices]
 
-    n_zoom = 20
+    n_zoom = example_size(20, 2)
     zoom_boxes = [BBox(
         point((1 - t) * 0.0 + t * cx0, (1 - t) * 0.0 + t * cy0),
         point((1 - t) * 1.0 + t * cx1, (1 - t) * 1.0 + t * cy1)
     ) for t in range(0.0, 1.0, length=n_zoom)]
 
-    n_zoom_out = 20
+    n_zoom_out = example_size(20, 2)
     p15_x0 = max(0.0, (ix - 2) * cell_size)
     p15_x1 = min(1.0, (ix + 1) * cell_size)
     p15_y0 = max(0.0, (iy - 2) * cell_size)
@@ -217,7 +219,7 @@ function main(; show_page_numbers::Bool=true)
         point((1 - t) * p15_x1 + t * 1.0, (1 - t) * p15_y1 + t * 1.0)
     ) for t in range(0.0, 1.0, length=n_zoom_out)]
 
-    output_dir = joinpath(@__DIR__, "..", "output")
+    output_dir = example_output()
     mkpath(output_dir)
     pdf_path = joinpath(output_dir, "points_and_bins.pdf")
     cw, ch = 800, 800
@@ -286,7 +288,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         end
 
         # Alternating green frames
-        for fi in 1:6
+        for fi in 1:example_size(6, 1)
             is_light = isodd(fi)
             r, g, b = is_light ? (0.8, 0.95, 0.8) : (0.3, 0.8, 0.3)
             Cairo.save(canvas)
@@ -415,7 +417,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         p15_max_r = p15_w / 200.0
         p15_pt_r = min(0.003, p15_max_r)
         p15_sing_r = min(0.008, p15_max_r * 1.6)
-        for rep in 1:4
+        for rep in 1:example_size(4, 1)
             Cairo.save(canvas)
             Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
             Cairo.paint(canvas)
@@ -511,7 +513,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.show_page(canvas)
         end
 
-        n_last = page_num - 1
+        n_last = example_size(page_num - 1, 1)
         Random.seed!(123)
         vc_colors = [(rand(), rand(), rand()) for _ in 1:length(all_singletons)]
         for extra in 1:n_last

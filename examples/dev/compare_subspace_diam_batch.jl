@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 
 using BasicCompGeometry
@@ -30,13 +32,18 @@ function run_comparison_test(n, ε, rng)
     # Measure FST version
     t_fst = @elapsed res_fst = MVBB.approx_diam_subspace(ps, ε, dir)
     d_fst = res_fst.distance
+    if EXAMPLE_SMOKE
+        exact = exact_diameter_subspace(ps, dir)
+        @assert exact / (1 + ε + 1e-12) <= d_wspd <= exact + 1e-12
+        @assert exact / (1 + ε + 1e-12) <= d_fst <= exact + 1e-12
+    end
 
     return d_wspd, d_fst, t_wspd, t_fst
 end
 
 function (@main)(args)
-    num_tests = 1000
-    n = 1000
+    num_tests = example_size(1000, 3)
+    n = example_size(1000, 32)
     ε = 0.1
     rng = Random.Xoshiro(123) # Reproducible tests
     

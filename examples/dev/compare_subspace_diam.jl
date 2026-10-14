@@ -1,5 +1,7 @@
 #! /usr/bin/env julia
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 
 # Comparison of two approx_diam_subspace implementations:
@@ -30,8 +32,8 @@ function generate_random_points(n, rng)
 end
 
 function (@main)(args)
-    num_tests = 100
-    n = 100
+    num_tests = example_size(100, 3)
+    n = example_size(100, 32)
     ε = 0.01
     
     @printf("Comparing two versions of approx_diam_subspace (Ordered Execution)\n")
@@ -86,6 +88,13 @@ function (@main)(args)
     min_ratio = minimum(ratios)
     max_ratio = maximum(ratios)
     max_diff = maximum(abs.(results_wspd .- results_fst))
+    if EXAMPLE_SMOKE
+        for i in eachindex(datasets)
+            exact = exact_diameter_subspace(datasets[i], directions[i])
+            @assert exact / (1 + ε + 1e-12) <= results_wspd[i] <= exact + 1e-12
+            @assert exact / (1 + ε + 1e-12) <= results_fst[i] <= exact + 1e-12
+        end
+    end
 
     @printf("\nRESULTS:\n")
     @printf("--------------------------------------------------\n")

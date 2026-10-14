@@ -11,6 +11,8 @@
 #    (n = 10^4, 10^5, 10^6, 10^7) using the ray-casting `is_inside` point-in-curved-polygon test.
 # 5. Comparing empirical errors with theoretical Monte Carlo standard deviation (O(1/sqrt(n))).
 
+include(joinpath(@__DIR__, "../support/runtime.jl"))
+
 using QuickEnv
 using BasicCompGeometry
 import BasicCompGeometry: at
@@ -226,7 +228,7 @@ function main()
                      "Samples (N)", "Estimated Area", "Abs Error", "Std Dev (1σ)", "Rel Error"))
     println("-"^75)
 
-    sample_sizes = [10_000, 100_000, 1_000_000, 10_000_000]
+    sample_sizes = example_size([10_000, 100_000, 1_000_000, 10_000_000], [100, 1000])
 
     for n in sample_sizes
         est_area = estimate_area_monte_carlo(cp, n)
@@ -234,6 +236,7 @@ function main()
         rel_err = abs_err / ref_area
         # Theoretical Monte Carlo standard deviation: sigma = sqrt(A * (1 - A) / N)
         sigma = sqrt(ref_area * (1.0 - ref_area) / n)
+        EXAMPLE_SMOKE && @assert abs_err < 6sigma
         
         println(@sprintf("%-12d | %-15.6f | %-12.6f | %-12.6f | %-9.2f%%",
                          n, est_area, abs_err, sigma, rel_err * 100.0))
