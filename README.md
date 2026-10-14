@@ -23,36 +23,19 @@ Use a robust geometry library when correctness on adversarial numerical inputs i
 required.
 
 
-## Highlights
+## Figure example
 
-- **AI-Assisted Figure Generation with `IpeDraw`**:
-  A powerful workflow for researchers is prompting AI coding agents (such as Google Gemini, Claude, or ChatGPT) to write self-contained Julia scripts that compute geometric algorithms and produce publication-ready vector figures (`.ipe` and `.pdf`). With the native `IpeDraw` submodule, output figures retain editable vector layers, native LaTeX formulas, automatic page fitting, custom styles/themes, legends, scale bars, and inset zoom viewports.
-- **Zero-Ceremony Standalone Scripts with [`QuickEnv.jl`](https://github.com/sarielhp/QuickEnv.jl)**:
-  Instead of managing virtual environments or remembering `--project` flags, standalone figure scripts can simply start with `using QuickEnv` followed by `using BasicCompGeometry, BasicCompGeometry.IpeDraw`. QuickEnv automatically isolates dependencies without polluting the global environment, allowing scripts to be executed directly via `./script.jl` or `julia script.jl`.
-- **Live Tested AI Prompt**:
-  See below for a live test prompt and the resulting standalone script in [`examples/convex_hull_figure.jl`](examples/convex_hull_figure.jl), generated end-to-end by an AI agent (Gemini Flash).
-- **Exact & Pluggable Predicate Kernels**:
-  Easily opt into exact arithmetic decisions (`kernel=ExactKernel()`) for robust geometric decisions (arbitrary-precision integer/rational coordinates and algebraic radical isolation) without changing point storage types or incurring overhead on default floating-point calls.
+[`examples/convex_hull_figure.jl`](examples/convex_hull_figure.jl) draws the convex
+hull and diameter of 35 deterministic points. It includes LaTeX labels, a legend,
+a scale bar, and an inset. The script was generated with Gemini Flash and uses
+[`QuickEnv.jl`](https://github.com/sarielhp/QuickEnv.jl) to manage its dependencies.
 
-### AI-Assisted Figure Generation: Live Test
-
-To demonstrate how AI agents can leverage `BasicCompGeometry.jl` and `QuickEnv.jl` to generate figures on demand, here is an actual prompt tested with **Gemini Flash**:
-
-> **Prompt:**  
-> *"Using Julia, QuickEnv, and BasicCompGeometry (with IpeDraw), write a standalone executable script that generates a publication-quality Ipe/PDF figure illustrating the convex hull and diameter of a 2D point set:*  
-> *1. Generate 35 deterministic 2D points inside a $[0, 10]^2$ box.*  
-> *2. Compute their 2D convex hull with `convex_hull`.*  
-> *3. Find the diameter pair $(p, q)$ among the hull vertices and the diameter segment.*  
-> *4. Draw the bounding box, points (as small gray dots), the convex hull (as a translucent light-blue polygon with a navy border), hull vertices, and the diameter segment (as a dashed red line).*  
-> *5. Add LaTeX labels: label vertex $p$ with $p$, vertex $q$ with $q$, and label the midpoint of the diameter segment with $D = \mathrm{diam}(P)$.*  
-> *6. Add a legend in the top-left corner with LaTeX math labels ($\mathcal{CH}(P)$ and $D$), a scale bar of length $2.0$, and an inset zoom box in the top-right corner focusing on vertex $p$.*  
-> *7. Save the output to `output/convex_hull_figure.pdf` and keep the editable `.ipe` file."*
-
-The complete, working script produced from this prompt is available at [`examples/convex_hull_figure.jl`](examples/convex_hull_figure.jl). Running it directly:
+Run it with:
 ```bash
 ./examples/convex_hull_figure.jl
 ```
-runs completely standalone via `QuickEnv` and produces both the editable `output/convex_hull_figure.ipe` and the compiled vector `output/convex_hull_figure.pdf`:
+It produces the editable `output/convex_hull_figure.ipe` source and the vector
+`output/convex_hull_figure.pdf`:
 
 <p align="center">
   <img src="assets/convex_hull_figure.svg" alt="Convex Hull and Diameter Figure" width="550" />
@@ -90,22 +73,20 @@ methods such as `turn_sign(kernel, p, q, r)` and `compare_xy(kernel, p, q)`.
 Missing methods do not fall back silently. A future certified filtered kernel
 can use this same interface; no filtered kernel is claimed in this release.
 
-This library provides a flat, idiomatic hierarchy for geometric types and algorithms that are useful across various computational geometry tasks.
-
 ## Features
 
 - **Multi-Dimensional Primitives**: Support for Points, Segments, Lines, Point Sequences (PntSeq), and Axis-Aligned Bounding Boxes in any dimension (2D, 3D, and high-D).
 - **Zero-Copy Matrix Integration**: Use `MatPntSeq` to treat columns of a matrix as points without copying memory.
-- **Coordinate Agnostic**: Works with `Float64`, `Int64`, and other numeric types.
+- **Coordinate Types**: Supports `Float64`, `Int64`, and other numeric types.
 - **Geometric Predicates**: Checks for left/right turns, collinearity, and containment.
 - **Distance Metrics**: Generic `dist` function for point-point, point-segment, segment-segment, and box-box distances.
 - **Curve Algorithms**: Hausdorff distance-based simplification and uniform resampling of polygonal curves.
 - **Planar Geometry**: Homogeneous 2D transformations (translation and rotation).
-- **Vector Figure Generation (`IpeDraw`)**: Programmatic generation of publication-ready Ipe 7 XML figures, cropped PDFs, and LaTeX fragments with native math formulas and geometric dispatches.
+- **Vector Figure Generation (`IpeDraw`)**: Generates Ipe 7 XML figures, cropped PDFs, and LaTeX fragments with math labels and methods for geometric types.
 
 ## Algorithms
 
-The library implements a variety of classic and modern geometric algorithms:
+The library implements the following algorithms:
 
 - **Convex Hull**:
     - **2D**: Monotone Chain algorithm ($O(n \log n)$).
@@ -116,8 +97,8 @@ The library implements a variety of classic and modern geometric algorithms:
 - **Nearest Neighbor Search**:
     - **Exact**: Brute-force $O(n)$ linear scan (`exact_naive_scan`).
     - **Approximate**: $c$-approximation using BBT ($O(\log n)$ for many distributions) (`approx_nn`).
-    - **Silly**: Simple tree descent for extremely fast, heuristic results (`silly_nn`).
-    - **Hybrid**: Combines Silly and Approximate for better performance (`hybrid_nn`).
+    - **Silly**: Tree descent heuristic (`silly_nn`).
+    - **Hybrid**: Combines tree descent with approximate search (`hybrid_nn`).
 - **Spatial Decomposition**:
     - **WSPD**: Well-Separated Pairs Decomposition.
     - **BBT**: Bounding Box Tree construction and expansion.
@@ -126,11 +107,11 @@ The library implements a variety of classic and modern geometric algorithms:
     - **Simplification**: Hausdorff distance-based simplification.
     - **Resampling**: Uniform arc-length resampling.
 - **Metric Space Algorithms**:
-    - **Greedy Permutation**: Incremental furthest-point sampling ($O(n^2)$ or optimized via BBT).
-- **Advanced Optimization**:
+    - **Greedy Permutation**: Incremental furthest-point sampling ($O(n^2)$ or using BBT).
+- **Convex Subsets**:
     - **Longest Convex Subset**: Dynamic programming based calculation.
 - **Geometric Predicates**:
-    - Fast `turn_sign`, `is_left_turn`, `is_right_turn`, and `is_collinear` checks.
+    - `turn_sign`, `is_left_turn`, `is_right_turn`, and `is_collinear` checks.
 - **Distance Calculations**:
     - Point-Point, Point-Segment, Point-Line, Segment-Segment.
     - Min/Max distance between Bounding Boxes.
@@ -158,12 +139,13 @@ The library implements a variety of classic and modern geometric algorithms:
     - `AbsFMS`: Abstract interface for Finite Metric Spaces.
     - `PointsSpace`: Wrapper for treated point sets as metric spaces.
 - **Utilities**:
-    - `VArray`: Virtual array for efficient permutation and original index tracking.
+    - `VArray`: Virtual array for permutation and original index tracking.
 
 
 ## Metric Spaces
 
-The library provides a robust framework for working with **Finite Metric Spaces (FMS)**, allowing algorithms to operate on abstract indices while the underlying representation handles the distance calculations.
+The finite metric space interface lets algorithms operate on point indices while
+the underlying representation handles distance calculations.
 
 ### The `AbsFMS` Interface
 All metric spaces subtype `AbsFMS`. They represent a set of $n$ points identified by indices $1 \dots n$. The core interface requires:
@@ -172,9 +154,9 @@ All metric spaces subtype `AbsFMS`. They represent a set of $n$ points identifie
 
 ### Provided Metric Space Types
 - **`PointsSpace{T}`**: A simple wrapper around a `Vector` of any objects that support the `dist(p1, p2)` function.
-- **`MPointsSpace{T}`**: A matrix-backed space where each column is treated as a point in $\mathbb{R}^d$. It uses optimized Euclidean distance calculations.
+- **`MPointsSpace{T}`**: A matrix-backed space where each column is treated as a point in $\mathbb{R}^d$, with Euclidean distances.
 - **`AbsPntSeq`**: Any point sequence (like `PntSeq` or `MatPntSeq`) automatically implements the `AbsFMS` interface.
-- **`PermutMetric`**: A powerful decorator that creates a "view" of an existing metric space under a specific permutation or subset of indices. It includes a `swap!(space, i, j)` method to efficiently reorder the virtual indices.
+- **`PermutMetric`**: A view of a metric space under a permutation or subset of indices. `swap!(space, i, j)` reorders the virtual indices.
 - **`SpherePMetric`**: A specialized space where the distance between two points $i$ and $j$ is the **angle** they form at a fixed base point $b$ (i.e., the angular separation $\angle ibj$).
 
 ### Metric Space Algorithms
@@ -220,7 +202,9 @@ d3, p3, i3 = BBT.silly_nn(tree, q)
 
 ## AbsPntSeq Interface
 
-The library provides an `AbsPntSeq{D, T}` abstract interface representing a **sequence of points** (which can be viewed as a point set, a polygonal chain, or a classical polygon). All geometric algorithms (BBT, WSPD, Diameter, etc.) are implemented against this interface, allowing them to work seamlessly with different storage backends:
+The `AbsPntSeq{D, T}` interface represents a sequence of points, used as a point
+set, polygonal chain, or polygon. Algorithms such as BBT, WSPD, and diameter use
+this interface to support different storage backends:
 - `PntSeq{D, T}`: Standard `Vector{Point{D, T}}` backed representation.
 - `MatPntSeq{D, T}`: Matrix-backed representation (`D x N` matrix) for zero-copy integration with existing datasets.
 
@@ -253,10 +237,11 @@ Ready-to-run example scripts are documented in
 
 ## Vector Figure Generation (`IpeDraw`)
 
-The `IpeDraw` submodule provides programmatic generation of publication-ready vector figures using the [Ipe extensible drawing editor](http://ipe.otfried.org/) format (`.ipe`).
+The `IpeDraw` submodule generates vector figures in the
+[Ipe extensible drawing editor](http://ipe.otfried.org/) format (`.ipe`).
 
-The compact API dispatches on geometry types, fits world coordinates to the page,
-keeps label offsets and marks in page units, and renders publication PDFs through
+The API dispatches on geometry types, fits world coordinates to the page,
+keeps label offsets and marks in page units, and renders PDFs through
 Ipe so that geometry and LaTeX labels remain vector content:
 
 ```julia
@@ -299,14 +284,14 @@ legend!(fig, ["feasible" => theme.region]; position=:northwest)
 scale_bar!(fig, 0.5; label=raw"1/2")
 ```
 
-- **Native Geometric Dispatches**: Direct methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, `Ellipse`, `EllipticArc`, `CubicBezier`, and `CubicSpline`.
-- **Advanced Primitives**: Smooth splines (`draw_spline!`), approximating B-splines (`draw_bspline!`), polygons with holes (`draw_polygon_with_holes!`), and scoped groups with affine transforms (`ipe_group`).
-- **Conceptual & Algorithmic Helpers**: Primitives for intervals, spans, dimension lines, and curved arrows (`draw_bar!`, `draw_span!`, `draw_dimension!`, `draw_curved_arrow!`).
-- **LaTeX Math Formulas**: Native math support (accepts `LaTeXStrings` `L"..."` and standard LaTeX strings) with automatic XML escaping.
+- **Geometric Types**: Methods for `Point`, `Segment`, `BBox`, `Circle`, `CircleArc`, `Ellipse`, `EllipticArc`, `CubicBezier`, and `CubicSpline`.
+- **Splines, Polygons & Groups**: Splines (`draw_spline!`), approximating B-splines (`draw_bspline!`), polygons with holes (`draw_polygon_with_holes!`), and scoped groups with affine transforms (`ipe_group`).
+- **Annotations**: Intervals, spans, dimension lines, and curved arrows (`draw_bar!`, `draw_span!`, `draw_dimension!`, `draw_curved_arrow!`).
+- **LaTeX Math Formulas**: Accepts `LaTeXStrings` `L"..."` and standard LaTeX strings, with automatic XML escaping.
 - **Hatch Patterns & Opacities**: Vector hatch patterns (`:hatch`, `:crosshatch`, `:vertical`, `:horizontal`, `:falling`, `:rising`) and 10%–90% opacity fills.
-- **Multi-Layer & Multi-View**: Easily define layers and progressive presentation views.
+- **Layers & Views**: Layers and progressive presentation views.
 - **Figure Composition**: Scoped inset viewports, editable clipping groups, named themes, legends, and scale bars.
-- **Self-Contained Style**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), extended pens, and rich academic color palettes.
+- **Canvas & Styles**: Bundled 8-inch canvas with auto-crop (`crop="yes"`, `bbox="cropbox"`), pen widths, and color palettes.
 - **Automated Compilation**: Generates editable `.ipe`, cropped vector `.pdf`, and companion `_fig.tex` LaTeX wrappers.
 
 ### Quick Example
@@ -355,7 +340,7 @@ The package has since been reorganized around:
 - A flat module hierarchy.
 - Type-generic implementations.
 - Integration with the `StaticArrays.jl` ecosystem.
-- Full compatibility with standard `Base` methods through multiple dispatch.
+- Methods for standard `Base` operations through multiple dispatch.
 
 ## AI Contribution & Code Ownership
 
