@@ -56,7 +56,7 @@ File.write(PROJECT_FILE, content)
 git('add', 'Project.toml')
 git('commit', '-m', "Bump version to #{new_ver}")
 commit = git('rev-parse', 'HEAD')
-git('-c', 'credential.helper=!rtk proxy gh auth git-credential', 'push',
+git('-c', 'credential.helper=', '-c', 'credential.helper=!rtk proxy gh auth git-credential', 'push',
     "https://github.com/#{GITHUB_REPO}.git", 'HEAD:refs/heads/main')
 published_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
 abort 'Remote main does not match the release commit.' unless published_head == commit
