@@ -18,7 +18,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-      id-token: write
     defaults:
       run:
         shell: bash
@@ -52,14 +51,6 @@ jobs:
           name: coverage-lcov
           path: lcov.info
           if-no-files-found: error
-      - name: Publish coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
-        uses: codecov/codecov-action@v7
-        with:
-          files: lcov.info
-          disable_search: true
-          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          fail_ci_if_error: true
       - name: Verify the core installs without visualization packages
         run: |
           julia -e '
@@ -72,6 +63,25 @@ jobs:
             using BasicCompGeometry
             @assert isnothing(Base.get_extension(BasicCompGeometry, :CairoExt))
             @assert BasicCompGeometry.dist(point(0.0, 0.0), point(3.0, 4.0)) == 5.0'
+
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-lcov
+      - name: Publish coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: lcov.info
+          disable_search: true
+          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          fail_ci_if_error: true
 
   external-tools:
     runs-on: ubuntu-latest
