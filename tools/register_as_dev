@@ -1,1 +1,87 @@
-register_as_Dev
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+require 'open3'
+
+PACKAGE_DIR = File.expand_path('..', __dir__).freeze
+PROJECT_TOML = File.join(PACKAGE_DIR, 'Project.toml').freeze
+
+def abort_with_error(message)
+  warn "Error: #{message}"
+  exit 1
+end
+
+def verify_package_dir
+  abort_with_error("Project.toml not found in #{PACKAGE_DIR}") unless File.file?(PROJECT_TOML)
+end
+
+def julia_version
+  stdout, status = Open3.capture2('julia', '--version')
+  abort_with_error('Julia executable not found in PATH') unless status.success?
+
+  stdout.strip
+end
+
+def develop_package
+  puts "Registering #{PACKAGE_DIR} as dev package in global Julia..."
+  cmd = %(using Pkg; Pkg.develop(path="#{PACKAGE_DIR}"))
+  success = system('julia', '-e', cmd)
+  abort_with_error('Failed to register package via Pkg.develop') unless success
+
+  puts "\nSuccess: BasicCompGeometry is now registered as a dev package in global Julia environment."
+end
+
+def remove_package
+  puts 'Removing BasicCompGeometry from global Julia environment...'
+  cmd = %(using Pkg; Pkg.rm("BasicCompGeometry"))
+  success = system('julia', '-e', cmd)
+  abort_with_error('Failed to remove package from global Julia environment') unless success
+
+  puts "\nBasicCompGeometry has been removed from global Julia environment."
+end
+
+def check_status
+  cmd = %(using Pkg; Pkg.status("BasicCompGeometry"))
+  system('julia', '-e', cmd)
+end
+
+def parse_options
+  options = { action: :develop }
+  parser = OptionParser.new do |opts|
+    opts.banner = 'Usage: tools/register_as_dev [options]'
+
+    opts.on('-c', '--check', 'Check if BasicCompGeometry is developed in the global environment') do
+      options[:action] = :check
+    end
+
+    opts.on('-r', '--remove', 'Remove BasicCompGeometry from the global environment') do
+      options[:action] = :remove
+    end
+
+    opts.on('-h', '--help', 'Show this help message') do
+      puts opts
+      exit 0
+    end
+  end
+
+  parser.parse!
+  options
+end
+
+def run
+  options = parse_options
+  verify_package_dir
+  puts "Using #{julia_version}"
+
+  case options[:action]
+  when :check
+    check_status
+  when :remove
+    remove_package
+  when :develop
+    develop_package
+  end
+end
+
+run if __FILE__ == $PROGRAM_NAME

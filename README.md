@@ -1,6 +1,7 @@
 # BasicCompGeometry.jl
 
 [![Build Status](https://github.com/sarielhp/BasicCompGeometry.jl/workflows/Documentation/badge.svg)](https://github.com/sarielhp/BasicCompGeometry.jl/actions)
+[![Coverage](https://codecov.io/gh/sarielhp/BasicCompGeometry.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/sarielhp/BasicCompGeometry.jl)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sarielhp.github.io/BasicCompGeometry.jl/dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

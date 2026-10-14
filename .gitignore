@@ -4,6 +4,7 @@ docs/build/
 docs/Manifest.toml
 *.cov
 lcov.info
+/mvbb/mvbb_test
 *.pdf
 output/
 .agents/

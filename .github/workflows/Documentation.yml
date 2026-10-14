@@ -16,6 +16,9 @@ jobs:
   test:
     name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -49,6 +52,14 @@ jobs:
           name: coverage-lcov
           path: lcov.info
           if-no-files-found: error
+      - name: Publish coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+        uses: codecov/codecov-action@v7
+        with:
+          files: lcov.info
+          disable_search: true
+          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          fail_ci_if_error: true
       - name: Verify the core installs without visualization packages
         run: |
           julia -e '

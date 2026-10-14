@@ -2,6 +2,9 @@
 
 This package was previously called gdiam.
 
+Build the test executable from source with `make -C mvbb` from the repository
+root (requires `g++`). The generated `mvbb/mvbb_test` is ignored by Git.
+
 ## Whats in here?
 
 This project contains source code in C++ for
