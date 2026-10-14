@@ -7,7 +7,7 @@ require 'open3'
 REPO = File.expand_path('..', __dir__).freeze
 
 def git(*args)
-  stdout, stderr, status = Open3.capture3('rtk', 'proxy', 'git', *args, chdir: REPO)
+  stdout, stderr, status = Open3.capture3('git', *args, chdir: REPO)
   abort "git #{args.first} failed:\n#{stderr}\n#{stdout}" unless status.success?
   stdout.strip
 end
