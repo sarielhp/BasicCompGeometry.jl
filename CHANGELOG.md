@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Opt-in `BasicCompGeometry.Extras` submodule exporting 89 additional supported
   public API names, with their original bindings.
+- CI publication of coverage to Codecov, alongside downloadable coverage reports.
 
 ### Changed
 - **Breaking:** Reduced the default export list to 130 public API names. The
@@ -23,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shortened the README and reorganized documentation into focused guides and
   API reference pages, with executable examples and strict exported-docstring
   and reference checks.
+- Consolidated the development-registration helper under one lowercase filename
+  for case-insensitive filesystems.
+- Removed the compiled C++ test executable and a generated example PDF from
+  tracked release files; their source programs remain available.
 
 ### Migration
 
