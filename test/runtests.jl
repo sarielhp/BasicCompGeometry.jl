@@ -60,6 +60,42 @@ Aqua.test_all(BasicCompGeometry)
         @test BasicCompGeometry.depth === BBT.depth
     end
 
+    @testset "Opt-in Extras public helpers" begin
+        generic_names = (
+            :area, :direction, :faces, :height, :width, :boundary, :complement,
+            :clip, :depth, :lines, :locate, :vertices, :distance,
+        )
+        extras = BasicCompGeometry.Extras
+        @test Set(names(extras)) == Set((:Extras, generic_names...))
+        @test :Extras ∉ names(BasicCompGeometry)
+
+        extras_consumer = Module(:ExtrasGeometryConsumer)
+        Core.eval(extras_consumer, :(using BasicCompGeometry.Extras))
+        for name in generic_names
+            @test getfield(extras, name) === getfield(BasicCompGeometry, name)
+            @test Core.eval(extras_consumer, name) === getfield(BasicCompGeometry, name)
+        end
+        @test !isdefined(extras_consumer, :Point)
+        @test !isdefined(extras_consumer, :convex_hull)
+
+        # Exercise both the full package path and the documented CG alias.
+        for imports in (
+            :(using BasicCompGeometry, BasicCompGeometry.Extras),
+            quote
+                import BasicCompGeometry as CG
+                using .CG, .CG.Extras
+            end,
+        )
+            consumer = Module(:CombinedGeometryConsumer)
+            Core.eval(consumer, imports)
+            for name in (generic_names..., :Point, :BBox, :convex_hull)
+                @test Core.eval(consumer, name) === getfield(BasicCompGeometry, name)
+            end
+            @test Core.eval(consumer, :(width(BBox(point(0.0, 0.0), point(2.0, 3.0))))) == 2.0
+            @test Core.eval(consumer, :(area(Ellipse(point(0.0, 0.0), 2.0, 3.0)))) ≈ 6π
+        end
+    end
+
     @testset "Points (2D & 3D, Float & Int)" begin
         # 2D Float
         p1 = point(0.0, 0.0)

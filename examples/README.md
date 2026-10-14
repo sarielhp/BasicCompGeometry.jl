@@ -10,11 +10,18 @@ julia --project=examples examples/<script>.jl [args...]
 
 Entries are sorted by modification date (newest first).
 
-Starting with v0.5.0, generic geometry helpers require qualification or explicit
-imports. The halfplane examples import `area`, `width`, `height`, `vertices`,
-`depth`, `faces`, and `clip` as needed; `bisector_cell.jl` and
+Starting with v0.5.0, generic geometry helpers require qualification, explicit
+imports, or `using BasicCompGeometry.Extras`. The halfplane examples import
+`area`, `width`, `height`, `vertices`, `depth`, `faces`, and `clip` as needed; `bisector_cell.jl` and
 `points_and_bins.jl` explicitly import `distance`. The `ann.jl` example uses
 `depth` from its existing `BasicCompGeometry.BBT` import.
+
+For examples that need the default API and all additional public helpers, use:
+
+```julia
+import BasicCompGeometry as CG
+using .CG, .CG.Extras
+```
 
 ---
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - Unreleased
 
+### Added
+- Opt-in `BasicCompGeometry.Extras` submodule exporting the 13 public geometry
+  helpers omitted from the default export list, with the original function bindings.
+
 ### Changed
 - **Breaking:** `area`, `direction`, `faces`, `height`, `width`, `boundary`,
   `complement`, `clip`, `depth`, `lines`, `locate`, `vertices`, and `distance`
@@ -18,17 +22,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Migration
 
 Existing calls such as `width(bb)` after `using BasicCompGeometry` must either
-qualify the function or explicitly import it:
+qualify the function, explicitly import it, or opt into `Extras`:
 
 ```julia
-import BasicCompGeometry as BCG
-bb = BCG.BBox(BCG.point(0.0, 0.0), BCG.point(2.0, 3.0))
-BCG.width(bb) # 2.0
+import BasicCompGeometry as CG
+bb = CG.BBox(CG.point(0.0, 0.0), CG.point(2.0, 3.0))
+CG.width(bb) # 2.0
 
 # Alternatively, keep unqualified calls with an explicit import:
 using BasicCompGeometry: width
 width(bb) # 2.0
 ```
+
+To import both the default API and all additional public helpers:
+
+```julia
+import BasicCompGeometry as CG
+using .CG, .CG.Extras
+
+bb = BBox(point(0.0, 0.0), point(2.0, 3.0))
+width(bb) # 2.0
+```
+
+`Extras` exports only the explicitly listed public helpers above. It shares their
+original functions and does not export internal implementation utilities.
 
 `BasicCompGeometry.depth` still supports both halfplane queries and bounding-box
 trees. `BasicCompGeometry.BBT.depth` remains exported within the `BBT` submodule.

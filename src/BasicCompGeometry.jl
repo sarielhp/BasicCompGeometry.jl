@@ -162,8 +162,8 @@ include("Bundles.jl")
 include("Arrangements.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
-# remain available through qualified calls or explicit imports; see the migration
-# notes for v0.5.0 in CHANGELOG.md.
+# remain available through qualified calls, explicit imports, or the opt-in
+# Extras submodule; see the migration notes for v0.5.0 in CHANGELOG.md.
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
 export Halfplane, Halfplane2F, boundary_line, rand_halfplane, random_halfplane, in_interior, on_boundary, write_halfplanes, read_halfplanes
 export default_view, defaultview, bbox, union_bbox, intersect_lines, intersections, pairwise_intersections
@@ -183,5 +183,30 @@ export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
 export polar, polar_line
 export bottom_left, corner, top_right, middle, diam, max_dist, max_dist_subspace, is_inside
 export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D, IpeDraw
+
+"""
+    BasicCompGeometry.Extras
+
+Additional public geometry helpers omitted from the default export list.
+Exports `area`, `direction`, `faces`, `height`, `width`, `boundary`,
+`complement`, `clip`, `depth`, `lines`, `locate`, `vertices`, and `distance`.
+These bindings refer to the same functions as in `BasicCompGeometry`.
+
+Load both sets of public exports with:
+```julia
+import BasicCompGeometry as CG
+using .CG, .CG.Extras
+```
+The export list is explicit and contains only supported public helpers.
+"""
+module Extras
+
+using ..BasicCompGeometry: area, direction, faces, height, width, boundary,
+    complement, clip, depth, lines, locate, vertices, distance
+
+export area, direction, faces, height, width, boundary,
+    complement, clip, depth, lines, locate, vertices, distance
+
+end # module Extras
 
 end

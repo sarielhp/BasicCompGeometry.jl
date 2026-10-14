@@ -111,9 +111,9 @@ Core types and distinctive operations remain exported. Generic helpers are
 available through qualified calls or explicit imports:
 
 ```julia
-import BasicCompGeometry as BCG
-bb = BCG.BBox(BCG.point(0.0, 0.0), BCG.point(2.0, 3.0))
-BCG.width(bb) # 2.0
+import BasicCompGeometry as CG
+bb = CG.BBox(CG.point(0.0, 0.0), CG.point(2.0, 3.0))
+CG.width(bb) # 2.0
 
 using BasicCompGeometry: width
 width(bb) # 2.0
@@ -123,7 +123,25 @@ The helpers no longer exported at the top level are `area`, `direction`,
 `faces`, `height`, `width`, `boundary`, `complement`, `clip`, `depth`, `lines`,
 `locate`, `vertices`, and `distance`. Their methods and behavior are unchanged.
 `BBT.depth` remains exported by the `BBT` submodule. When combining geometry
-packages, qualify core type names such as `BCG.Point` to avoid type-name conflicts.
+packages, qualify core type names such as `CG.Point` to avoid type-name conflicts.
+
+To bring in the default API and all additional public helpers together:
+
+```julia
+import BasicCompGeometry as CG
+using .CG, .CG.Extras
+
+bb = BBox(point(0.0, 0.0), point(2.0, 3.0))
+width(bb) # 2.0
+```
+
+Alternatively, use `using BasicCompGeometry, BasicCompGeometry.Extras`.
+`Extras` exports the 13 helpers listed above through an explicit export list,
+sharing the original functions. It does not export internal implementation utilities.
+
+```@docs
+BasicCompGeometry.Extras
+```
 
 ### Points
 ```@docs
