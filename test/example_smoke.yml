@@ -1,0 +1,109 @@
+- name: ann
+  program: ann.jl
+  purpose: Compare exact, approximate, greedy, and hybrid nearest-neighbor searches.
+  args: ['32', '2', '8', '1.5']
+  stdout: ['Hybrid/Exact Ratio', 'Performance Comparison']
+- name: polarity
+  program: polarity.jl
+  purpose: Verify point-line and point-plane polarity round trips in several dimensions.
+  stdout: ['All round-trip tests passed']
+- name: bisector_cell
+  program: bisector_cell.jl
+  purpose: Construct and draw the curved cell of an origin site among tangent lines.
+  files: {bisector_cell.pdf: 1}
+- name: convex_hull_figure
+  program: convex_hull_figure.jl
+  purpose: Draw a convex hull, its diameter, labels, a legend, and an inset using Ipe.
+  files: {convex_hull_figure.pdf: 1, convex_hull_figure.ipe: null}
+- name: disks_figure
+  program: disks_figure.jl
+  purpose: Draw intersecting disks, intersection marks, a scale bar, and an inset using Ipe.
+  files: {disks_figure.pdf: 1, disks_figure.ipe: null}
+- name: ipe_conceptual_figure
+  program: ipe_conceptual_figure.jl
+  purpose: Generate a layered inverse-estimation diagram and its LaTeX wrapper.
+  files: {inverse_estimation_demo.pdf: 1, inverse_estimation_demo.ipe: null, inverse_estimation_demo.tex: null}
+- name: longest_convex_subset
+  program: longest_convex_subset.jl
+  purpose: Compute and draw largest convex subsets for two random point sets.
+  files: {longest_convex_subset_12.pdf: 1, longest_convex_subset_16.pdf: 1}
+- name: draw_halfplanes_arrangement
+  program: draw_halfplanes_arrangement.jl
+  purpose: Draw arrangement faces and a depth heatmap with inward halfplane whiskers.
+  args: ['--n', '6']
+  files: {halfplanes_arrangement.pdf: 2}
+- name: prune_halfplanes_depth
+  program: prune_halfplanes_depth.jl
+  purpose: Remove halfplanes while preserving the requested depth at all sampled cell centers.
+  args: ['1', '--seed', '42']
+  files: {pruned_halfplanes_k1.txt: null}
+  stdout: ['Final size of the halfplane set']
+- name: rand_halfplanes_depth
+  program: rand_halfplanes_depth.jl
+  purpose: Decompose a random halfplane arrangement, check its area, and plot depths.
+  args: ['8', '42', '--plot']
+  files: {rand_halfplanes_depth.pdf: 1}
+  stdout: ['Area conservation check', 'Total depth of the arrangement']
+- name: sphere_diameter
+  program: sphere_diameter.jl
+  purpose: Draw a bounding-box tree and compare approximate and exact diameters in 2D and 3D.
+  files: {sphere_bbt.pdf: null, results/example_2d.md: null, results/example_3d.md: null}
+  stdout: ['Example completed successfully']
+- name: points_and_bins
+  program: points_and_bins.jl
+  purpose: Study singleton grid bins and curved and periodic Voronoi cells in PDF, GIF, and HTML.
+  files: {points_and_bins.pdf: null, points_and_bins.gif: null, many_cells.pdf: null, many_cells_html/index.html: null}
+  stdout: ['Total singleton cells']
+- name: sq_vs_point
+  program: sq_vs_point.jl
+  purpose: Draw point-versus-square Voronoi cells, area analysis, a heatmap, and an animation.
+  files: {sq_vs_point.pdf: 10, sq_vs_point_heatmap.png: null, sq_vs_point.gif: null}
+  stdout: ['Computed area']
+- name: polar_bisectory
+  program: polar_bisectory.jl
+  purpose: Draw polar bisectors, tangent functions, and staircase constructions for three site sets.
+  args: ['--all']
+  files: {bisectory_random.pdf: 13, bisectory_square.pdf: 13, bisectory_20.pdf: 13}
+- name: prophet_prefix
+  program: prophet.jl
+  purpose: Draw prefix Voronoi diagrams in PDF and an SVG-backed HTML presentation.
+  args: ['1', '8', '--seed', '42']
+  files: {prophet.pdf: null, svg/index.html: null}
+- name: prophet_powers
+  program: prophet.jl
+  purpose: Draw Voronoi diagrams for increasing powers-of-two sample sizes.
+  args: ['2', '--seed', '42']
+  files: {prophet.pdf: 2, svg/index.html: null}
+- name: prophet_comparison
+  program: prophet.jl
+  purpose: Compare Voronoi areas at arrival and in the final periodic diagram.
+  args: ['3', '8', '--seed', '42']
+  files: {prophet.pdf: 9, svg/index.html: null}
+- name: vor_flower
+  program: vor_flower.jl
+  purpose: Draw concentric Voronoi diagrams and empty disks, interleaving figures with LaTeX explanations.
+  files: {flower.pdf: 10}
+- name: monte_carlo_area
+  program: misc/monte_carlo_area.jl
+  purpose: Estimate a parabolic cell's area by ray-casting and compare it with boundary integration.
+  stdout: ['Reference area', '1000']
+- name: benchmark_subspace_diam
+  program: dev/benchmark_subspace_diam.jl
+  purpose: Benchmark exact, WSPD, and FST subspace diameters at two small scales and several accuracies.
+  stdout: ['Table 1', 'Table 2']
+- name: compare_subspace_diam
+  program: dev/compare_subspace_diam.jl
+  purpose: Compare WSPD and FST subspace diameters with ordered execution.
+  stdout: ['Maximum Difference', 'Max Ratio']
+- name: compare_subspace_diam_batch
+  program: dev/compare_subspace_diam_batch.jl
+  purpose: Compare WSPD and FST subspace diameters with paired execution.
+  stdout: ['Maximum diameter difference', 'RESULTS']
+- name: verify_multi_scale
+  program: dev/verify_multi_scale.jl
+  purpose: Check approximation guarantees against exact subspace diameters at multiple scales.
+  stdout: ['Multi-Scale Verification', 'Max R FST']
+- name: verify_subspace_diam
+  program: dev/verify_subspace_diam.jl
+  purpose: Check WSPD and FST subspace diameter ratios against their theoretical bounds.
+  stdout: ['Verifying approx_diam_subspace', 'Max % Error']
