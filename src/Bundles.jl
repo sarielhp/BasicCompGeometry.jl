@@ -236,4 +236,4 @@ Alias for `default_view`.
 """
 const defaultview = default_view
 
-export default_view, defaultview, bbox, intersect_lines, pairwise_intersections
+export default_view, bbox, intersect_lines, pairwise_intersections

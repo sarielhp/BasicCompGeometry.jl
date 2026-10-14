@@ -1,5 +1,7 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: cairo_draw_points, cairo_draw_polygon, cairo_draw_setup, description,
+    get_file_path, open_canvas
 using Cairo
 
 @testset "Unified Canvas (PDF, SVG, PNG, GIF)" begin

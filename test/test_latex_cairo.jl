@@ -1,5 +1,7 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: add_latex_packages!, append_latex_preamble!, cairo_draw_latex, get_latex_preamble,
+    latex_to_pdf, pdf_merge, read_latex_snippet, reset_latex_preamble!
 using Cairo
 using LaTeXStrings
 

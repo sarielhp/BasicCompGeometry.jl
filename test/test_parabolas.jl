@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: at, axis_direction, p_coeff, vertex
 using LinearAlgebra
 
 @testset "Parabola" begin

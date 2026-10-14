@@ -11,6 +11,7 @@ using QuickEnv
 #
 
 using BasicCompGeometry
+import BasicCompGeometry: Polygon_random_sphere
 using Printf
 using DataFrames
 using PrettyTables

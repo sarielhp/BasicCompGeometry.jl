@@ -1,6 +1,7 @@
 using Test
 using Random
 using BasicCompGeometry
+import BasicCompGeometry: Points, compare_right_arc_to_point, compare_right_arcs
 
 # Stateful external kernel proves that wrappers preserve the same object.
 mutable struct CountingTestKernel <: AbstractKernel

@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using Random
 using BasicCompGeometry
+import BasicCompGeometry: random_halfplane, read_halfplanes, write_halfplanes
 using BasicCompGeometry: boundary, complement, distance, depth, clip
 
 @testset "Halfplanes" begin

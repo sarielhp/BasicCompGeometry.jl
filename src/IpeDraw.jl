@@ -8,6 +8,7 @@ and provides high-level helpers for algorithmic and conceptual diagrams.
 module IpeDraw
 
 using ..BasicCompGeometry
+import ..BasicCompGeometry: cardin
 using Printf
 
 export IpeCanvas, Viewport, PageBox, Style, Theme, publication_theme

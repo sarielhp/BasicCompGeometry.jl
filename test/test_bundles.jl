@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using BasicCompGeometry
+import BasicCompGeometry: defaultview
 using BasicCompGeometry: vertices, width, height
 
 @testset "Line and Halfplane Bundles" begin

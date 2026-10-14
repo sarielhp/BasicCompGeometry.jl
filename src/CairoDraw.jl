@@ -179,8 +179,3 @@ Retrieve the full absolute path of the generated output file.
 For HTML canvas output, returns the absolute path to `index.html`.
 """
 function get_file_path end
-
-export cairo_draw_setup, cairo_draw_points, cairo_draw_polygon, cairo_set_line_width, cairo_draw_latex, cairo_draw_latex_page, latex_to_pdf, pdf_merge
-export cairo_draw_halfplane, cairo_draw_halfplanes
-export read_latex_snippet, append_latex_preamble!, set_latex_preamble!, add_latex_macros!, add_latex_packages!, reset_latex_preamble!, get_latex_preamble
-export Canvas, open_canvas, description, get_file_path

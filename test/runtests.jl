@@ -3,7 +3,10 @@ using LinearAlgebra
 using Random
 using StaticArrays
 using BasicCompGeometry
-using BasicCompGeometry: width, height
+using BasicCompGeometry: Polygon_random_sphere, at, bisection_point, bound!,
+    cardin, convex_coef, distance_infty, hausdorff_dist_subseg,
+    height, match_price, middle, prefix_lengths,
+    width
 
 using Aqua
 Random.seed!(0xBADC0DE)
@@ -61,17 +64,73 @@ Aqua.test_all(BasicCompGeometry)
     end
 
     @testset "Opt-in Extras public helpers" begin
-        generic_names = (
-            :area, :direction, :faces, :height, :width, :boundary, :complement,
-            :clip, :depth, :lines, :locate, :vertices, :distance,
+        extra_names = (
+            :AbsPolygon, :Canvas, :MatPolygon, :Points,
+            :Polygon_random_sphere, :ReadWrite, :VecPntSeq2F, :VecPoint2I,
+            :VecPolygon2F, :VertTrapezoid, :VirtArray, :a_coeff,
+            :add_latex_macros!, :add_latex_packages!, :after_tangent_to_polygon, :alpha1,
+            :alpha2, :append_latex_preamble!, :area, :at,
+            :axis_direction, :b_coeff, :before_tangent_to_polygon, :bisection_point,
+            :bound!, :boundary, :c_coeff, :cairo_draw_halfplane,
+            :cairo_draw_halfplanes, :cairo_draw_latex, :cairo_draw_latex_page, :cairo_draw_points,
+            :cairo_draw_polygon, :cairo_draw_setup, :cairo_set_line_width, :cardin,
+            :center, :clip, :compare_right_arc_to_point, :compare_right_arcs,
+            :complement, :convex_coef, :d_max, :d_min,
+            :defaultview, :depth, :derivative, :description,
+            :direction, :dist_point_segment, :dist_segment_segment, :dist_subspace,
+            :distance, :distance_infty, :end_point, :expand!,
+            :expand_add!, :faces, :get_file_path, :get_latex_preamble,
+            :hausdorff_dist_subseg, :height, :init!, :latex_to_pdf,
+            :lines, :locate, :match_price, :max_dist_subspace,
+            :middle, :open_canvas, :p_coeff, :pdf_merge,
+            :pnt_seq_random_sphere, :prefix_lengths, :r_major, :r_minor,
+            :rand_polygon, :random_halfplane, :read_halfplanes, :read_latex_snippet,
+            :reset_latex_preamble!, :rotation_angle, :set_latex_preamble!, :start_point,
+            :vertex, :vertices, :width, :write_halfplanes,
+            :write_plt,
+        )
+        default_names = (
+            :AbsCurve2D, :AbsPntSeq, :AbstractKernel, :ArrVertDecomp,
+            :ArrVertDecomp2F, :BBT, :BBox, :BBox2F,
+            :Circle, :Circle2F, :Circle2I, :CircleArc,
+            :CircleArc2F, :ConvexHull3D, :CubicBezier, :CubicBezier2F,
+            :CubicBezier3F, :CubicSpline, :Curve2D, :Curve2DF,
+            :CurvePolygon2D, :CurvePolygon2DF, :Ellipse, :Ellipse2F,
+            :EllipticArc, :EllipticArc2F, :ExactKernel, :FloatingKernel,
+            :Halfplane, :Halfplane2F, :Hyperbola, :IpeDraw,
+            :Line, :LongestConvexSubset, :MVBB, :MatPntSeq,
+            :MetricSpace, :Parabola, :ParabolaArc, :ParabolaArc2F,
+            :Plane, :Plane2F, :PntSeq, :PntSeq2F,
+            :PntSeq2I, :PntSeq3F, :Point, :Point2F,
+            :Point2I, :Point3F, :Polygon, :Polygon2F,
+            :Polygon2I, :Polygon3F, :Segment, :Segment2F,
+            :Sphere, :Sphere2F, :Sphere3F, :VerticalTrapezoid,
+            :VerticalTrapezoid2F, :WSPD, :apply_transform, :approx_diameter,
+            :approx_diameter_subspace, :bbox, :bisector, :bottom_left,
+            :boundary_line, :centroid, :compare_distance, :compare_squared_distance,
+            :compare_xy, :convex_comb, :convex_hull, :corner,
+            :default_view, :diam, :dim, :dist,
+            :dist_sq, :exact_diameter, :exact_diameter_subspace, :flatten,
+            :geom_length, :hausdorff_simplify, :in_interior, :interpolate_catmull_rom,
+            :interpolate_natural_spline, :intersect_hyperbolas, :intersect_line_curve, :intersect_lines,
+            :intersections, :invert, :is_collinear, :is_inside,
+            :is_left_eq_turn, :is_left_turn, :is_right_eq_turn, :is_right_turn,
+            :max_dist, :nn_point, :on_boundary, :pairwise_intersections,
+            :point, :point_max, :point_min, :point_on,
+            :polar, :polar_line, :polygon, :rand_gaussian,
+            :rand_halfplane, :rand_pnt_seq, :rand_point, :rotation,
+            :sample_uniformly, :scale!, :simplify, :subdivide,
+            :tangent_line, :top_right, :translate!, :translation,
+            :trapezoid_chains, :trapezoids, :turn_sign, :union_bbox,
+            :vertical_decomposition, :view_box,
         )
         extras = BasicCompGeometry.Extras
-        @test Set(names(extras)) == Set((:Extras, generic_names...))
-        @test :Extras ∉ names(BasicCompGeometry)
+        @test Set(names(extras)) == Set((:Extras, extra_names...))
+        @test Set(names(BasicCompGeometry)) == Set((:BasicCompGeometry, default_names...))
 
         extras_consumer = Module(:ExtrasGeometryConsumer)
         Core.eval(extras_consumer, :(using BasicCompGeometry.Extras))
-        for name in generic_names
+        for name in extra_names
             @test getfield(extras, name) === getfield(BasicCompGeometry, name)
             @test Core.eval(extras_consumer, name) === getfield(BasicCompGeometry, name)
         end
@@ -88,7 +147,7 @@ Aqua.test_all(BasicCompGeometry)
         )
             consumer = Module(:CombinedGeometryConsumer)
             Core.eval(consumer, imports)
-            for name in (generic_names..., :Point, :BBox, :convex_hull)
+            for name in (extra_names..., default_names...)
                 @test Core.eval(consumer, name) === getfield(BasicCompGeometry, name)
             end
             @test Core.eval(consumer, :(width(BBox(point(0.0, 0.0), point(2.0, 3.0))))) == 2.0

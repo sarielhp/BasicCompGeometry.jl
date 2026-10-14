@@ -9,6 +9,7 @@ The algorithm has an expected running time of O(n log n).
 module ConvexHull3D
 
 using ..BasicCompGeometry
+import ..BasicCompGeometry: Points
 using LinearAlgebra
 using Random
 

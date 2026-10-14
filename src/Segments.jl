@@ -211,5 +211,4 @@ A 2-dimensional directed segment with `Float64` coordinates.
 const Segment2F = Segment{2,Float64}
 
 export Line, Segment, Segment2F
-export bisection_point, nn_point, at, convex_coef, geom_length
-export dist_point_segment, dist_segment_segment
+export nn_point, geom_length

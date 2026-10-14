@@ -27,6 +27,8 @@ Usage:
 """
 
 using BasicCompGeometry
+import BasicCompGeometry: add_latex_macros!, add_latex_packages!, cairo_draw_latex_page, description,
+    get_file_path, open_canvas
 using LinearAlgebra
 using Cairo
 using Printf

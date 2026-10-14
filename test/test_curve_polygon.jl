@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: after_tangent_to_polygon, at, before_tangent_to_polygon
 using BasicCompGeometry: direction
 using LinearAlgebra
 

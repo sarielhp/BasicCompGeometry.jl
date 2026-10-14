@@ -382,6 +382,5 @@ end
 
 export Halfplane, Halfplane2F
 export boundary_line
-export rand_halfplane, random_halfplane
+export rand_halfplane
 export in_interior, on_boundary
-export write_halfplanes, read_halfplanes

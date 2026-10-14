@@ -21,6 +21,7 @@ using QuickEnv
 #
 
 using BasicCompGeometry
+import BasicCompGeometry: read_halfplanes, write_halfplanes
 using BasicCompGeometry: width, height, vertices, depth
 using LinearAlgebra
 using Printf

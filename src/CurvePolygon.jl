@@ -368,6 +368,3 @@ function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
     end
     return isodd(crossings)
 end
-
-
-

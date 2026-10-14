@@ -1,5 +1,7 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: cardin, center, end_point, r_major,
+    r_minor, start_point
 using BasicCompGeometry: area
 
 @testset "Ellipse and EllipticArc Primitives" begin

@@ -235,4 +235,4 @@ end
 BBox(arc::EllipticArc) = bbox(arc)
 
 export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F
-export r_major, r_minor, alpha1, alpha2, start_point, end_point, bbox
+export bbox

@@ -1,4 +1,5 @@
 using BasicCompGeometry
+import BasicCompGeometry: Points
 using BasicCompGeometry.BBT
 using BasicCompGeometry.WSPD
 using Test

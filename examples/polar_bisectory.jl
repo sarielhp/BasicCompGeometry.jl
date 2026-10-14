@@ -24,6 +24,8 @@ using QuickEnv
 #
 
 using BasicCompGeometry
+import BasicCompGeometry: Points, after_tangent_to_polygon, before_tangent_to_polygon, bound!,
+    cairo_draw_points, cairo_draw_polygon, cairo_draw_setup
 using LinearAlgebra
 using Cairo
 using Printf

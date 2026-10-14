@@ -3,6 +3,7 @@
 using QuickEnv
 
 using BasicCompGeometry
+import BasicCompGeometry: cairo_draw_setup, description, get_file_path, open_canvas
 using BasicCompGeometry: distance
 using Cairo
 using LinearAlgebra, Printf, Random

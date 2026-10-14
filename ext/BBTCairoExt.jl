@@ -1,6 +1,7 @@
 module BBTCairoExt
 
 using BasicCompGeometry
+import BasicCompGeometry: cairo_draw_setup, cairo_set_line_width, description, open_canvas
 import BasicCompGeometry: width, height
 using BasicCompGeometry.BBT
 import Cairo

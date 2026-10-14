@@ -1,5 +1,7 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: a_coeff, at, b_coeff, c_coeff,
+    center, rotation_angle
 using BasicCompGeometry: distance
 using LinearAlgebra
 

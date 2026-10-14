@@ -120,4 +120,3 @@ function compare_right_arc_to_point(kernel::BuiltinKernel, center::Point{2},
 end
 
 export compare_xy, compare_squared_distance, compare_distance
-export compare_right_arcs, compare_right_arc_to_point

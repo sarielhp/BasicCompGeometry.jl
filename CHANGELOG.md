@@ -8,16 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - Unreleased
 
 ### Added
-- Opt-in `BasicCompGeometry.Extras` submodule exporting the 13 public geometry
-  helpers omitted from the default export list, with the original function bindings.
+- Opt-in `BasicCompGeometry.Extras` submodule exporting 89 additional supported
+  public API names, with their original bindings.
 
 ### Changed
-- **Breaking:** `area`, `direction`, `faces`, `height`, `width`, `boundary`,
-  `complement`, `clip`, `depth`, `lines`, `locate`, `vertices`, and `distance`
-  are no longer exported by `BasicCompGeometry`. Their methods and behavior are
-  unchanged. This reduces conflicts when loading other geometry packages.
-- Core types, distinctive operations, and compatibility aliases remain exported.
-- Updated examples, tests, and extensions to import generic helpers explicitly.
+- **Breaking:** Reduced the default export list to 130 public API names. The
+  89 names listed below are available through qualification, explicit imports,
+  or `Extras`. Their definitions, signatures, and behavior are unchanged.
+- Core geometry types, useful coordinate aliases, common operations, and main
+  algorithms remain exported. Specialized helpers, auxiliary namespaces,
+  less central compatibility aliases, and Cairo/LaTeX utilities move to `Extras`.
+- Updated internal modules, extensions, examples, tests, and documentation to
+  import additional helpers explicitly. Feature submodules keep their own exports.
 
 ### Migration
 
@@ -44,8 +46,27 @@ bb = BBox(point(0.0, 0.0), point(2.0, 3.0))
 width(bb) # 2.0
 ```
 
-`Extras` exports only the explicitly listed public helpers above. It shares their
-original functions and does not export internal implementation utilities.
+`Extras` exports only the explicitly listed public API names below. It shares
+their original bindings and does not export internal implementation utilities.
+
+| Group | Names available through `Extras` or explicit imports |
+|---|---|
+| Generic geometry helpers | `area`, `boundary`, `clip`, `complement`, `depth`, `direction`, `distance`, `faces`, `height`, `lines`, `locate`, `vertices`, `width` |
+| Geometry accessors | `a_coeff`, `alpha1`, `alpha2`, `axis_direction`, `b_coeff`, `c_coeff`, `center`, `end_point`, `p_coeff`, `r_major`, `r_minor`, `rotation_angle`, `start_point`, `vertex` |
+| Curve queries | `at`, `derivative` |
+| Compatibility and container aliases | `AbsPolygon`, `MatPolygon`, `Polygon_random_sphere`, `VecPntSeq2F`, `VecPoint2I`, `VecPolygon2F`, `VertTrapezoid`, `defaultview`, `rand_polygon`, `random_halfplane` |
+| Specialized geometry helpers | `after_tangent_to_polygon`, `before_tangent_to_polygon`, `bisection_point`, `compare_right_arc_to_point`, `compare_right_arcs`, `convex_coef`, `dist_point_segment`, `dist_segment_segment`, `dist_subspace`, `distance_infty`, `hausdorff_dist_subseg`, `match_price`, `max_dist_subspace`, `pnt_seq_random_sphere`, `prefix_lengths` |
+| Bounding-box helpers | `bound!`, `d_max`, `d_min`, `expand!`, `expand_add!`, `init!`, `middle` |
+| Cairo and LaTeX utilities | `Canvas`, `add_latex_macros!`, `add_latex_packages!`, `append_latex_preamble!`, `cairo_draw_halfplane`, `cairo_draw_halfplanes`, `cairo_draw_latex`, `cairo_draw_latex_page`, `cairo_draw_points`, `cairo_draw_polygon`, `cairo_draw_setup`, `cairo_set_line_width`, `description`, `get_file_path`, `get_latex_preamble`, `latex_to_pdf`, `open_canvas`, `pdf_merge`, `read_latex_snippet`, `reset_latex_preamble!`, `set_latex_preamble!` |
+| File I/O | `read_halfplanes`, `write_halfplanes`, `write_plt` |
+| Auxiliary namespaces | `ReadWrite`, `VirtArray` |
+| Sequence helpers | `Points`, `cardin` |
+
+Canonical spellings such as `default_view` and `rand_halfplane` remain exported.
+Use `length(ps)` for a point sequence's cardinality, or explicitly import
+`cardin`. `at` and `point_on` are distinct operations; moving `at` does not imply
+that they use identical parameter conventions. Visualization still requires
+loading Cairo and, for LaTeX utilities, LaTeXStrings.
 
 `BasicCompGeometry.depth` still supports both halfplane queries and bounding-box
 trees. `BasicCompGeometry.BBT.depth` remains exported within the `BBT` submodule.

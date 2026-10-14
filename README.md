@@ -218,15 +218,18 @@ the corresponding algorithms.
 
 For detailed information on all types and functions, please see the [Latest Documentation](https://sarielhp.github.io/BasicCompGeometry.jl/dev).
 
-Starting with v0.5.0, generic helpers such as `area`, `width`, and `vertices`
-require qualified calls, explicit imports, or the opt-in `Extras` submodule:
+Starting with v0.5.0, the default API exports 130 core names. Another 89 public
+names, including generic helpers, specialized accessors, compatibility aliases,
+and Cairo/LaTeX utilities, are available through qualified calls, explicit imports,
+or the opt-in `Extras` submodule:
 
 ```julia
 import BasicCompGeometry as CG
 using .CG, .CG.Extras
 ```
 
-`Extras` exports selected additional public helpers. See the
+`Extras` shares the original bindings and requires optional visualization
+dependencies to be loaded separately. See the
 [API migration notes](CHANGELOG.md#050---unreleased) for the complete list and examples.
 
 ## Installation

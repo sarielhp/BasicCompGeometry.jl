@@ -94,7 +94,7 @@ is_inside(point(1.0, 1.0), bb) # true
 
 # Point Sequences (Polygons)
 ps = PntSeq([p1, p2, point(0.0, 4.0)])
-cardin(ps) # 3
+length(ps) # 3
 ```
 
 Ordinary calls use floating-point predicates. Kernel-aware operations, including
@@ -107,8 +107,9 @@ the supported operations and limits.
 
 ### Imports and migration to v0.5.0
 
-Core types and distinctive operations remain exported. Generic helpers are
-available through qualified calls or explicit imports:
+The default API exports 130 names: core types, useful coordinate aliases,
+common operations, and main algorithms. Another 89 supported names are available
+through qualified calls, explicit imports, or `Extras`:
 
 ```julia
 import BasicCompGeometry as CG
@@ -119,9 +120,11 @@ using BasicCompGeometry: width
 width(bb) # 2.0
 ```
 
-The helpers no longer exported at the top level are `area`, `direction`,
-`faces`, `height`, `width`, `boundary`, `complement`, `clip`, `depth`, `lines`,
-`locate`, `vertices`, and `distance`. Their methods and behavior are unchanged.
+The additional names include generic helpers such as `area` and `width`,
+shape accessors such as `r_major`, specialized algorithm helpers, compatibility
+aliases, auxiliary namespaces, and all Cairo/LaTeX utilities. Their definitions,
+signatures, and behavior are unchanged. The complete list is in the
+[v0.5.0 migration notes](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/CHANGELOG.md#050---unreleased).
 `BBT.depth` remains exported by the `BBT` submodule. When combining geometry
 packages, qualify core type names such as `CG.Point` to avoid type-name conflicts.
 
@@ -136,8 +139,10 @@ width(bb) # 2.0
 ```
 
 Alternatively, use `using BasicCompGeometry, BasicCompGeometry.Extras`.
-`Extras` exports the 13 helpers listed above through an explicit export list,
-sharing the original functions. It does not export internal implementation utilities.
+`Extras` exports the 89 additional names through an explicit export list,
+sharing their original bindings. It does not export internal implementation utilities.
+Loading `Extras` does not activate optional dependencies: load Cairo and
+LaTeXStrings separately when using their visualization implementations.
 
 ```@docs
 BasicCompGeometry.Extras
@@ -149,7 +154,7 @@ Point
 point
 dist
 dist_sq
-dist_subspace
+BasicCompGeometry.dist_subspace
 convex_comb
 is_left_turn
 is_right_turn
@@ -162,11 +167,11 @@ rand_gaussian
 Segment
 Line
 geom_length
-at
+BasicCompGeometry.at
 nn_point
-dist_point_segment
-dist_segment_segment
-bisection_point
+BasicCompGeometry.dist_point_segment
+BasicCompGeometry.dist_segment_segment
+BasicCompGeometry.bisection_point
 ```
 
 ### Point Sequences
@@ -174,13 +179,13 @@ bisection_point
 AbsPntSeq
 PntSeq
 MatPntSeq
-Points
-cardin
-prefix_lengths
+BasicCompGeometry.Points
+BasicCompGeometry.cardin
+BasicCompGeometry.prefix_lengths
 simplify
 sample_uniformly
 rand_pnt_seq
-write_plt
+BasicCompGeometry.write_plt
 ```
 
 ### Bounding Boxes
@@ -190,12 +195,12 @@ bbox
 union_bbox
 BasicCompGeometry.width
 BasicCompGeometry.height
-middle
+BasicCompGeometry.middle
 diam
 max_dist
 is_inside
-expand!
-expand_add!
+BasicCompGeometry.expand!
+BasicCompGeometry.expand_add!
 ```
 
 ### Ellipses & Arcs
@@ -210,7 +215,7 @@ EllipticArc
 ```@docs
 CubicBezier
 CubicSpline
-derivative
+BasicCompGeometry.derivative
 flatten
 interpolate_catmull_rom
 interpolate_natural_spline
@@ -241,10 +246,10 @@ apply_transform
 ### Algorithms
 ```@docs
 hausdorff_simplify
-hausdorff_dist_subseg
-distance_infty
+BasicCompGeometry.hausdorff_dist_subseg
+BasicCompGeometry.distance_infty
 centroid
-match_price
+BasicCompGeometry.match_price
 ```
 
 ### Vector Figure Generation (IpeDraw)

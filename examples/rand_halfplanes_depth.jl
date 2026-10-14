@@ -14,6 +14,7 @@ using QuickEnv
 #
 
 using BasicCompGeometry
+import BasicCompGeometry: Canvas, cairo_draw_setup, cairo_set_line_width, description
 using BasicCompGeometry: area, width, height, vertices, depth
 using LinearAlgebra
 using Printf

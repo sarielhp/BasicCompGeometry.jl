@@ -287,4 +287,4 @@ BBox(b::CubicBezier) = bbox(b)
 BBox(s::CubicSpline) = bbox(s)
 
 export CubicBezier, CubicBezier2F, CubicBezier3F, CubicSpline
-export derivative, subdivide, flatten, interpolate_catmull_rom, interpolate_natural_spline, bbox
+export subdivide, flatten, interpolate_catmull_rom, interpolate_natural_spline, bbox

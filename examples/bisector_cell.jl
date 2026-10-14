@@ -8,6 +8,9 @@ using QuickEnv
 # and the cell in their arrangement containing the origin.
 
 using BasicCompGeometry
+import BasicCompGeometry: at, axis_direction, b_coeff, cairo_draw_setup,
+    description, get_file_path, open_canvas, rotation_angle,
+    vertex
 using BasicCompGeometry: distance
 using Cairo
 using LinearAlgebra

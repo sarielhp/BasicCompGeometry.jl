@@ -389,7 +389,5 @@ Alias for a 2D bounding box with `Float64` coordinates.
 const BBox2F = BBox{2,Float64}
 
 export BBox, BBox2F
-export expand!, expand_add!
-export init!, bound!, diam, dist, max_dist, is_inside
-export middle, d_min, d_max
+export diam, dist, max_dist, is_inside
 export bottom_left, top_right

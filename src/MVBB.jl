@@ -1,6 +1,7 @@
 module MVBB
 
 using ..BasicCompGeometry
+import ..BasicCompGeometry: Points, cardin, max_dist_subspace
 import ..BasicCompGeometry: width
 using ..BasicCompGeometry.BBT
 using ..BasicCompGeometry.VirtArray

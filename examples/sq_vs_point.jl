@@ -4,6 +4,8 @@
 using QuickEnv
 
 using BasicCompGeometry
+import BasicCompGeometry: at, cairo_draw_points, cairo_draw_setup, cairo_set_line_width,
+    description, get_file_path, open_canvas
 using Cairo
 using LinearAlgebra
 using Printf

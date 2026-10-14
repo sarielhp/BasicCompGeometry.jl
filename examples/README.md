@@ -10,11 +10,12 @@ julia --project=examples examples/<script>.jl [args...]
 
 Entries are sorted by modification date (newest first).
 
-Starting with v0.5.0, generic geometry helpers require qualification, explicit
-imports, or `using BasicCompGeometry.Extras`. The halfplane examples import
-`area`, `width`, `height`, `vertices`, `depth`, `faces`, and `clip` as needed; `bisector_cell.jl` and
-`points_and_bins.jl` explicitly import `distance`. The `ann.jl` example uses
-`depth` from its existing `BasicCompGeometry.BBT` import.
+Starting with v0.5.0, the default API contains 130 names; 89 additional public
+names are available through qualification, explicit imports, or
+`using BasicCompGeometry.Extras`. Examples explicitly import the shape accessors,
+specialized helpers, and Cairo/LaTeX utilities they use. The `ann.jl` example uses
+`depth` from its existing `BasicCompGeometry.BBT` import. Figure scripts still
+load Cairo, Colors, or LaTeXStrings as required by the relevant extensions.
 
 For examples that need the default API and all additional public helpers, use:
 

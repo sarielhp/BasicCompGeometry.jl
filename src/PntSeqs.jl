@@ -359,8 +359,7 @@ Alias for `pnt_seq_random_sphere`.
 const Polygon_random_sphere = pnt_seq_random_sphere
 
 export PntSeq, AbsPntSeq, MatPntSeq, PntSeq2I, PntSeq2F, PntSeq3F
-export AbsPolygon, Polygon, MatPolygon, Polygon2I, Polygon2F, Polygon3F
-export Points, cardin, dim, geom_length, prefix_lengths
-export translate!, scale!, simplify, sample_uniformly, at
-export rand_pnt_seq, pnt_seq_random_sphere, write_plt
-export rand_polygon, Polygon_random_sphere
+export Polygon, Polygon2I, Polygon2F, Polygon3F
+export dim, geom_length
+export translate!, scale!, simplify, sample_uniformly
+export rand_pnt_seq

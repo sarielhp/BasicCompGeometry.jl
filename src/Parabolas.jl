@@ -257,4 +257,4 @@ function intersect_line_curve(line::Line{2,Float64}, arc::ParabolaArc)
     return res
 end
 
-export Parabola, ParabolaArc, ParabolaArc2F, vertex, p_coeff, axis_direction
+export Parabola, ParabolaArc, ParabolaArc2F

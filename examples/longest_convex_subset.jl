@@ -10,6 +10,7 @@ a convex polygon from a set of random points in the plane.
 """
 
 using BasicCompGeometry
+import BasicCompGeometry: bound!, rand_polygon
 using BasicCompGeometry.LongestConvexSubset
 using Printf
 using Cairo

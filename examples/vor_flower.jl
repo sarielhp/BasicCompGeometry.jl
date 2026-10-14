@@ -24,6 +24,7 @@ Usage:
 """
 
 using BasicCompGeometry
+import BasicCompGeometry: add_latex_macros!, add_latex_packages!, latex_to_pdf, pdf_merge
 using LinearAlgebra
 using Cairo
 using Printf

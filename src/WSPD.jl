@@ -1,6 +1,7 @@
 module WSPD
 
 using ..BasicCompGeometry
+import ..BasicCompGeometry: Points
 using ..BasicCompGeometry.BBT
 using ..BasicCompGeometry.VirtArray
 using DataStructures

@@ -13,6 +13,7 @@
 
 using QuickEnv
 using BasicCompGeometry
+import BasicCompGeometry: at
 using LinearAlgebra
 using Printf
 using Random

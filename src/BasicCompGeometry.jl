@@ -165,47 +165,89 @@ include("Arrangements.jl")
 # remain available through qualified calls, explicit imports, or the opt-in
 # Extras submodule; see the migration notes for v0.5.0 in CHANGELOG.md.
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
-export Halfplane, Halfplane2F, boundary_line, rand_halfplane, random_halfplane, in_interior, on_boundary, write_halfplanes, read_halfplanes
-export default_view, defaultview, bbox, union_bbox, intersect_lines, intersections, pairwise_intersections
-export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F, ArrVertDecomp, ArrVertDecomp2F, vertical_decomposition, trapezoids, view_box
+export Halfplane, Halfplane2F, boundary_line, rand_halfplane, in_interior, on_boundary
+export default_view, bbox, union_bbox, intersect_lines, intersections, pairwise_intersections
+export VerticalTrapezoid, VerticalTrapezoid2F, ArrVertDecomp, ArrVertDecomp2F, vertical_decomposition, trapezoids, view_box
 export trapezoid_chains
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
-export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F, r_major, r_minor, alpha1, alpha2, start_point, end_point
+export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F
 export CubicBezier, CubicBezier2F, CubicBezier3F, CubicSpline, subdivide, flatten, interpolate_catmull_rom, interpolate_natural_spline
-export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
-export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
+export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, tangent_line, intersect_line_curve
+export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, intersect_hyperbolas, bisector
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
-export dist, dist_sq, dist_subspace, distance_infty
+export dist, dist_sq
 export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace
-export Points, centroid, convex_comb, convex_hull
-export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
+export centroid, convex_comb, convex_hull
 export polar, polar_line
-export bottom_left, corner, top_right, middle, diam, max_dist, max_dist_subspace, is_inside
-export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D, IpeDraw
+export bottom_left, corner, top_right, diam, max_dist, is_inside
+export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
 
 """
     BasicCompGeometry.Extras
 
-Additional public geometry helpers omitted from the default export list.
-Exports `area`, `direction`, `faces`, `height`, `width`, `boundary`,
-`complement`, `clip`, `depth`, `lines`, `locate`, `vertices`, and `distance`.
-These bindings refer to the same functions as in `BasicCompGeometry`.
+Additional supported public API names omitted from the default export list.
+Exports 89 helpers, accessors, compatibility aliases, auxiliary namespaces,
+and Cairo/LaTeX utilities. All bindings refer to the original objects in
+`BasicCompGeometry`; visualization implementations still require their
+optional packages to be loaded.
 
 Load both sets of public exports with:
 ```julia
 import BasicCompGeometry as CG
 using .CG, .CG.Extras
 ```
-The export list is explicit and contains only supported public helpers.
+The explicit export list contains only supported public API names.
 """
 module Extras
 
-using ..BasicCompGeometry: area, direction, faces, height, width, boundary,
-    complement, clip, depth, lines, locate, vertices, distance
+using ..BasicCompGeometry: AbsPolygon, Canvas, MatPolygon, Points,
+    Polygon_random_sphere, ReadWrite, VecPntSeq2F, VecPoint2I,
+    VecPolygon2F, VertTrapezoid, VirtArray, a_coeff,
+    add_latex_macros!, add_latex_packages!, after_tangent_to_polygon, alpha1,
+    alpha2, append_latex_preamble!, area, at,
+    axis_direction, b_coeff, before_tangent_to_polygon, bisection_point,
+    bound!, boundary, c_coeff, cairo_draw_halfplane,
+    cairo_draw_halfplanes, cairo_draw_latex, cairo_draw_latex_page, cairo_draw_points,
+    cairo_draw_polygon, cairo_draw_setup, cairo_set_line_width, cardin,
+    center, clip, compare_right_arc_to_point, compare_right_arcs,
+    complement, convex_coef, d_max, d_min,
+    defaultview, depth, derivative, description,
+    direction, dist_point_segment, dist_segment_segment, dist_subspace,
+    distance, distance_infty, end_point, expand!,
+    expand_add!, faces, get_file_path, get_latex_preamble,
+    hausdorff_dist_subseg, height, init!, latex_to_pdf,
+    lines, locate, match_price, max_dist_subspace,
+    middle, open_canvas, p_coeff, pdf_merge,
+    pnt_seq_random_sphere, prefix_lengths, r_major, r_minor,
+    rand_polygon, random_halfplane, read_halfplanes, read_latex_snippet,
+    reset_latex_preamble!, rotation_angle, set_latex_preamble!, start_point,
+    vertex, vertices, width, write_halfplanes,
+    write_plt
 
-export area, direction, faces, height, width, boundary,
-    complement, clip, depth, lines, locate, vertices, distance
+export AbsPolygon, Canvas, MatPolygon, Points,
+    Polygon_random_sphere, ReadWrite, VecPntSeq2F, VecPoint2I,
+    VecPolygon2F, VertTrapezoid, VirtArray, a_coeff,
+    add_latex_macros!, add_latex_packages!, after_tangent_to_polygon, alpha1,
+    alpha2, append_latex_preamble!, area, at,
+    axis_direction, b_coeff, before_tangent_to_polygon, bisection_point,
+    bound!, boundary, c_coeff, cairo_draw_halfplane,
+    cairo_draw_halfplanes, cairo_draw_latex, cairo_draw_latex_page, cairo_draw_points,
+    cairo_draw_polygon, cairo_draw_setup, cairo_set_line_width, cardin,
+    center, clip, compare_right_arc_to_point, compare_right_arcs,
+    complement, convex_coef, d_max, d_min,
+    defaultview, depth, derivative, description,
+    direction, dist_point_segment, dist_segment_segment, dist_subspace,
+    distance, distance_infty, end_point, expand!,
+    expand_add!, faces, get_file_path, get_latex_preamble,
+    hausdorff_dist_subseg, height, init!, latex_to_pdf,
+    lines, locate, match_price, max_dist_subspace,
+    middle, open_canvas, p_coeff, pdf_merge,
+    pnt_seq_random_sphere, prefix_lengths, r_major, r_minor,
+    rand_polygon, random_halfplane, read_halfplanes, read_latex_snippet,
+    reset_latex_preamble!, rotation_angle, set_latex_preamble!, start_point,
+    vertex, vertices, width, write_halfplanes,
+    write_plt
 
 end # module Extras
 

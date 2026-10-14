@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+import BasicCompGeometry: cardin, derivative
 
 @testset "CubicBezier and CubicSpline Primitives" begin
     # 1. Cubic Bézier evaluation

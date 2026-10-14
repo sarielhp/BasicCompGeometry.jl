@@ -10,6 +10,8 @@ using QuickEnv
 #   Page 2: Arrangement depth heatmap with inward directional whiskers along boundary lines.
 
 using BasicCompGeometry
+import BasicCompGeometry: cairo_draw_halfplanes, cairo_draw_polygon, cairo_draw_setup, cairo_set_line_width,
+    description, open_canvas, read_halfplanes
 using Cairo
 import BasicCompGeometry: clip, width, height, faces, depth
 using LinearAlgebra

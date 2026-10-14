@@ -263,4 +263,4 @@ function distance(x::Point{2,T}, h::Hyperbola{T}) where {T}
     return best
 end
 
-export Hyperbola, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas
+export Hyperbola, intersect_hyperbolas

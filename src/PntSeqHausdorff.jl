@@ -114,4 +114,4 @@ function hausdorff_simplify(P::AbsPntSeq{D,T}, w::T) where {D,T}
     end
 end
 
-export hausdorff_simplify, hausdorff_dist_subseg
+export hausdorff_simplify
