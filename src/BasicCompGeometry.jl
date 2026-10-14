@@ -161,24 +161,27 @@ include("Halfplanes.jl")
 include("Bundles.jl")
 include("Arrangements.jl")
 
+# Core types and distinctive operations are exported. Generic geometry helpers
+# remain available through qualified calls or explicit imports; see the migration
+# notes for v0.5.0 in CHANGELOG.md.
 export Segment, BBox, BBox2F, Segment2F, Line, Plane, Plane2F
-export Halfplane, Halfplane2F, boundary, boundary_line, complement, depth, rand_halfplane, random_halfplane, in_interior, on_boundary, clip, write_halfplanes, read_halfplanes
-export vertices, default_view, defaultview, bbox, union_bbox, intersect_lines, intersections, pairwise_intersections
-export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F, ArrVertDecomp, ArrVertDecomp2F, vertical_decomposition, trapezoids, view_box, locate, lines
-export trapezoid_chains, faces
+export Halfplane, Halfplane2F, boundary_line, rand_halfplane, random_halfplane, in_interior, on_boundary, write_halfplanes, read_halfplanes
+export default_view, defaultview, bbox, union_bbox, intersect_lines, intersections, pairwise_intersections
+export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F, ArrVertDecomp, ArrVertDecomp2F, vertical_decomposition, trapezoids, view_box
+export trapezoid_chains
 export Sphere, Circle, Circle2F, Circle2I, Sphere2F, Sphere3F, CircleArc, CircleArc2F, invert
-export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F, r_major, r_minor, alpha1, alpha2, area, start_point, end_point
+export Ellipse, Ellipse2F, EllipticArc, EllipticArc2F, r_major, r_minor, alpha1, alpha2, start_point, end_point
 export CubicBezier, CubicBezier2F, CubicBezier3F, CubicSpline, subdivide, flatten, interpolate_catmull_rom, interpolate_natural_spline
-export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, direction, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
+export Curve2D, Curve2DF, CurvePolygon2D, CurvePolygon2DF, AbsCurve2D, point_on, tangent_line, before_tangent_to_polygon, after_tangent_to_polygon, intersect_line_curve
 export Hyperbola, Parabola, ParabolaArc, ParabolaArc2F, center, a_coeff, b_coeff, c_coeff, rotation_angle, intersect_hyperbolas, bisector, vertex, p_coeff, axis_direction
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
-export dist, dist_sq, dist_subspace, distance_infty, distance
+export dist, dist_sq, dist_subspace, distance_infty
 export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace
 export Points, centroid, convex_comb, convex_hull
 export match_price, cardin, VecPntSeq2F, VecPolygon2F, VecPoint2I
 export polar, polar_line
-export bottom_left, corner, top_right, width, height, middle, diam, max_dist, max_dist_subspace, is_inside
+export bottom_left, corner, top_right, middle, diam, max_dist, max_dist_subspace, is_inside
 export VirtArray, BBT, WSPD, MVBB, MetricSpace, ReadWrite, LongestConvexSubset, ConvexHull3D, IpeDraw
 
 end

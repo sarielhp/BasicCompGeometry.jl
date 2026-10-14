@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - Unreleased
+
+### Changed
+- **Breaking:** `area`, `direction`, `faces`, `height`, `width`, `boundary`,
+  `complement`, `clip`, `depth`, `lines`, `locate`, `vertices`, and `distance`
+  are no longer exported by `BasicCompGeometry`. Their methods and behavior are
+  unchanged. This reduces conflicts when loading other geometry packages.
+- Core types, distinctive operations, and compatibility aliases remain exported.
+- Updated examples, tests, and extensions to import generic helpers explicitly.
+
+### Migration
+
+Existing calls such as `width(bb)` after `using BasicCompGeometry` must either
+qualify the function or explicitly import it:
+
+```julia
+import BasicCompGeometry as BCG
+bb = BCG.BBox(BCG.point(0.0, 0.0), BCG.point(2.0, 3.0))
+BCG.width(bb) # 2.0
+
+# Alternatively, keep unqualified calls with an explicit import:
+using BasicCompGeometry: width
+width(bb) # 2.0
+```
+
+`BasicCompGeometry.depth` still supports both halfplane queries and bounding-box
+trees. `BasicCompGeometry.BBT.depth` remains exported within the `BBT` submodule.
+When combining geometry packages, core type names such as `Point`, `Line`,
+`Polygon`, `Circle`, and `Sphere` may still overlap; use module qualification or
+explicit imports to select the intended type.
+
 ## [0.4.1] - 2026-10-13
 
 ### Changed

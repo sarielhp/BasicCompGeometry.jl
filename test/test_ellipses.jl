@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+using BasicCompGeometry: area
 
 @testset "Ellipse and EllipticArc Primitives" begin
     # 1. Basic Ellipse creation and properties

@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+using BasicCompGeometry: direction
 using LinearAlgebra
 
 @testset "CurvePolygon2D and point_on tests" begin

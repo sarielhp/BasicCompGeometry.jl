@@ -1,6 +1,7 @@
 module MVBB
 
 using ..BasicCompGeometry
+import ..BasicCompGeometry: width
 using ..BasicCompGeometry.BBT
 using ..BasicCompGeometry.VirtArray
 using LinearAlgebra

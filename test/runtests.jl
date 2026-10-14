@@ -3,12 +3,62 @@ using LinearAlgebra
 using Random
 using StaticArrays
 using BasicCompGeometry
+using BasicCompGeometry: width, height
 
 using Aqua
 Random.seed!(0xBADC0DE)
 Aqua.test_all(BasicCompGeometry)
 
 @testset "BasicCompGeometry.jl" begin
+
+    @testset "Default exports and explicit generic imports" begin
+        generic_names = (
+            :area, :direction, :faces, :height, :width, :boundary, :complement,
+            :clip, :depth, :lines, :locate, :vertices, :distance,
+        )
+        exported = Set(names(BasicCompGeometry))
+        default_consumer = Module(:DefaultGeometryConsumer)
+        Core.eval(default_consumer, :(using BasicCompGeometry))
+        explicit_consumer = Module(:ExplicitGeometryConsumer)
+        Core.eval(explicit_consumer, :(using BasicCompGeometry:
+            area, direction, faces, height, width, boundary, complement,
+            clip, depth, lines, locate, vertices, distance))
+
+        for name in generic_names
+            @test name ∉ exported
+            @test !isdefined(default_consumer, name)
+            @test isdefined(BasicCompGeometry, name)
+            @test getfield(explicit_consumer, name) === getfield(BasicCompGeometry, name)
+        end
+        for name in (:Point, :Segment, :BBox, :Polygon, :Circle, :Sphere, :convex_hull)
+            @test getfield(default_consumer, name) === getfield(BasicCompGeometry, name)
+        end
+
+        # Another geometry package may export these same generic names. Check
+        # both import orders without adding that package as a test dependency.
+        other_geometry = Module(:OtherGeometry)
+        for name in generic_names
+            Core.eval(other_geometry, :(function $name end))
+            Core.eval(other_geometry, :(export $name))
+        end
+        for bcg_first in (true, false)
+            mixed_consumer = Module(:MixedGeometryConsumer)
+            Core.eval(mixed_consumer, :(const OtherGeometry = $other_geometry))
+            imports = (:(using BasicCompGeometry), :(using .OtherGeometry))
+            for import_expr in (bcg_first ? imports : reverse(imports))
+                Core.eval(mixed_consumer, import_expr)
+            end
+            for name in generic_names
+                # Resolve dynamically created imports in their current world.
+                @test Core.eval(mixed_consumer, name) === Core.eval(other_geometry, name)
+            end
+        end
+
+        bb = BBox(point(0.0, 0.0), point(2.0, 3.0))
+        @test explicit_consumer.width(bb) == 2.0
+        @test BasicCompGeometry.height(bb) == 3.0
+        @test BasicCompGeometry.depth === BBT.depth
+    end
 
     @testset "Points (2D & 3D, Float & Int)" begin
         # 2D Float

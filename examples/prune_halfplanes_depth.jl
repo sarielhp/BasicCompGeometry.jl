@@ -21,6 +21,7 @@ using QuickEnv
 #
 
 using BasicCompGeometry
+using BasicCompGeometry: width, height, vertices, depth
 using LinearAlgebra
 using Printf
 using Random

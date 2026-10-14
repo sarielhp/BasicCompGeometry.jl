@@ -11,7 +11,7 @@ using QuickEnv
 
 using BasicCompGeometry
 using Cairo
-import BasicCompGeometry: clip, width, height
+import BasicCompGeometry: clip, width, height, faces, depth
 using LinearAlgebra
 using Printf
 using Random

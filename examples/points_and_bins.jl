@@ -3,6 +3,7 @@
 using QuickEnv
 
 using BasicCompGeometry
+using BasicCompGeometry: distance
 using Cairo
 using LinearAlgebra, Printf, Random
 

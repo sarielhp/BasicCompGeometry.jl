@@ -1,6 +1,7 @@
 module CairoExt
 
 using BasicCompGeometry
+import BasicCompGeometry: clip
 import Cairo
 import Cairo: show_page, finish
 using Printf

@@ -105,6 +105,26 @@ the supported operations and limits.
 
 ## API Reference
 
+### Imports and migration to v0.5.0
+
+Core types and distinctive operations remain exported. Generic helpers are
+available through qualified calls or explicit imports:
+
+```julia
+import BasicCompGeometry as BCG
+bb = BCG.BBox(BCG.point(0.0, 0.0), BCG.point(2.0, 3.0))
+BCG.width(bb) # 2.0
+
+using BasicCompGeometry: width
+width(bb) # 2.0
+```
+
+The helpers no longer exported at the top level are `area`, `direction`,
+`faces`, `height`, `width`, `boundary`, `complement`, `clip`, `depth`, `lines`,
+`locate`, `vertices`, and `distance`. Their methods and behavior are unchanged.
+`BBT.depth` remains exported by the `BBT` submodule. When combining geometry
+packages, qualify core type names such as `BCG.Point` to avoid type-name conflicts.
+
 ### Points
 ```@docs
 Point
@@ -150,8 +170,8 @@ write_plt
 BBox
 bbox
 union_bbox
-width
-height
+BasicCompGeometry.width
+BasicCompGeometry.height
 middle
 diam
 max_dist

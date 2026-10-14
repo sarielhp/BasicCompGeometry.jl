@@ -564,5 +564,5 @@ faces(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-9) =
 
 export VerticalTrapezoid, VertTrapezoid, VerticalTrapezoid2F
 export ArrVertDecomp, ArrVertDecomp2F
-export vertical_decomposition, trapezoids, view_box, locate, polygon, lines
-export trapezoid_chains, faces
+export vertical_decomposition, trapezoids, view_box, polygon
+export trapezoid_chains

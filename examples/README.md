@@ -10,6 +10,12 @@ julia --project=examples examples/<script>.jl [args...]
 
 Entries are sorted by modification date (newest first).
 
+Starting with v0.5.0, generic geometry helpers require qualification or explicit
+imports. The halfplane examples import `area`, `width`, `height`, `vertices`,
+`depth`, `faces`, and `clip` as needed; `bisector_cell.jl` and
+`points_and_bins.jl` explicitly import `distance`. The `ann.jl` example uses
+`depth` from its existing `BasicCompGeometry.BBT` import.
+
 ---
 
 ## `convex_hull_figure.jl` — AI-Generated Standalone Convex Hull & Diameter Figure

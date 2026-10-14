@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using Random
 using BasicCompGeometry
+using BasicCompGeometry: boundary, complement, distance, depth, clip
 
 @testset "Halfplanes" begin
     # 1. Constructors and basic properties

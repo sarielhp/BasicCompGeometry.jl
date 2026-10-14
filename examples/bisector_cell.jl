@@ -8,6 +8,7 @@ using QuickEnv
 # and the cell in their arrangement containing the origin.
 
 using BasicCompGeometry
+using BasicCompGeometry: distance
 using Cairo
 using LinearAlgebra
 using Printf

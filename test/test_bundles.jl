@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using BasicCompGeometry
+using BasicCompGeometry: vertices, width, height
 
 @testset "Line and Halfplane Bundles" begin
     # 1. Line-line intersection

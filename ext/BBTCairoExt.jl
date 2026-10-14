@@ -1,6 +1,7 @@
 module BBTCairoExt
 
 using BasicCompGeometry
+import BasicCompGeometry: width, height
 using BasicCompGeometry.BBT
 import Cairo
 import Colors

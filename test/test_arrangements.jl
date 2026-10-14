@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using Random
 using BasicCompGeometry
+using BasicCompGeometry: area, locate, vertices, width, height, lines, faces
 
 @testset "Arrangement Vertical Decomposition" begin
     # 1. Zero lines in view [0, 1] x [0, 1]

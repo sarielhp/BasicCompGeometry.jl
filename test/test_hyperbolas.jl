@@ -1,5 +1,6 @@
 using Test
 using BasicCompGeometry
+using BasicCompGeometry: distance
 using LinearAlgebra
 
 @testset "Hyperbola" begin
