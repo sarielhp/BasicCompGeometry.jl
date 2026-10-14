@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   less central compatibility aliases, and Cairo/LaTeX utilities move to `Extras`.
 - Updated internal modules, extensions, examples, tests, and documentation to
   import additional helpers explicitly. Feature submodules keep their own exports.
+- Shortened the README and reorganized documentation into focused guides and
+  API reference pages, with executable examples and strict exported-docstring
+  and reference checks.
 
 ### Migration
 
