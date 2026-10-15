@@ -74,3 +74,15 @@ using LinearAlgebra
         @test vol < 30.0 # Loose bound
     end
 end
+
+@testset "Minimum rectangle for small hulls" begin
+    for points in (Point2F[], [point(1.0, 2.0)], [point(1.0, 2.0), point(3.0, 4.0)])
+        hull = convex_hull(PntSeq(points))
+        rectangle = rotating_calipers_min_area(hull)
+        @test rectangle.area == 0.0
+        @test all(p -> p in rectangle.vertices, points)
+    end
+    empty_box = OBBox{3,Float64}()
+    @test !empty_box.f_init
+    @test volume(empty_box) == 0.0
+end

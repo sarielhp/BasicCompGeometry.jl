@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - Unreleased
 
 ### Added
+- Coverage for ordinary constructors, accessors, curve intersections, binary-file
+  subsets and errors, bichromatic WSPD, hull diagnostics, and drawing helpers.
 - Reproducible examples environment and bounded smoke tests for all 22 example
   programs, including all three prophet modes, with output validation.
 - Opt-in `BasicCompGeometry.Extras` submodule exporting 89 additional supported
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Codecov, alongside downloadable coverage reports.
 
 ### Changed
+- Fixed `angle(::EllipticArc)` to extend `Base.angle` and made Hausdorff
+  simplification accept one-point curves.
 - Fixed stale polygon-drawing calls, bounding-box-tree color rendering, late Cairo
   loading in the halfplane example, and the sphere example's table backend.
 - **Breaking:** Reduced the default export list to 130 public API names. The

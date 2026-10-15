@@ -76,6 +76,18 @@ using LaTeXStrings
             cairo_draw_latex(cr, 50, 50, L"\sum_{i=1}^n x_i \in \R"; fontsize=14, halign=:left)
             cairo_draw_latex(cr, 250, 250, L"\Vor(p) \subset \Prophet"; fontsize=16, halign=:center)
             cairo_draw_latex(cr, 450, 450, L"\alpha \le 2.0"; fontsize=12, halign=:right)
+            # Exercise cached-snippet reuse and alignment on a raster surface,
+            # separately from PDF resource serialization.
+            image_surface = Cairo.CairoARGBSurface(500, 500)
+            try
+                image_cr = CairoContext(image_surface)
+                for valign in (:center, :top, :bottom)
+                    @test cairo_draw_latex(image_cr, 200, 200, L"\alpha \le 2.0";
+                                           fontsize=12, valign=valign) === nothing
+                end
+            finally
+                Cairo.finish(image_surface)
+            end
 
             Cairo.finish(surface)
             @test isfile(cairo_pdf)
@@ -85,8 +97,34 @@ using LaTeXStrings
             pdf_merge(merged_pdf, (pdf_path, 1), (cairo_pdf, 1), (pdf_path, 2))
             @test isfile(merged_pdf)
             @test filesize(merged_pdf) > 0
+            reordered_pdf = joinpath(temp_dir, "reordered.pdf")
+            pdf_merge(reordered_pdf, pdf_path => [2, 1], "$cairo_pdf 1")
+            @test parse(Int, read(`qpdf --show-npages $reordered_pdf`, String)) == 3
+            one_page_pdf = joinpath(temp_dir, "one_page.pdf")
+            latex_to_pdf(p1, one_page_pdf; passes=1)
+            @test parse(Int, read(`qpdf --show-npages $one_page_pdf`, String)) == 1
         end
     finally
         rm(temp_dir, recursive=true, force=true)
+    end
+end
+
+@testset "LaTeX preamble replacement and missing merge tools" begin
+    reset_latex_preamble!()
+    try
+        BasicCompGeometry.set_latex_preamble!(raw"\newcommand{\TestOne}{1}")
+        BasicCompGeometry.set_latex_preamble!(raw"\newcommand{\TestTwo}{2}")
+        packages = add_latex_packages!(["amsmath", "amssymb"], ("xcolor", "bm"))
+        @test all(p -> p in packages, ("amsmath", "amssymb", "xcolor", "bm"))
+        preamble = get_latex_preamble()
+        @test occursin(raw"\TestTwo", preamble)
+        @test !occursin(raw"\TestOne", preamble)
+        mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
+            withenv("PATH" => dir) do
+                @test_throws ErrorException pdf_merge(joinpath(dir, "missing.pdf"), "missing-source.pdf")
+            end
+        end
+    finally
+        reset_latex_preamble!()
     end
 end

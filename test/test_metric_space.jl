@@ -74,3 +74,40 @@ using LinearAlgebra
         @test I[2] == 2 # (3,4) is further from (0,0) than (0,4)
     end
 end
+
+@testset "Metric adapters and angular edge cases" begin
+    points = [point(0.0, 0.0), point(3.0, 4.0), point(6.0, 0.0)]
+    space = PointsSpace(points)
+    @test metric(space, 1, 2) == 5.0
+    @test original(space, 3) == 3
+    @test dist(MPointsSpace(Matrix(PntSeq(points)), 2), 1, 1) == 0.0
+    @test_throws DimensionMismatch MetricSpace.euclidean_distance([1.0], [1.0, 2.0])
+    @test_throws AssertionError MPointsSpace(zeros(2, 2), 3)
+
+    indexes = [3, 1, 2]
+    permuted = PermutMetric(space, indexes)
+    indexes[1] = 1
+    @test original(permuted, 1) == 3 # The constructor owns its mapping.
+    @test dist(permuted, 1, 1) == 0.0
+    @test dist_real(permuted, 1, point(6.0, 2.0)) == 2.0
+    MetricSpace.swap!(permuted, 2, 2)
+    @test permuted.I == [3, 1, 2]
+
+    angular = SpherePMetric(space, 1)
+    push!(angular, 2, 5.0)
+    push!(angular, 3, 6.0)
+    theta = dist(angular, 1, 2)
+    @test dist(angular, 1, 1) == 0.0
+    MetricSpace.swap!(angular, 1, 2)
+    @test angular.I == [3, 2]
+    @test angular.D == [6.0, 5.0]
+    @test dist(angular, 1, 2) ≈ theta
+    MetricSpace.swap!(angular, 1, 1)
+    @test angular.I == [3, 2]
+
+    angle_of = MetricSpace.calculate_angle_facing_a
+    @test angle_of(0.0, 1.0, 1.0) == 0.0
+    @test angle_of(1.0, 0.0, 1.0) == π / 2
+    @test angle_of(2.0, 1.0, 1.0) ≈ π
+    @test_throws ArgumentError angle_of(-1.0, 1.0, 1.0)
+end

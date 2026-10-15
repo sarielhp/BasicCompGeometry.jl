@@ -150,7 +150,7 @@ end
 center(arc::EllipticArc) = arc.ellipse.center
 r_major(arc::EllipticArc) = arc.ellipse.r_major
 r_minor(arc::EllipticArc) = arc.ellipse.r_minor
-angle(arc::EllipticArc) = arc.ellipse.angle
+Base.angle(arc::EllipticArc) = arc.ellipse.angle
 alpha1(arc::EllipticArc) = arc.alpha1
 alpha2(arc::EllipticArc) = arc.alpha2
 

@@ -3,6 +3,39 @@ using BasicCompGeometry
 using BasicCompGeometry.BBT
 using StaticArrays
 
+@testset "Virtual array endpoints and bichromatic WSPD" begin
+    values = [10, 20, 30]
+    va = BasicCompGeometry.VirtArray.VArray(values)
+    BasicCompGeometry.VirtArray.swap!(va, 1, 3)
+    @test first(va) == 30
+    @test last(va) == 10
+    @test collect(va) == [30, 20, 10]
+    @test values == [10, 20, 30]
+    @test collect(eachindex(va)) == [1, 2, 3]
+
+    points = [point(0.0, 0.0), point(2.0, 1.0), point(4.0, 0.0),
+              point(1.0, 3.0), point(3.0, 4.0), point(5.0, 3.0)]
+    state = WSPD.init(PntSeq(points), 0.0)
+    top = WSPD.get_top(state)
+    @test WSPD.top_diam_ub(state) >= maximum(dist(p, q) for p in points, q in points)
+    @test WSPD.min_orig_index(state, top) == 1
+    @test WSPD.max_orig_index(state, top) == length(points)
+    pairs = WSPD.expand_bichromatic!(state, 3)
+    represented = Set{Tuple{Int,Int}}()
+    for pair in pairs
+        i, j = WSPD.reps_orig_indexes(state, pair)
+        @test WSPD.get_reps(state, pair) == (points[i], points[j])
+        left, right = WSPD.get_orig_ranges(state, pair)
+        @test i in left && j in right
+        @test min(i, j) <= 3 < max(i, j)
+        push!(represented, minmax(i, j))
+    end
+    @test represented == Set((i, j) for i in 1:3 for j in 4:6)
+    @test WSPD.top_diam_ub(state) == 0.0
+    @test WSPD.top_refine!(state) === nothing
+    @test BBT.exact_naive_scan(state.tree, points[4]) == (0.0, points[4], 4)
+end
+
 @testset "BBT Approximate Nearest Neighbor" begin
     # Create a grid of points
     pnts = [point(Float64(x), Float64(y)) for x = 1:10 for y = 1:10]

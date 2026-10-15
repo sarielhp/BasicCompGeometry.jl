@@ -4,6 +4,26 @@ using Random
 using BasicCompGeometry
 using BasicCompGeometry: area, locate, vertices, width, height, lines, faces
 
+@testset "Trapezoid queries and degenerate views" begin
+    view = BBox(point(0.0, 0.0), point(1.0, 1.0))
+    decomp = vertical_decomposition(Line{2,Float64}[], view)
+    trap = first(decomp)
+    @test point(0.5, 0.5) in trap
+    @test !(point(2.0, 0.5) in trap)
+    @test occursin("VerticalTrapezoid(", sprint(show, trap))
+    @test occursin("ArrVertDecomp", sprint(show, decomp))
+    narrow_corners = typeof(trap.corners)(point(0.0, 0.0), point(0.0, 0.0),
+                                         point(0.0, 1.0), point(0.0, 1.0))
+    narrow = VerticalTrapezoid(0.0, 0.0, nothing, nothing, narrow_corners)
+    @test point(0.0, 0.5) in narrow
+    @test !(point(0.0, 2.0) in narrow)
+    @test_throws ArgumentError vertical_decomposition(Line{2,Float64}[],
+        BBox(point(0.0, 0.0), point(0.0, 1.0)))
+    cutting_line = Line(point(0.5, 0.0), point(0.0, 1.0))
+    regions = faces([cutting_line, Line(point(0.0, 0.5), point(1.0, 0.0))])
+    @test length(regions) == 4
+end
+
 @testset "Arrangement Vertical Decomposition" begin
     # 1. Zero lines in view [0, 1] x [0, 1]
     view_unit = BBox(point(0.0, 0.0), point(1.0, 1.0))

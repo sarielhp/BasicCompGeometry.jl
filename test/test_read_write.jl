@@ -53,3 +53,33 @@ using LinearAlgebra
         rm(filename)
     end
 end
+
+@testset "Binary subsets and malformed fvecs" begin
+    mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
+        floats = Float32[1 2; 3 4; 5 6]
+        fbin = joinpath(dir, "subset.fbin")
+        write_fbin(fbin, floats)
+        @test read_fbin_n(fbin) == floats'
+        @test read_fbin_n(fbin, 2) == floats[1:2, :]'
+        @test read_fbin_n(fbin, 20) == floats'
+        @test read_fbin(fbin, 1, 1) == floats[2:2, :]'
+        @test read_fbin(fbin, 1) == floats[2:3, :]'
+        ints = Int32.(floats)
+        ibin = joinpath(dir, "subset.ibin")
+        write_ibin(ibin, ints)
+        @test read_ibin(ibin, 1, 1) == ints[2:2, :]
+
+        malformed = joinpath(dir, "malformed.fvecs")
+        write(malformed, UInt8[])
+        @test_throws ErrorException read_fvecs(malformed)
+        write(malformed, Int32(0))
+        @test_throws ErrorException read_fvecs(malformed)
+        write(malformed, Int32[2, 0]) # Incomplete record.
+        @test_throws ErrorException read_fvecs(malformed)
+        open(malformed, "w") do io
+            write(io, Int32(2), Float32[1, 2], Int32(3), Float32[3, 4])
+        end
+        @test_throws ErrorException read_fvecs(malformed)
+        @test_throws ErrorException read_fvecs(joinpath(dir, "missing.fvecs"))
+    end
+end

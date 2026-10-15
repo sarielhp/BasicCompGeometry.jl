@@ -85,3 +85,23 @@ using LinearAlgebra
         @test d2 > 4.0
     end
 end
+
+@testset "Hyperbola convenience methods and intersections" begin
+    h = Hyperbola([0.0, 0.0], 2.0, 1.0, 0.0)
+    @test a_coeff(h) ≈ 2.0
+    @test occursin("Hyperbola(f1=", sprint(show, h))
+    line = Line(point(0.0, -1.0), point(1.0, 0.0))
+    parabola = Hyperbola(line, point(0.0, 1.0))
+    @test parabola isa Parabola
+    @test at(parabola, 0.0) ≈ point(0.0, 0.0)
+    asymptote = Line(point(0.0, 0.0), point(2.0, 1.0))
+    @test isempty(intersect_line_curve(asymptote, h))
+
+    t = range(-3.0, 3.0; length=200)[130]
+    other = Hyperbola(point(0.0, 2sinh(t)), 2.0, 1.0, 0.0)
+    hits = intersect_hyperbolas(h, other)
+    @test any(p -> p ≈ point(2cosh(t), sinh(t)), hits)
+    @test all(p -> abs(abs(dist(p, other.f1) - dist(p, other.f2)) - other.d) < 0.01, hits)
+    @test pairwise_intersections(h, other) == hits
+    @test BasicCompGeometry.vertices([h, other]; unique=true) == hits
+end

@@ -83,3 +83,17 @@ import BasicCompGeometry: cardin, derivative
     @test s_flat[1] ≈ knots[1]
     @test s_flat[cardin(s_flat)] ≈ knots[4]
 end
+
+@testset "Mixed Bezier coordinates and closed interpolation" begin
+    curve = CubicBezier(point(0, 0), point(0.0, 1.0), point(1f0, 1f0), point(1, 0))
+    @test curve isa CubicBezier2F
+    @test curve(0.5) ≈ point(0.5, 0.75)
+    @test BBox(curve) ≈ BBox(point(0.0, 0.0), point(1.0, 0.75))
+    @test occursin("CubicBezier(", sprint(show, curve))
+    knots = PntSeq([point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)])
+    closed = interpolate_catmull_rom(knots; closed=true)
+    @test length(closed) == 4
+    @test closed(0.0) ≈ closed(4.0)
+    @test all(i -> closed(Float64(i - 1)) ≈ knots[i], 1:4)
+    @test all(p -> is_inside(p, BBox(closed)), knots)
+end

@@ -99,6 +99,7 @@ function hausdorff_simplify(P::AbsPntSeq{D,T}, w::T) where {D,T}
 
     push!(pout, P[1])
     push!(pindices, 1)
+    n == 1 && return pout, pindices
 
     curr_ind = 1
     while true

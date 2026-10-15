@@ -1,6 +1,20 @@
 using Test
 using BasicCompGeometry
 
+@testset "Sphere and arc convenience methods" begin
+    circle = Circle([1, 2], 3.0)
+    @test circle isa Circle2F
+    @test occursin("Circle(", sprint(show, circle))
+    @test BBox(circle) == BBox(point(-2.0, -1.0), point(4.0, 5.0))
+    sphere = Sphere([0, 1, 2], 2.0)
+    @test sphere isa Sphere3F
+    @test occursin("Sphere{3}", sprint(show, sphere))
+    arc = CircleArc((1, 2.0), 3, 0.0, π / 2)
+    @test arc isa CircleArc2F
+    @test BasicCompGeometry.at(arc, 0.0) == point(4.0, 2.0)
+    @test occursin("CircleArc(", sprint(show, arc))
+end
+
 @testset "Spheres & Circles" begin
     # Constructors and type aliases
     s3d = Sphere(point(1.0, 2.0, 3.0), 5.0)

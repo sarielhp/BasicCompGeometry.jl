@@ -115,3 +115,39 @@ using BasicCompGeometry: vertices, width, height
     @test height(dv_two) > 0.0
     @test is_inside(point(0.0, 0.0), dv_two) == true
 end
+
+@testset "Generic bundles and curve dispatch" begin
+    horizontal = Line(point(-3.0, 0.0), point(1.0, 0.0))
+    vertical = Line(point(0.0, -3.0), point(0.0, 1.0))
+    parallel = Line(point(-3.0, 2.0), point(1.0, 0.0))
+    hp = Halfplane(horizontal, point(0.0, 1.0))
+    vp = Halfplane(vertical, point(1.0, 0.0))
+    @test pairwise_intersections(horizontal, vertical) ≈ [point(0.0, 0.0)]
+    @test isempty(pairwise_intersections(horizontal, parallel))
+    @test pairwise_intersections(hp, vp) ≈ [point(0.0, 0.0)]
+    @test vertices(Any[horizontal, vertical]) ≈ [point(0.0, 0.0)]
+    @test vertices(Any[hp, vp]) ≈ [point(0.0, 0.0)]
+    @test isempty(vertices(Any[]))
+    @test default_view(Any[horizontal, vertical]) == default_view([horizontal, vertical])
+    @test !default_view(Any[]).f_init
+
+    left = Circle(point(0.0, 0.0), 1.0)
+    right = Circle(point(1.0, 0.0), 1.0)
+    @test pairwise_intersections(left, right) == intersections(left, right)
+    h = Hyperbola(point(0.0, 0.0), 2.0, 1.0, 0.0)
+    expected = [point(-2.0, 0.0), point(2.0, 0.0)]
+    for (a, b) in ((horizontal, h), (h, horizontal), (hp, h), (h, hp))
+        hits = pairwise_intersections(a, b)
+        @test length(hits) == 2
+        @test all(p -> any(q -> q ≈ p, hits), expected)
+    end
+
+    for box in (BBox(point(1.0, 0.0), point(1.0, 2.0)),
+                BBox(point(0.0, 1.0), point(2.0, 1.0)))
+        view = default_view(box; factor=1.5)
+        @test width(view) ≈ 3.0
+        @test height(view) ≈ 3.0
+        @test is_inside(bottom_left(box), view)
+        @test is_inside(top_right(box), view)
+    end
+end

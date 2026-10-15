@@ -55,3 +55,25 @@ using LinearAlgebra
         @test length(verts) >= n * 0.9
     end
 end
+
+@testset "3D hull validation diagnostics" begin
+    points = [point(0.0, 0.0, 0.0), point(1.0, 0.0, 0.0),
+              point(0.0, 1.0, 0.0), point(0.0, 0.0, 1.0)]
+    indexes, faces = convex_hull_3d(points)
+    @test convex_hull_3d(PntSeq(points)) == (indexes, faces)
+    @test convex_hull_3d(points[1:3]) == ([1, 2, 3], Vector{Int}[])
+    @test convex_hull_3d(fill(points[1], 4)) == (Int[], Vector{Int}[])
+    @test !ConvexHull3D.Face(1, 1, 2, points).active
+    verify = ConvexHull3D.verify_convex_hull_3d
+    @test verify(points, indexes, faces) == (true, "Hull is valid")
+    invalid = [([Int[1, 2]], "not a triangle"),
+               ([Int[1, 1, 2]], "degenerate"),
+               (vcat([reverse(faces[1])], faces[2:end]), "Convexity violated"),
+               (vcat(faces, [faces[1]]), "duplicated"),
+               (faces[1:end-1], "no matching reverse edge")]
+    for (bad_faces, message) in invalid
+        success, detail = verify(points, indexes, bad_faces)
+        @test !success
+        @test occursin(message, detail)
+    end
+end

@@ -2,6 +2,22 @@ using Test
 using LinearAlgebra
 using Random
 using BasicCompGeometry
+
+@testset "Halfplane constructors and random interfaces" begin
+    h = Halfplane(point(0, 0), point(1.0, 0.0))
+    @test h isa Halfplane2F
+    @test is_inside(point(0.0, -1.0), h)
+    @test Halfplane(point(0.0, 0.0), point(1.0, 0.0)) == h
+    @test occursin("Halfplane(Line(", sprint(show, h))
+    rng = Random.Xoshiro(42)
+    @test length(rand_halfplane(3; rng=rng)) == 3
+    @test rand(rng, Halfplane) isa Halfplane2F
+    @test rand(rng, Halfplane2F) isa Halfplane2F
+    @test rand(Halfplane) isa Halfplane2F
+    @test rand(Halfplane2F) isa Halfplane2F
+    @test length(rand(Halfplane, 3)) == 3
+    @test length(rand(Halfplane2F, 3)) == 3
+end
 import BasicCompGeometry: random_halfplane, read_halfplanes, write_halfplanes
 using BasicCompGeometry: boundary, complement, distance, depth, clip
 

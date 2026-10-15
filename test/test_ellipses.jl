@@ -69,3 +69,25 @@ using BasicCompGeometry: area
     @test arc_pts[1] ≈ start_point(arc)
     @test arc_pts[5] ≈ end_point(arc)
 end
+
+@testset "Ellipse convenience constructors and wrapped arcs" begin
+    e = Ellipse((1, 2.0), 4, 2, π / 4)
+    @test e isa Ellipse2F
+    @test BasicCompGeometry.rotation_angle(e) ≈ π / 4
+    @test BBox(e) ≈ BBox(point(1 - sqrt(10), 2 - sqrt(10)),
+                         point(1 + sqrt(10), 2 + sqrt(10)))
+    @test occursin("Ellipse(", sprint(show, e))
+    arc = EllipticArc(point(1.0, 2.0), 4.0, 2.0, π / 4, 3π / 2, π)
+    @test center(arc) == point(1.0, 2.0)
+    @test r_major(arc) == 4.0
+    @test r_minor(arc) == 2.0
+    @test angle(arc) ≈ π / 4
+    @test BasicCompGeometry.alpha1(arc) ≈ 3π / 2
+    @test BasicCompGeometry.alpha2(arc) ≈ π
+    @test point_on(arc, 1.0) ≈ end_point(arc)
+    @test occursin("EllipticArc(", sprint(show, arc))
+    box = BBox(arc)
+    @test all(p -> is_inside(p, box + 1e-10), sample_uniformly(arc, 101))
+    singleton = EllipticArc(e, 0.0, 0.0)
+    @test bottom_left(bbox(singleton)) == top_right(bbox(singleton))
+end

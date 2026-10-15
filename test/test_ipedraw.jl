@@ -194,3 +194,50 @@ using BasicCompGeometry.IpeDraw
         rm(temp_dir, recursive=true, force=true)
     end
 end
+
+@testset "Compact Ipe dispatch and missing tools" begin
+    canvas = IpeCanvas(width=200.0, height=100.0)
+    circle_arc = CircleArc(point(0.0, 0.0), 1.0, 0.0, π)
+    ellipse = Ellipse(point(2.0, 2.0), 2.0, 1.0, 0.3)
+    elliptic_arc = EllipticArc(ellipse, 0.0, π)
+    bezier = CubicBezier(point(0.0, 0.0), point(0.0, 1.0), point(1.0, 1.0), point(1.0, 0.0))
+    spline = CubicSpline([bezier])
+    polygon_points = [point(0.0, 0.0), point(1.0, 0.0), point(0.0, 1.0)]
+    objects = Any[BBox(point(0.0, 0.0), point(1.0, 1.0)), circle_arc,
+                  ellipse, elliptic_arc, bezier, spline, PntSeq(polygon_points), polygon_points]
+    draw!(canvas, objects; stroke=:red)
+    @test length(canvas.elements) == length(objects)
+    @test all(element -> occursin("stroke=\"red\"", element), canvas.elements)
+    draw_segment!(canvas, 0.0, 0.0, 1.0, 1.0)
+    draw_spline!(canvas, PntSeq(polygon_points); method=:natural)
+    @test length(canvas.elements) == length(objects) + 2
+    draw_bspline!(canvas, polygon_points; closed=true)
+    @test occursin(" u", canvas.elements[end]) || occursin("\nu", canvas.elements[end])
+    theme = publication_theme()
+    @test :region in propertynames(theme)
+    @test :styles in propertynames(theme, true)
+    @test_throws ArgumentError figure(_ -> nothing, "invalid.png")
+    @test_throws ArgumentError figure(_ -> nothing, "invalid.pdf"; source=:other)
+
+    mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
+        withenv("PATH" => dir) do
+            @test_logs (:warn, r"ipetoipe command not found") @test !compile_pdf(canvas, joinpath(dir, "missing.pdf"))
+            @test_logs (:warn, r"ipetoipe command not found") @test !compile_pdf("missing.ipe", joinpath(dir, "missing.pdf"))
+            @test_logs (:warn, r"ipe executable not found") @test edit_ipe("missing.ipe") === nothing
+            @test_logs (:warn, r"ipetoipe command not found") (:warn, r"PDF compilation failed") begin
+                @test_throws ErrorException export_figure(canvas, joinpath(dir, "source"); outputs=(:ipe, :pdf))
+            end
+            @test isfile(joinpath(dir, "source.ipe"))
+        end
+        if get(ENV, "BCG_TEST_EXTERNAL_TOOLS", "false") == "true"
+            pdf = joinpath(dir, "canvas.pdf")
+            @test compile_pdf(canvas, pdf)
+            @test startswith(read(pdf, String), "%PDF-")
+            artifact = figure(joinpath(dir, "no_extension"); keep_source=false) do cv
+                draw!(cv, circle_arc)
+            end
+            @test isfile(artifact.pdf)
+            @test artifact.ipe === nothing
+        end
+    end
+end
