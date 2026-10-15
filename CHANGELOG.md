@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Codecov, alongside downloadable coverage reports.
 
 ### Changed
+- Removed the unused `MetricSpace.greedy_permutation_vanity` routine and its
+  private helper from the active API; preserved their source under `archive/`.
 - Fixed `angle(::EllipticArc)` to extend `Base.angle` and made Hausdorff
   simplification accept one-point curves.
 - Fixed stale polygon-drawing calls, bounding-box-tree color rendering, late Cairo

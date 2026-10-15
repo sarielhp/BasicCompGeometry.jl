@@ -42,9 +42,5 @@ indices, distances, nearest_centers = CG.MetricSpace.greedy_permutation_naive(sp
 indices[1:2]
 ```
 
-`greedy_permutation_vanity` adds a secondary vanity score when selecting among
-candidates. Refer to the [metric API](reference/metrics.md) for signatures and
-return conventions.
-
 For custom spaces, subtype `CG.MetricSpace.AbsFMS` and implement `Base.size`
 and `CG.dist` for the new type.

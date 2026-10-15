@@ -23,8 +23,6 @@ permutations) from the underlying representation of the points and the distance 
 
 - `greedy_permutation_naive`: Implements Gonzalez's algorithm for k-center clustering and generating 
   hierarchical orderings of points.
-- `greedy_permutation_vanity`: A variation of the greedy permutation that incorporates a "vanity" 
-  metric to choose between points that are equidistant from existing centers.
 """
 module MetricSpace
 
@@ -307,19 +305,6 @@ end
 
 ######################################################################
 
-function get_points_assigned_to_pos(M, I, D, N, pos, sz)
-    J = Int[]
-    x = I[pos]
-    for i ∈ 1:sz
-        y = I[i]
-        d = dist(M, x, y)
-        if d < D[i] || D[i] < 0.0
-            push!(J, i)
-        end
-    end
-    return J
-end
-
 function update_distances(M::AbsFMS, I, D, N, pos, sz)
     x = I[pos]
     for i ∈ (pos+1):sz
@@ -368,44 +353,6 @@ function greedy_permutation_naive(M::AbsFMS, n::Int)
 end
 
 """
-    greedy_permutation_vanity(M::AbsFMS, vanity::Vector{Float64}, n::Int)
-
-A variant of the greedy permutation where ties (or near-ties) in distance 
-are broken by minimizing a "vanity" score. 
-
-The algorithm first identifies the point furthest from current centers, 
-finds all points currently "assigned" to that furthest point (i.e., would 
-be moved to the center set if it were chosen), and then picks the point 
-within that set that has the minimum vanity score.
-"""
-function greedy_permutation_vanity(M::AbsFMS, vanity::Vector{Float64}, n::Int)
-    sz = size(M)
-    I = collect(1:sz)
-    N = fill(1, sz)
-    D = fill(-1.0, sz)
-
-    update_distances(M, I, D, N, 1, sz)
-
-    for i ∈ 2:n
-        tpos = argmax(view(D, i:sz)) + i - 1
-        J = get_points_assigned_to_pos(M, I, D, N, tpos, sz)
-        j_min = argmin(vanity[j] for j ∈ J)
-        pos = J[j_min]
-
-        D[i-1] = D[pos]
-        I[i], I[pos] = I[pos], I[i]
-        D[i], D[pos] = D[pos], D[i]
-        vanity[i], vanity[pos] = vanity[pos], vanity[i]
-    end
-
-    if n == sz
-        D[sz] = 0.0
-    end
-
-    return I, D, N
-end
-
-"""
     calculate_angle_facing_a(a, b, c)
 
 Calculates the angle (in radians) opposite side `a` in a triangle with sides `a`, `b`, and `c` 
@@ -432,6 +379,6 @@ end
 
 export AbsFMS, PointsSpace, MPointsSpace, PermutMetric, SpherePMetric
 export dist, dist_real, original, swap!, metric
-export greedy_permutation_naive, greedy_permutation_vanity
+export greedy_permutation_naive
 
 end # module MetricSpace
