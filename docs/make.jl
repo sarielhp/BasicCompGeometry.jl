@@ -8,6 +8,7 @@ const api_modules = [
     BasicCompGeometry.WSPD, BasicCompGeometry.MVBB, BasicCompGeometry.MetricSpace,
     BasicCompGeometry.LongestConvexSubset, BasicCompGeometry.ConvexHull3D,
     BasicCompGeometry.IpeDraw, BasicCompGeometry.ReadWrite, BasicCompGeometry.VirtArray,
+    BasicCompGeometry.PntSeqHierarchy,
 ]
 const documented_api = Set(
     getfield(mod, name) for mod in api_modules for name in names(mod)
@@ -46,6 +47,7 @@ makedocs(
             "Hull and diameter algorithms" => "reference/algorithms.md",
             "Spatial structures" => "reference/spatial.md",
             "Metric spaces" => "reference/metrics.md",
+            "Simplification hierarchies" => "reference/hierarchy.md",
             "Ipe canvas and composition" => "reference/ipe.md",
             "Ipe drawing and export" => "reference/ipe-drawing.md",
             "Cairo and LaTeX" => "reference/cairo.md",

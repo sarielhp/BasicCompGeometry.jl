@@ -50,6 +50,7 @@ include("MetricSpace.jl")
 include("MVBB.jl")
 include("ReadWrite.jl")
 include("LongestConvexSubset.jl")
+include("PntSeqHierarchy.jl")
 
 using .VirtArray
 using .BBT

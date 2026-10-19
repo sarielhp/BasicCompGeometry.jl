@@ -19,6 +19,7 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
   - Exact & Approximate Diameter ([`src/Diameter.jl`](src/Diameter.jl))
   - Metric Spaces & Embeddings ([`src/MetricSpace.jl`](src/MetricSpace.jl))
   - Longest Convex Subset ([`src/LongestConvexSubset.jl`](src/LongestConvexSubset.jl))
+  - Curve simplification hierarchies and palettes ([`src/PntSeqHierarchy.jl`](src/PntSeqHierarchy.jl))
 
 ---
 
