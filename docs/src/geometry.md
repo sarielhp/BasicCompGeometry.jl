@@ -65,6 +65,11 @@ open chain by arc length. `simplify` skips vertices close to the last kept
 vertex; `hausdorff_simplify` uses the Hausdorff-based simplification algorithm.
 Both simplifiers return the simplified sequence and the kept input indices.
 
+`push_distinct!` appends a point unless it repeats the last vertex, `split_edges`
+inserts the midpoint of every edge, and `reverse` reverses the vertex order. The last
+two return new sequences and leave their input unchanged. `ReadWrite.read_plt` reads a point sequence from a
+text file, and `ReadWrite.read_geolife_plt` reads a GeoLife trajectory.
+
 ```@example geometry
 curve = PntSeq([point(0.0, 0.0), point(0.5, 0.0), point(1.0, 0.0)])
 simplified, kept = hausdorff_simplify(curve, 0.01)

@@ -73,3 +73,23 @@ cut. Representative and index helpers are listed in
 For polygonal-chain simplification and resampling, see
 [Geometry and point sequences](geometry.md). For greedy permutations, see
 [Finite metric spaces](metrics.md).
+
+## Simplification hierarchies
+
+`BasicCompGeometry.PntSeqHierarchy` stores simplifications of a curve at decreasing
+widths. A palette records the error of a recursive subdivision of the curve, so that all
+vertices above a threshold are extracted in time proportional to their number, and a
+`SimplificationHierarchy` keeps a sorted set of simplifications for fast lookup by
+width. The error being controlled is defined by a `HierarchyMeasure`; the default uses the
+Hausdorff distance to the chord, and other measures, such as a Frechet distance, supply
+their own error, simplification and certification functions. See
+[Simplification hierarchies](reference/hierarchy.md).
+
+```julia
+import BasicCompGeometry as CG
+H = CG.PntSeqHierarchy
+curve = CG.rand_pnt_seq(2, Float64, 200)
+h = H.hierarchy_init(curve)
+H.hierarchy_build!(h)
+simplified, width = H.hierarchy_approx(h, 0.3)
+```

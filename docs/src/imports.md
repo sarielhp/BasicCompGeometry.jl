@@ -62,7 +62,7 @@ or `LaTeXStrings` separately as described in [Cairo and LaTeX](cairo.md).
 
 If a previously unqualified helper is undefined after updating, qualify it with
 `CG`, import it explicitly, or opt into `Extras`. See the
-[complete v0.5.0 migration list](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/CHANGELOG.md#050---unreleased)
+[complete v0.5.0 migration list](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/CHANGELOG.md#050---2026-10-16)
 for all 91 moved names. The split changes imports rather than implementations.
 
 ```@docs
