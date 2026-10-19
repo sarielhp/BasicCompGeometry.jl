@@ -13,6 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Ubuntu is pinned: on ubuntu-latest (Ubuntu 26, from 2026-10-19) the Julia 1.9 binary
+  # does not start and lualatex cannot load its fonts.
   test:
     name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -24,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-24.04]
         julia-version: ['1.9', '1.10', '1']
         include:
           - os: macos-latest
@@ -40,12 +42,12 @@ jobs:
       - name: Run package tests
         uses: julia-actions/julia-runtest@v1
         with:
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1' }}
+          coverage: ${{ matrix.os == 'ubuntu-24.04' && matrix.julia-version == '1' }}
       - name: Process coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+        if: matrix.os == 'ubuntu-24.04' && matrix.julia-version == '1'
         uses: julia-actions/julia-processcoverage@v1
       - name: Save coverage report
-        if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+        if: matrix.os == 'ubuntu-24.04' && matrix.julia-version == '1'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-lcov
@@ -66,7 +68,7 @@ jobs:
 
   coverage:
     needs: [test, external-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write
@@ -85,7 +87,7 @@ jobs:
           fail_ci_if_error: true
 
   external-tools:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -138,7 +140,7 @@ jobs:
 
   build:
     needs: [test, external-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
