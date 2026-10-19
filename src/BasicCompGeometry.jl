@@ -188,7 +188,7 @@ export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
     BasicCompGeometry.Extras
 
 Additional supported public API names omitted from the default export list.
-Exports 89 helpers, accessors, compatibility aliases, auxiliary namespaces,
+Exports 91 helpers, accessors, compatibility aliases, auxiliary namespaces,
 and Cairo/LaTeX utilities. All bindings refer to the original objects in
 `BasicCompGeometry`; visualization implementations still require their
 optional packages to be loaded.
@@ -220,10 +220,10 @@ using ..BasicCompGeometry: AbsPolygon, Canvas, MatPolygon, Points,
     hausdorff_dist_subseg, height, init!, latex_to_pdf,
     lines, locate, match_price, max_dist_subspace,
     middle, open_canvas, p_coeff, pdf_merge,
-    pnt_seq_random_sphere, prefix_lengths, r_major, r_minor,
+    pnt_seq_random_sphere, prefix_lengths, push_distinct!, r_major, r_minor,
     rand_polygon, random_halfplane, read_halfplanes, read_latex_snippet,
     reset_latex_preamble!, rotation_angle, set_latex_preamble!, start_point,
-    vertex, vertices, width, write_halfplanes,
+    split_edges, vertex, vertices, width, write_halfplanes,
     write_plt
 
 export AbsPolygon, Canvas, MatPolygon, Points,
@@ -244,10 +244,10 @@ export AbsPolygon, Canvas, MatPolygon, Points,
     hausdorff_dist_subseg, height, init!, latex_to_pdf,
     lines, locate, match_price, max_dist_subspace,
     middle, open_canvas, p_coeff, pdf_merge,
-    pnt_seq_random_sphere, prefix_lengths, r_major, r_minor,
+    pnt_seq_random_sphere, prefix_lengths, push_distinct!, r_major, r_minor,
     rand_polygon, random_halfplane, read_halfplanes, read_latex_snippet,
     reset_latex_preamble!, rotation_angle, set_latex_preamble!, start_point,
-    vertex, vertices, width, write_halfplanes,
+    split_edges, vertex, vertices, width, write_halfplanes,
     write_plt
 
 end # module Extras

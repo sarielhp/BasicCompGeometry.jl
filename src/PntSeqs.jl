@@ -271,6 +271,45 @@ function sample_uniformly(P::AbsPntSeq{D,T}, n::Int) where {D,T}
 end
 
 """
+    push_distinct!(P, p)
+
+Append `p` to the `PntSeq` `P` unless it equals the last vertex. Returns `true` if
+`p` was appended.
+"""
+function push_distinct!(P::PntSeq{D,T}, p::Point{D,T}) where {D,T}
+    if isempty(P.pnts) || dist_sq(last(P.pnts), p) > 0
+        push!(P.pnts, p)
+        return true
+    end
+    return false
+end
+
+"""
+    split_edges(P)
+
+Return the curve through the vertices of `P` with the midpoint of every edge inserted.
+Consecutive repeated points are dropped. Requires floating-point coordinates.
+"""
+function split_edges(P::AbsPntSeq{D,T}) where {D,T}
+    n = length(P)
+    Q = PntSeq{D,T}()
+    n == 0 && return Q
+    for i = 1:(n-1)
+        push_distinct!(Q, P[i])
+        push_distinct!(Q, convex_comb(P[i], P[i+1], 0.5))
+    end
+    push_distinct!(Q, P[n])
+    return Q
+end
+
+"""
+    reverse(P::PntSeq)
+
+Return the point sequence with its vertices in reverse order.
+"""
+Base.reverse(P::PntSeq{D,T}) where {D,T} = PntSeq{D,T}(reverse(P.pnts))
+
+"""
     rand_pnt_seq(D, T, n)
 
 Generate a random point sequence in D dimensions with `n` vertices, each coordinate in `[0, 1)`.

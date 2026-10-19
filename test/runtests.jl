@@ -83,10 +83,10 @@ Aqua.test_all(BasicCompGeometry)
             :hausdorff_dist_subseg, :height, :init!, :latex_to_pdf,
             :lines, :locate, :match_price, :max_dist_subspace,
             :middle, :open_canvas, :p_coeff, :pdf_merge,
-            :pnt_seq_random_sphere, :prefix_lengths, :r_major, :r_minor,
+            :pnt_seq_random_sphere, :prefix_lengths, :push_distinct!, :r_major, :r_minor,
             :rand_polygon, :random_halfplane, :read_halfplanes, :read_latex_snippet,
             :reset_latex_preamble!, :rotation_angle, :set_latex_preamble!, :start_point,
-            :vertex, :vertices, :width, :write_halfplanes,
+            :split_edges, :vertex, :vertices, :width, :write_halfplanes,
             :write_plt,
         )
         default_names = (
@@ -496,6 +496,7 @@ Aqua.test_all(BasicCompGeometry)
 
     include("test_kernels.jl")
     include("test_pnt_seq_hierarchy.jl")
+    include("test_curve_ops.jl")
     include("test_metric_space.jl")
     include("test_read_write.jl")
     include("test_longest_convex_subset.jl")

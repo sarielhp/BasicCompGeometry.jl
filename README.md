@@ -45,7 +45,7 @@ or construction exact. See the [numerical scope](docs/src/kernels.md).
 ## Documentation and examples
 
 - [Documentation](https://sarielhp.github.io/BasicCompGeometry.jl/dev): guides and API reference.
-- [Imports and Extras](docs/src/imports.md): the v0.5.0 split into 130 default exports and 89 opt-in public helpers.
+- [Imports and Extras](docs/src/imports.md): the v0.5.0 split into 130 default exports and 91 opt-in public helpers.
 - [Migration notes](CHANGELOG.md#050---unreleased): the complete list of moved exports.
 - [Example catalog](examples/README.md): ready-to-run geometry and figure programs.
 - [Vector figures](docs/src/figures.md): editable Ipe source and cropped vector PDFs.

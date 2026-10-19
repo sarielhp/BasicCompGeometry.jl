@@ -3,15 +3,19 @@
 
 A module for reading and writing various binary vector formats common in 
 computational geometry and similarity search.
-Supports .fbin, .ibin, and .fvecs formats.
+Supports .fbin, .ibin, and .fvecs formats, and text files of planar curves
+(plain coordinate lists and GeoLife `.plt` trajectories).
 """
 module ReadWrite
 
 using LinearAlgebra
+using DelimitedFiles: readdlm
+import ..BasicCompGeometry: Point, PntSeq, PntSeq2F, point, push_distinct!
 
 export read_fbin, read_fbin_n, read_ibin
 export write_fbin, write_ibin
 export read_fvecs
+export read_plt, read_geolife_plt
 
 """
     read_fbin(filename::String, start_idx::Int = 0, chunk_size::Union{Int,Nothing} = nothing)
@@ -195,6 +199,44 @@ function read_fvecs(filename::String)
     catch e
         rethrow(ErrorException("Error reading .fvec file: $(e)"))
     end
+end
+
+_parse_numbers(line::AbstractString, delim) =
+    [parse(Float64, piece) for piece in split(line, delim; keepempty = false)]
+
+"""
+    read_plt(filename; dim = 2)
+
+Read a point sequence from a text file with one point per line, as written by
+`write_plt`: coordinates separated by commas or spaces. The first `dim` numbers of
+each line are used. Lines `x y k tid` (a header used by some datasets) are skipped,
+and consecutive repeated points are dropped.
+"""
+function read_plt(filename::AbstractString; dim::Int = 2)
+    P = PntSeq{dim,Float64}()
+    for line in readlines(filename)
+        line == "x y k tid" && continue
+        pieces = _parse_numbers(line, occursin(" ", line) ? ' ' : ',')
+        length(pieces) >= dim || error("expected at least $dim numbers in line \"$line\"")
+        push_distinct!(P, Point{dim,Float64}(ntuple(i -> pieces[i], dim)))
+    end
+    return P
+end
+
+"""
+    read_geolife_plt(filename)
+
+Read a GeoLife `.plt` trajectory: six header lines, then comma separated records
+whose first two fields are the coordinates. Consecutive repeated points are dropped.
+"""
+function read_geolife_plt(filename::AbstractString)
+    P = PntSeq2F()
+    a = readdlm(filename)
+    for r = 7:size(a, 1)
+        parts = split(a[r, 1], ",")
+        push_distinct!(P, point(parse(Float64, parts[1]), parse(Float64, parts[2])))
+    end
+    return P
 end
 
 end # module ReadWrite

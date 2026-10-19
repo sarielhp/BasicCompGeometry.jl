@@ -6,7 +6,7 @@ Starting with v0.5.0, `using BasicCompGeometry` brings 130 core names into scope
 geometric types, useful coordinate aliases, common operations, main algorithms,
 and feature namespaces such as `BBT` and `IpeDraw`.
 
-Another 89 supported names are available through qualified calls, explicit
+Another 91 supported names are available through qualified calls, explicit
 imports, or the opt-in `Extras` submodule. These include generic helpers such as
 `area` and `width`, specialized accessors, compatibility aliases, auxiliary
 namespaces, and Cairo/LaTeX utilities. Their definitions, signatures, and behavior
@@ -63,7 +63,7 @@ or `LaTeXStrings` separately as described in [Cairo and LaTeX](cairo.md).
 If a previously unqualified helper is undefined after updating, qualify it with
 `CG`, import it explicitly, or opt into `Extras`. See the
 [complete v0.5.0 migration list](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/CHANGELOG.md#050---unreleased)
-for all 89 moved names. The split changes imports rather than implementations.
+for all 91 moved names. The split changes imports rather than implementations.
 
 ```@docs
 BasicCompGeometry.Extras

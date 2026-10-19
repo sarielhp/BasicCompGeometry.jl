@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pluggable `HierarchyMeasure`. The default measure uses the Hausdorff distance;
   other measures (such as a Frechet distance) supply their own error, simplification
   and certification functions. Not exported by default.
+- `push_distinct!` and `split_edges` for `PntSeq` (both in `Extras`, now 91 names),
+  `Base.reverse(::PntSeq)`, and `ReadWrite.read_plt` / `ReadWrite.read_geolife_plt`
+  for text files of planar curves.
 
 ## [0.5.0] - 2026-10-16
 
