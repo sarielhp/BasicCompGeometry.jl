@@ -133,9 +133,13 @@ end
 
 Build the [`Palette`](@ref) of the curve `P`. `err(P, i:j)` is the error of
 replacing `P[i:j]` by the segment `P[i]P[j]`, for example
-`hausdorff_dist_subseg`.
+`hausdorff_dist_subseg`. The coordinates must be floating point. With
+[`FarthestSplit`](@ref) the construction recurses once per split and
+costs O(n) per split, so a badly skewed subdivision (for example a spiral
+with a very large number of vertices) takes quadratic time and deep recursion;
+[`MidpointSplit`](@ref) has logarithmic depth.
 """
-function palette(P::AbsPntSeq{D,T}, err; rule::SplitRule = MidpointSplit()) where {D,T}
+function palette(P::AbsPntSeq{D,T}, err; rule::SplitRule = MidpointSplit()) where {D,T<:AbstractFloat}
     n = length(P)
     errs = zeros(T, n)
     kids = rule isa MidpointSplit ? NTuple{2,Int}[] : fill((0, 0), n)
@@ -168,7 +172,8 @@ the output size). Returns `(Q, indices, w_out)`: `Q` is the simplified curve,
 `indices` are the vertices of `P` it keeps, and `w_out` bounds the error of
 the subranges that were not subdivided further, which is below `w` whenever
 `w` exceeds the largest error in the palette. `pal` may be a `Palette` or a
-plain error vector, which is taken to use [`MidpointSplit`](@ref).
+plain error vector, which is taken to use [`MidpointSplit`](@ref). A curve of at
+most four vertices is returned whole, with `w_out = 0`, whatever `w` is.
 """
 function palette_extract(P::AbsPntSeq{D,T}, pal::Palette, w::Real) where {D,T}
     len = length(pal)
@@ -213,7 +218,7 @@ end
 
 Extract the approximation of `P` made of the first `level` levels of the
 subdivision tree (the first and last vertices are always kept). Returns
-`(Q, indices)`.
+`(Q, indices)`. For a one-vertex curve the vertex appears twice.
 """
 function palette_level(P::AbsPntSeq{D,T}, pal::Palette, level::Int) where {D,T}
     len = cardin(P)
@@ -309,7 +314,7 @@ function hierarchy_init(
     P::PntSeq{D,T},
     measure::HierarchyMeasure = hausdorff_measure();
     lock::ReentrantLock = ReentrantLock(),
-) where {D,T}
+) where {D,T<:AbstractFloat}
     h = SimplificationHierarchy(
         convert(T, geom_length(P)), P, palette(P, measure.err; rule = measure.rule),
         PntSeq{D,T}[], Float64[], lock, measure,
@@ -367,8 +372,8 @@ function hierarchy_find(widths::Vector{Float64}, w, resolution)
     return -1
 end
 
-function _push_target!(h::SimplificationHierarchy, w::Float64, P::PntSeq, lmt::Int, w_extra::Float64)
-    R, R_indices = h.measure.simplify(P, w)
+function _push_target!(h::SimplificationHierarchy{D,T}, w::Float64, P::PntSeq, lmt::Int, w_extra::Real) where {D,T}
+    R, R_indices = h.measure.simplify(P, convert(T, w))
     cardin(R) > lmt && return -1.0
 
     new_w = h.measure.certify(P, R, R_indices) + w_extra
@@ -381,8 +386,13 @@ end
 
 An approximation of the curve with error at most about `w`, returned as
 `(Q, width)`. If a stored level has width within a factor `resolution` below
-`w`, the finest such level with fewer than `n_max` vertices is returned.
-Otherwise one is computed from the palette, stored in `h`, and returned.
+`w`, the finest stored level with fewer than `n_max` vertices is returned
+(`resolution` is used only to look levels up).
+Otherwise a level is computed, stored in `h`, and returned: the new level is
+built from a coarser level, or from the palette, of width about `w / 4`. This
+factor is fixed.
+
+The stored levels are read under `h.lock`, so concurrent calls and pushes are safe.
 """
 function hierarchy_approx(
     h::SimplificationHierarchy{D,T},
@@ -390,24 +400,30 @@ function hierarchy_approx(
     n_max::Int = 25,
     resolution::Float64 = 4.0,
 ) where {D,T}
-    i = hierarchy_find(h.widths, w, resolution)
-    if i > 0
+    # The levels are read under the lock, but the work below is done outside it.
+    found = lock(h.lock) do
+        i = hierarchy_find(h.widths, w, resolution)
+        i > 0 || return nothing
         len = length(h.polys)
         while i < len && cardin(h.polys[i+1]) < n_max
             i += 1
         end
-        return h.polys[i], h.widths[i]
+        return (h.polys[i], h.widths[i])
     end
+    found === nothing || return found
 
     new_w = w / 4.0
-    i = hierarchy_find(h.widths, new_w, resolution)
-    if i > 0
-        Z, wZ = h.polys[i], h.widths[i]
-    else
+    coarse = lock(h.lock) do
+        i = hierarchy_find(h.widths, new_w, resolution)
+        i > 0 ? (h.polys[i], h.widths[i]) : nothing
+    end
+    if coarse === nothing
         Z, _, wZ = palette_extract(h.P, h.plt, new_w)
+    else
+        Z, wZ = coarse
     end
 
-    X, X_indices = h.measure.simplify(Z, max(w - wZ, 0.0))
+    X, X_indices = h.measure.simplify(Z, convert(T, max(w - wZ, 0.0)))
     w_out = h.measure.certify(Z, X, X_indices) + wZ
 
     hierarchy_push!(h, X, w_out)
@@ -418,7 +434,8 @@ end
     hierarchy_build!(h, ratio = 4.0, lmt = 500)
 
 Fill the hierarchy with levels whose widths decrease by roughly a factor
-`ratio`, until a level has about as many vertices as the curve (at most `lmt`).
+`ratio`, until a level has about as many vertices as the curve (at most `lmt`), or
+until a round adds nothing new.
 """
 function hierarchy_build!(
     h::SimplificationHierarchy{D,T},
@@ -435,8 +452,11 @@ function hierarchy_build!(
 
         Z, _, wZ = palette_extract(P, h.plt, w_a / 4.0)
 
+        w_prev = w
         w = _push_target!(h, max(w_a - wZ, 0.0), Z, lmt, wZ)
         w < -0.5 && break
+        # The next round would repeat this one exactly.
+        w == w_prev && break
     end
     return h
 end

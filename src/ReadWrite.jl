@@ -9,7 +9,6 @@ Supports .fbin, .ibin, and .fvecs formats, and text files of planar curves
 module ReadWrite
 
 using LinearAlgebra
-using DelimitedFiles: readdlm
 import ..BasicCompGeometry: Point, PntSeq, PntSeq2F, point, push_distinct!
 
 export read_fbin, read_fbin_n, read_ibin
@@ -201,22 +200,24 @@ function read_fvecs(filename::String)
     end
 end
 
-_parse_numbers(line::AbstractString, delim) =
-    [parse(Float64, piece) for piece in split(line, delim; keepempty = false)]
+_parse_numbers(line::AbstractString) =
+    [parse(Float64, piece) for piece in split(line, r"[,\s]+"; keepempty = false)]
 
 """
     read_plt(filename; dim = 2)
 
 Read a point sequence from a text file with one point per line, as written by
-`write_plt`: coordinates separated by commas or spaces. The first `dim` numbers of
-each line are used. Lines `x y k tid` (a header used by some datasets) are skipped,
-and consecutive repeated points are dropped.
+`write_plt`: coordinates separated by commas and/or whitespace. The first `dim`
+numbers of each line are used. Blank lines, lines starting with `#`, and the
+header `x y k tid` (used by some datasets) are skipped, and consecutive repeated
+points are dropped.
 """
 function read_plt(filename::AbstractString; dim::Int = 2)
     P = PntSeq{dim,Float64}()
     for line in readlines(filename)
-        line == "x y k tid" && continue
-        pieces = _parse_numbers(line, occursin(" ", line) ? ' ' : ',')
+        text = strip(line)
+        (isempty(text) || startswith(text, '#') || text == "x y k tid") && continue
+        pieces = _parse_numbers(text)
         length(pieces) >= dim || error("expected at least $dim numbers in line \"$line\"")
         push_distinct!(P, Point{dim,Float64}(ntuple(i -> pieces[i], dim)))
     end
@@ -227,13 +228,14 @@ end
     read_geolife_plt(filename)
 
 Read a GeoLife `.plt` trajectory: six header lines, then comma separated records
-whose first two fields are the coordinates. Consecutive repeated points are dropped.
+whose first two fields are the coordinates. Blank lines are skipped and
+consecutive repeated points are dropped.
 """
 function read_geolife_plt(filename::AbstractString)
     P = PntSeq2F()
-    a = readdlm(filename)
-    for r = 7:size(a, 1)
-        parts = split(a[r, 1], ",")
+    for line in Iterators.drop(readlines(filename), 6)
+        isempty(strip(line)) && continue
+        parts = split(line, ",")
         push_distinct!(P, point(parse(Float64, parts[1]), parse(Float64, parts[2])))
     end
     return P

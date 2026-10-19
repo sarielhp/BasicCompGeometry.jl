@@ -159,4 +159,34 @@ end
         @test issorted(h.widths; rev = true)
         @test hierarchy_approx(h, 20.0)[2] ≤ 100.0
     end
+    @testset "Float32 curves and integer rejection" begin
+        P32 = PntSeq([Point{2,Float32}(Float32(x), Float32(sin(x))) for x = 0:0.05:6])
+        h = hierarchy_init(P32)
+        hierarchy_build!(h)
+        Q, w = hierarchy_approx(h, 0.3)
+        @test Q isa PntSeq{2,Float32}
+        @test w >= 0
+        Pint = PntSeq([Point{2,Int}(i, i^2 % 7) for i = 1:20])
+        @test_throws MethodError palette(Pint, hausdorff_dist_subseg)
+        @test_throws MethodError hierarchy_init(Pint)
+    end
+
+    @testset "Build stops when no progress is made" begin
+        line = PntSeq([point(Float64(i), 2.0 * i) for i = 1:12])   # collinear: all widths zero
+        h = hierarchy_init(line)
+        hierarchy_build!(h)
+        @test length(h.polys) <= 3
+        @test issorted(h.widths; rev = true)
+    end
+
+    @testset "Concurrent approx and push" begin
+        P = walk(400; seed = 5)
+        h = hierarchy_init(P)
+        hierarchy_build!(h)
+        tasks = [Threads.@spawn(hierarchy_approx(h, w)) for w in repeat([2.0, 0.9, 0.4, 0.15], 8)]
+        results = fetch.(tasks)
+        @test all(r -> r[2] >= 0 && cardin(r[1]) >= 2, results)
+        @test issorted(h.widths; rev = true)
+        @test length(h.polys) == length(h.widths)
+    end
 end

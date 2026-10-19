@@ -290,7 +290,7 @@ end
 Return the curve through the vertices of `P` with the midpoint of every edge inserted.
 Consecutive repeated points are dropped. Requires floating-point coordinates.
 """
-function split_edges(P::AbsPntSeq{D,T}) where {D,T}
+function split_edges(P::AbsPntSeq{D,T}) where {D,T<:AbstractFloat}
     n = length(P)
     Q = PntSeq{D,T}()
     n == 0 && return Q
@@ -301,6 +301,8 @@ function split_edges(P::AbsPntSeq{D,T}) where {D,T}
     push_distinct!(Q, P[n])
     return Q
 end
+
+split_edges(::AbsPntSeq) = throw(ArgumentError("split_edges requires floating-point coordinates"))
 
 """
     reverse(P::PntSeq)
