@@ -220,29 +220,43 @@ function interpolate_catmull_rom(
     scale = (one(T) - T(tension)) / 3
 
     if closed
-        for i = 1:n
-            im1 = i == 1 ? n : i - 1
-            ip1 = i == n ? 1 : i + 1
-            ip2 = ip1 == n ? 1 : ip1 + 1
-            p_prev = pts[im1]
-            p_curr = pts[i]
-            p_next = pts[ip1]
-            p_next2 = pts[ip2]
-            v_curr = scale * (p_next - p_prev)
-            v_next = scale * (p_next2 - p_curr)
-            push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
-        end
+        _catmull_rom_closed!(segs, pts, scale)
     else
-        for i = 1:(n-1)
-            p_curr = pts[i]
-            p_next = pts[i+1]
-            v_curr = i == 1 ? scale * (p_next - p_curr) * 2 : scale * (p_next - pts[i-1])
-            v_next =
-                i + 1 == n ? scale * (p_next - p_curr) * 2 : scale * (pts[i+2] - p_curr)
-            push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
-        end
+        _catmull_rom_open!(segs, pts, scale)
     end
     return CubicSpline(segs; closed = closed)
+end
+
+# Appends the segments of the closed Catmull-Rom spline through `pts`.
+function _catmull_rom_closed!(segs, pts, scale)
+    n = cardin(pts)
+    for i = 1:n
+        im1 = i == 1 ? n : i - 1
+        ip1 = i == n ? 1 : i + 1
+        ip2 = ip1 == n ? 1 : ip1 + 1
+        p_prev = pts[im1]
+        p_curr = pts[i]
+        p_next = pts[ip1]
+        p_next2 = pts[ip2]
+        v_curr = scale * (p_next - p_prev)
+        v_next = scale * (p_next2 - p_curr)
+        push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
+    end
+    return segs
+end
+
+# Appends the segments of the open Catmull-Rom spline through `pts`; the end
+# tangents are one-sided.
+function _catmull_rom_open!(segs, pts, scale)
+    n = cardin(pts)
+    for i = 1:(n-1)
+        p_curr = pts[i]
+        p_next = pts[i+1]
+        v_curr = i == 1 ? scale * (p_next - p_curr) * 2 : scale * (p_next - pts[i-1])
+        v_next = i + 1 == n ? scale * (p_next - p_curr) * 2 : scale * (pts[i+2] - p_curr)
+        push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
+    end
+    return segs
 end
 
 """
