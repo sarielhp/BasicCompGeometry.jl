@@ -96,12 +96,32 @@ end
 # Dynamic Programming Core
 ################################################################################
 
-function get_max_chain(lct::LCSContext, i::Int, j::Int, target::Int)
-    if (target > 0) && (j > target)
-        return -1, -1
+# Result when no chain continues through `q`: a lone point if no target is required.
+_no_chain(target::Int) = (target < 0) ? (1, 0) : (-1, -1)
+
+# Binary search in `curr.tail` (sorted CCW around q) for the first right turn (p, q, tail[k]),
+# given that tail[1] is not a right turn and tail[r_max] is.
+function _first_right_turn(lct::LCSContext, curr, p, q, r_max::Int)
+    ps = lct.PS
+    l, r = 1, r_max
+    while l < r
+        if (l + 1) == r
+            return curr.tvals[r], r
+        end
+        m = (l + r) >> 1
+        if is_right_turn(p, q, ps[curr.tail[m]])
+            r = m
+        else
+            l = m
+        end
     end
-    if (target > 0) && (j == target)
-        return 1, 0
+    return -1, -1
+end
+
+function get_max_chain(lct::LCSContext, i::Int, j::Int, target::Int)
+    if target > 0
+        j > target && return -1, -1
+        j == target && return 1, 0
     end
 
     ps = lct.PS
@@ -112,32 +132,15 @@ function get_max_chain(lct::LCSContext, i::Int, j::Int, target::Int)
     tail = curr.tail
     r_max = length(tail)
 
-    if r_max == 0
-        return (target < 0) ? (1, 0) : (-1, -1)
-    end
+    r_max == 0 && return _no_chain(target)
 
-    # Binary search for the first point k in tail such that (p, q, ps[k]) is a right turn.
-    # tail is sorted CCW around q.
     if is_right_turn(p, q, ps[tail[1]])
         return curr.tvals[1], 1
     end
     if !is_right_turn(p, q, ps[tail[r_max]])
-        return (target < 0) ? (1, 0) : (-1, -1)
+        return _no_chain(target)
     end
-
-    l, r = 1, r_max
-    while l < r
-        if (l + 1) == r
-            return curr.tvals[r], r
-        end
-        m = (l + r) >> 1
-        if is_right_turn(p, q, ps[tail[m]])
-            r = m
-        else
-            l = m
-        end
-    end
-    return -1, -1
+    return _first_right_turn(lct, curr, p, q, r_max)
 end
 
 function fill_vals_for_point!(lct::LCSContext, i::Int, target::Int)
@@ -277,6 +280,36 @@ function longest_concave_chain(ps::AbsPntSeq{2,T}) where {T}
     return [point(p[1], -p[2]) for p in chain]
 end
 
+# Start index maximizing the combined upper and lower chain lengths (-1 if none).
+function _best_start(lct_upper::LCSContext, lct_lower::LCSContext)
+    best_start = -1
+    max_val = -1
+    for i = 1:length(lct_upper.Lens)
+        if lct_upper.Lens[i] >= 0 && lct_lower.Lens[i] >= 0
+            comb = lct_upper.Lens[i] + lct_lower.Lens[i]
+            if comb > max_val
+                max_val = comb
+                best_start = i
+            end
+        end
+    end
+    return best_start
+end
+
+# Closed convex loop start -> ... -> target (upper) -> ... (lower, reversed, ends excluded).
+function _combined_loop(lct_upper::LCSContext, lct_lower::LCSContext, best_start, target)
+    sol_upper = Int[]
+    extract_solution!(lct_upper, sol_upper, best_start, -1, target)
+
+    sol_lower = Int[]
+    extract_solution!(lct_lower, sol_lower, best_start, -1, target)
+
+    length(sol_lower) > 1 || return sol_upper
+    # sol_lower goes from start to target; drop the shared start and end points
+    rev_lower = reverse(sol_lower) # target -> ... -> start
+    return [sol_upper; rev_lower[2:(end-1)]]
+end
+
 """
     compute_largest_convex_subset(ps::PntSeq{2, T})
 
@@ -306,43 +339,13 @@ function compute_largest_convex_subset(ps::AbsPntSeq{2,T}) where {T}
         lct_lower = lcs_init(ps_reflected)
         compute_dp_table!(lct_lower, target)
 
-        # Find best starting point for this target
-        best_start = -1
-        max_val = -1
-        for i = 1:n
-            if lct_upper.Lens[i] >= 0 && lct_lower.Lens[i] >= 0
-                comb = lct_upper.Lens[i] + lct_lower.Lens[i]
-                if comb > max_val
-                    max_val = comb
-                    best_start = i
-                end
-            end
-        end
+        best_start = _best_start(lct_upper, lct_lower)
+        best_start == -1 && continue
 
-        if best_start != -1
-            sol_upper = Int[]
-            extract_solution!(lct_upper, sol_upper, best_start, -1, target)
-
-            sol_lower = Int[]
-            extract_solution!(lct_lower, sol_lower, best_start, -1, target)
-
-            # Combine them
-            if length(sol_lower) > 1
-                # Remove start and end points from lower chain to avoid duplicates
-                # sol_lower goes from start to target.
-                # We want a loop: start -> ... -> target -> ... -> start
-                rev_lower = reverse(sol_lower) # target -> ... -> start
-                # sol_upper is start -> ... -> target
-                # combined is sol_upper then rev_lower[2:end-1]
-                combined = [sol_upper; rev_lower[2:(end-1)]]
-            else
-                combined = sol_upper
-            end
-
-            if length(combined) > max_sz
-                max_sz = length(combined)
-                max_sol = combined
-            end
+        combined = _combined_loop(lct_upper, lct_lower, best_start, target)
+        if length(combined) > max_sz
+            max_sz = length(combined)
+            max_sol = combined
         end
     end
 
