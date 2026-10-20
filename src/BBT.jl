@@ -342,6 +342,24 @@ function hybrid_nn(tree::Tree{D,T,S,V}, q::Point{D}, c::Real) where {D,T,S,V}
     return approx_nn_with_start(tree, q, c, silly_d, silly_p, silly_idx)
 end
 
+# Push `child` onto `pq` if it could still contain a point improving `best_dist` by factor `c`.
+function _push_child_if_useful!(pq, child, q, c, best_dist)
+    isnothing(child) && return nothing
+    d_child = dist(q, child.bb)
+    if d_child * c < best_dist
+        pq[child] = d_child
+    end
+    return nothing
+end
+
+# Make sure the children of `node` exist.
+function _ensure_children!(node, tree)
+    if isnothing(node.left) || isnothing(node.right)
+        node_expand(node, tree)
+    end
+    return nothing
+end
+
 """
     approx_nn_with_start(tree, q, c, best_dist, best_pnt, best_orig_index)
 
@@ -390,25 +408,10 @@ function approx_nn_with_start(
             continue
         end
 
-        # If it's not a leaf, push children
         if !node.f_leaf
-            # Ensure children are expanded
-            if isnothing(node.left) || isnothing(node.right)
-                node_expand(node, tree)
-            end
-
-            if !isnothing(node.left)
-                d_l = dist(q, node.left.bb)
-                if d_l * c < best_dist
-                    pq[node.left] = d_l
-                end
-            end
-            if !isnothing(node.right)
-                d_r = dist(q, node.right.bb)
-                if d_r * c < best_dist
-                    pq[node.right] = d_r
-                end
-            end
+            _ensure_children!(node, tree)
+            _push_child_if_useful!(pq, node.left, q, c, best_dist)
+            _push_child_if_useful!(pq, node.right, q, c, best_dist)
         end
     end
 
