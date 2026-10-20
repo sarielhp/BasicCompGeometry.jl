@@ -249,22 +249,7 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
     pq[(root, root)] = max_dist(root.bb, root.bb)
 
     # Initial diameter estimate from longest dimension of bounding box
-    dim_max = get_longest_dim(root.bb)
-    # Find extreme points in this dimension
-    p_min = PS[1]
-    p_max = PS[1]
-    val_min = p_min[dim_max]
-    val_max = p_max[dim_max]
-    for p in PS
-        if p[dim_max] < val_min
-            val_min = p[dim_max]
-            p_min = p
-        end
-        if p[dim_max] > val_max
-            val_max = p[dim_max]
-            p_max = p
-        end
-    end
+    p_min, p_max = _extreme_points(PS, get_longest_dim(root.bb))
     update_diam!(pp, p_min, p_max)
 
     while !isempty(pq)
@@ -286,53 +271,59 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
         end
 
         # Split the pair
-        # Ensure children exist
-        if !n1.f_leaf && (isnothing(n1.left) || isnothing(n1.right))
-            Tree_refine_node(tree, n1)
-        end
-        if !n2.f_leaf && (isnothing(n2.left) || isnothing(n2.right))
-            Tree_refine_node(tree, n2)
-        end
+        _ensure_children!(tree, n1)
+        _ensure_children!(tree, n2)
 
         # Try to update diameter with some points from the nodes
         p1 = tree.PS[first(n1.r)]
         p2 = tree.PS[first(n2.r)]
         update_diam!(pp, p1, p2)
 
-        if !n1.f_leaf && !n2.f_leaf
-            # Both splitable
-            for c1 in (n1.left, n1.right), c2 in (n2.left, n2.right)
-                if !isnothing(c1) && !isnothing(c2)
-                    d = max_dist(c1.bb, c2.bb)
-                    if d > (1 + ε) * pp.distance
-                        pq[(c1, c2)] = d
-                    end
-                end
-            end
-        elseif !n1.f_leaf
-            # Only n1 splitable
-            for c1 in (n1.left, n1.right)
-                if !isnothing(c1)
-                    d = max_dist(c1.bb, n2.bb)
-                    if d > (1 + ε) * pp.distance
-                        pq[(c1, n2)] = d
-                    end
-                end
-            end
-        else
-            # Only n2 splitable
-            for c2 in (n2.left, n2.right)
-                if !isnothing(c2)
-                    d = max_dist(n1.bb, c2.bb)
-                    if d > (1 + ε) * pp.distance
-                        pq[(n1, c2)] = d
-                    end
-                end
-            end
-        end
+        _push_child_pairs!(pq, n1, n2, (1 + ε) * pp.distance, max_dist)
     end
 
     return pp
+end
+
+# Points of `PS` with the smallest and largest coordinate `dim` (the first one
+# found on ties).
+function _extreme_points(PS, dim)
+    p_min = PS[1]
+    p_max = PS[1]
+    val_min = p_min[dim]
+    val_max = p_max[dim]
+    for p in PS
+        if p[dim] < val_min
+            val_min = p[dim]
+            p_min = p
+        end
+        if p[dim] > val_max
+            val_max = p[dim]
+            p_max = p
+        end
+    end
+    return p_min, p_max
+end
+
+# Refines the inner node `n` if some child has not been created yet.
+function _ensure_children!(tree, n)
+    if !n.f_leaf && (isnothing(n.left) || isnothing(n.right))
+        Tree_refine_node(tree, n)
+    end
+    return nothing
+end
+
+# Splits the pair `(n1, n2)` (at most one of them a leaf) into child pairs and
+# queues those whose bound `max_dist_fn(bb1, bb2)` exceeds `threshold`.
+function _push_child_pairs!(pq, n1, n2, threshold, max_dist_fn)
+    kids1 = n1.f_leaf ? (n1,) : (n1.left, n1.right)
+    kids2 = n2.f_leaf ? (n2,) : (n2.left, n2.right)
+    for c1 in kids1, c2 in kids2
+        (isnothing(c1) || isnothing(c2)) && continue
+        d = max_dist_fn(c1.bb, c2.bb)
+        d > threshold && (pq[(c1, c2)] = d)
+    end
+    return nothing
 end
 
 function get_longest_dim(bb::BBox{D,T}) where {D,T}
@@ -377,46 +368,21 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
             continue
         end
 
-        if !n1.f_leaf && (isnothing(n1.left) || isnothing(n1.right))
-            Tree_refine_node(tree, n1)
-        end
-        if !n2.f_leaf && (isnothing(n2.left) || isnothing(n2.right))
-            Tree_refine_node(tree, n2)
-        end
+        _ensure_children!(tree, n1)
+        _ensure_children!(tree, n2)
 
         # Sample points to update lower bound
         p1 = tree.PS[first(n1.r)]
         p2 = tree.PS[first(n2.r)]
         update_diam_subspace!(pp, p1, p2, dir)
 
-        if !n1.f_leaf && !n2.f_leaf
-            for c1 in (n1.left, n1.right), c2 in (n2.left, n2.right)
-                if !isnothing(c1) && !isnothing(c2)
-                    d = max_dist_subspace(c1.bb, c2.bb, dir)
-                    if d > (1 + ε) * pp.distance
-                        pq[(c1, c2)] = d
-                    end
-                end
-            end
-        elseif !n1.f_leaf
-            for c1 in (n1.left, n1.right)
-                if !isnothing(c1)
-                    d = max_dist_subspace(c1.bb, n2.bb, dir)
-                    if d > (1 + ε) * pp.distance
-                        pq[(c1, n2)] = d
-                    end
-                end
-            end
-        else
-            for c2 in (n2.left, n2.right)
-                if !isnothing(c2)
-                    d = max_dist_subspace(n1.bb, c2.bb, dir)
-                    if d > (1 + ε) * pp.distance
-                        pq[(n1, c2)] = d
-                    end
-                end
-            end
-        end
+        _push_child_pairs!(
+            pq,
+            n1,
+            n2,
+            (1 + ε) * pp.distance,
+            (bb1, bb2) -> max_dist_subspace(bb1, bb2, dir),
+        )
     end
     return pp
 end
