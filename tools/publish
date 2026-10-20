@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Usage: tools/publish [--dry-run] [release notes]
+# Wait for CI on the pushed HEAD of main, then ask JuliaRegistrator to register it.
+# Run it after tools/release. TagBot tags the version after the registration merges.
+
+require 'json'
+require 'open3'
+require 'optparse'
+
+REPO = File.expand_path('..', __dir__).freeze
+GITHUB_REPO = 'sarielhp/BasicCompGeometry.jl'
+
+def run(*command)
+  stdout, stderr, status = Open3.capture3(*command, chdir: REPO)
+  abort "#{command.first(3).join(' ')} failed:\n#{stderr}\n#{stdout}" unless status.success?
+  stdout.strip
+end
+
+def ci_run_for(commit)
+  30.times do
+    runs = JSON.parse(run('gh', 'run', 'list', '--repo', GITHUB_REPO, '--workflow', 'Documentation.yml',
+                          '--commit', commit, '--limit', '1', '--json', 'databaseId'))
+    return runs.first.fetch('databaseId').to_s unless runs.empty?
+    sleep 2
+  end
+  abort "No CI run found for #{commit}; inspect Actions before registering."
+end
+
+dry_run = false
+parser = OptionParser.new do |o|
+  o.banner = 'Usage: tools/publish [--dry-run] [release notes]'
+  o.on('--dry-run') { dry_run = true }
+end
+parser.parse!
+notes = ARGV.join(' ').strip
+notes = 'See CHANGELOG.md.' if notes.empty?
+
+abort 'Publish from main.' unless run('git', 'branch', '--show-current') == 'main'
+abort 'Commit all changes before publishing.' unless run('git', 'status', '--porcelain').empty?
+commit = run('git', 'rev-parse', 'HEAD')
+remote_head = run('gh', 'api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
+abort "HEAD #{commit} is not GitHub main (#{remote_head}); push first." unless commit == remote_head
+version = File.read(File.join(REPO, 'Project.toml'))[/^version\s*=\s*"(.+)"$/, 1] or abort 'No version in Project.toml'
+puts "Register #{version} at #{commit}"
+exit if dry_run
+
+puts "Waiting for CI on #{commit}"
+run('gh', 'run', 'watch', ci_run_for(commit), '--repo', GITHUB_REPO, '--exit-status', '--interval', '20')
+url = run('gh', 'api', "repos/#{GITHUB_REPO}/commits/#{commit}/comments",
+          '-f', "body=@JuliaRegistrator register\n\nRelease notes:\n#{notes}", '--jq', '.html_url')
+puts "Registration requested for #{version}: #{url}"
+puts 'Check Registrator and AutoMerge results. TagBot creates the tag after registration merges.'

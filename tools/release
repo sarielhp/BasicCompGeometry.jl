@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Usage: tools/release [--minor | --major] [--dry-run]
+# Release from a clean, pushed main: run the tests, then bump and push (tools/bump).
+# Registration is a separate step: see tools/publish.
+
+require 'optparse'
+
+REPO = File.expand_path('..', __dir__).freeze
+Dir.chdir(REPO)
+bump_args = []
+dry_run = false
+OptionParser.new do |o|
+  o.banner = 'Usage: tools/release [--minor | --major] [--dry-run]'
+  o.on('--minor') { bump_args << '--minor' }
+  o.on('--major') { bump_args << '--major' }
+  o.on('--dry-run') { dry_run = true }
+end.parse!
+
+if dry_run
+  system('ruby', 'tools/bump', '--dry-run', *bump_args) or abort 'bump failed'
+  exit
+end
+
+abort 'Release from main.' unless `git branch --show-current`.strip == 'main'
+abort 'Commit all changes before releasing.' unless `git status --porcelain`.strip.empty?
+abort 'Tests failed; release stopped.' unless system('julia', '--project=.', 'test/runtests.jl')
+abort 'Release stopped at bump/push; inspect the local state before retrying.' unless system('ruby', 'tools/bump', *bump_args)

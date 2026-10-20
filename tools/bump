@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
-# Bump, push, verify CI, and request registration; TagBot handles tagging.
+# Usage: tools/bump [--minor | --major] [--dry-run]
+# Bump the version in Project.toml (patch by default), commit it, and push main
+# through tools/push. Registration is a separate step: see tools/publish.
 
-require 'json'
 require 'open3'
+require 'optparse'
 
 REPO = File.expand_path('..', __dir__).freeze
 PROJECT_FILE = File.join(REPO, 'Project.toml').freeze
@@ -24,31 +26,28 @@ def github(*args)
   run('gh', *args)
 end
 
-def ci_run_for(commit)
-  30.times do
-    runs = JSON.parse(github('run', 'list', '--repo', GITHUB_REPO,
-                            '--workflow', 'Documentation.yml', '--commit', commit,
-                            '--limit', '1', '--json', 'databaseId'))
-    return runs.first.fetch('databaseId').to_s unless runs.empty?
-    sleep 2
-  end
-  abort "No CI run found for #{commit}; inspect Actions before registering."
-end
+level = :patch
+dry_run = false
+OptionParser.new do |o|
+  o.banner = 'Usage: tools/bump [--minor | --major] [--dry-run]'
+  o.on('--minor') { level = :minor }
+  o.on('--major') { level = :major }
+  o.on('--dry-run') { dry_run = true }
+end.parse!
 
-abort 'Usage: ruby scripts/bump_version [--dry-run]' unless (ARGV - ['--dry-run']).empty?
 content = File.read(PROJECT_FILE)
 version_match = VERSION_PATTERN.match(content)
 abort 'Could not find a semantic version in Project.toml' unless version_match
 major, minor, patch = version_match.captures.map(&:to_i)
-new_ver = "#{major}.#{minor}.#{patch + 1}"
-puts "Patch release: #{major}.#{minor}.#{patch} -> #{new_ver}"
-exit if ARGV.include?('--dry-run')
+new_ver = { major: [major + 1, 0, 0], minor: [major, minor + 1, 0], patch: [major, minor, patch + 1] }.fetch(level).join('.')
+puts "#{level.to_s.capitalize} release: #{major}.#{minor}.#{patch} -> #{new_ver}"
+exit if dry_run
 
 abort 'Release from main.' unless git('branch', '--show-current') == 'main'
 abort 'Commit all changes before releasing.' unless git('status', '--porcelain').empty?
-run('ruby', '-cw', 'scripts/bump_version')
+run('ruby', '-cw', 'tools/bump')
 run('ruby', '-cw', 'tools/push')
-run('ruby-audit', '--strict', 'scripts/bump_version', 'tools/push')
+run('ruby-audit', '--strict', 'tools/bump', 'tools/push')
 github('auth', 'status')
 remote_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
 abort 'Local main must match GitHub main before bumping.' unless git('rev-parse', 'HEAD') == remote_head
@@ -60,11 +59,4 @@ commit = git('rev-parse', 'HEAD')
 run('ruby', 'tools/push')
 published_head = github('api', "repos/#{GITHUB_REPO}/git/ref/heads/main", '--jq', '.object.sha')
 abort 'Remote main does not match the release commit.' unless published_head == commit
-
-puts "Waiting for CI on #{commit}"
-github('run', 'watch', ci_run_for(commit), '--repo', GITHUB_REPO, '--exit-status', '--interval', '20')
-comment_url = github('api', "repos/#{GITHUB_REPO}/commits/#{commit}/comments",
-                     '-f', "body=@JuliaRegistrator register\n\nRelease notes:\nSee CHANGELOG.md.",
-                     '--jq', '.html_url')
-puts "Registration requested for #{new_ver}: #{comment_url}"
-puts 'Check Registrator and AutoMerge results. TagBot creates the tag after registration merges.'
+puts "Pushed #{new_ver} (#{commit}); run tools/publish to register it"
