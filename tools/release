@@ -24,5 +24,5 @@ end
 
 abort 'Release from main.' unless `git branch --show-current`.strip == 'main'
 abort 'Commit all changes before releasing.' unless `git status --porcelain`.strip.empty?
-abort 'Tests failed; release stopped.' unless system('julia', '--project=.', 'test/runtests.jl')
+abort 'Tests failed; release stopped.' unless system('julia', '--project=.', '-e', 'using Pkg; Pkg.test()')
 abort 'Release stopped at bump/push; inspect the local state before retrying.' unless system('ruby', 'tools/bump', *bump_args)
