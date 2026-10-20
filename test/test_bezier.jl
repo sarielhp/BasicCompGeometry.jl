@@ -39,13 +39,13 @@ import BasicCompGeometry: cardin, derivative
     @test top_right(bb)[2] ≈ 1.5 atol=1e-10 # Maximum y is at mid (t=0.5)
 
     # All sampled points must lie strictly inside bbox
-    for t in 0.0:0.05:1.0
+    for t = 0.0:0.05:1.0
         pt = b(t)
         @test is_inside(pt, bb)
     end
 
     # 5. Flattening
-    flat = flatten(b; tol=1e-3)
+    flat = flatten(b; tol = 1e-3)
     @test cardin(flat) >= 4
     @test flat[1] ≈ p0
     @test flat[cardin(flat)] ≈ p3
@@ -78,20 +78,20 @@ import BasicCompGeometry: cardin, derivative
     end
 
     # Spline flattening
-    s_flat = flatten(nat_spline; tol=1e-2)
+    s_flat = flatten(nat_spline; tol = 1e-2)
     @test cardin(s_flat) > cardin(knots)
     @test s_flat[1] ≈ knots[1]
     @test s_flat[cardin(s_flat)] ≈ knots[4]
 end
 
 @testset "Mixed Bezier coordinates and closed interpolation" begin
-    curve = CubicBezier(point(0, 0), point(0.0, 1.0), point(1f0, 1f0), point(1, 0))
+    curve = CubicBezier(point(0, 0), point(0.0, 1.0), point(1.0f0, 1.0f0), point(1, 0))
     @test curve isa CubicBezier2F
     @test curve(0.5) ≈ point(0.5, 0.75)
     @test BBox(curve) ≈ BBox(point(0.0, 0.0), point(1.0, 0.75))
     @test occursin("CubicBezier(", sprint(show, curve))
     knots = PntSeq([point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)])
-    closed = interpolate_catmull_rom(knots; closed=true)
+    closed = interpolate_catmull_rom(knots; closed = true)
     @test length(closed) == 4
     @test closed(0.0) ≈ closed(4.0)
     @test all(i -> closed(Float64(i - 1)) ≈ knots[i], 1:4)

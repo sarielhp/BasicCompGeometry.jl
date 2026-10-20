@@ -36,8 +36,8 @@ end
 function same_plane(a::Plane{D,T}, b::Plane{D,T}) where {D,T}
     na, nb = a.n ./ norm(a.n), b.n ./ norm(b.n)
     da, db = dot(na, a.p), dot(nb, b.p)
-    return (isapprox(na, nb; atol=1e-12) && isapprox(da, db; atol=1e-12)) ||
-           (isapprox(na, -nb; atol=1e-12) && isapprox(da, -db; atol=1e-12))
+    return (isapprox(na, nb; atol = 1e-12) && isapprox(da, db; atol = 1e-12)) ||
+           (isapprox(na, -nb; atol = 1e-12) && isapprox(da, -db; atol = 1e-12))
 end
 
 function main()

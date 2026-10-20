@@ -142,9 +142,9 @@ end
         @test all(p -> any(q -> q ≈ p, hits), expected)
     end
 
-    for box in (BBox(point(1.0, 0.0), point(1.0, 2.0)),
-                BBox(point(0.0, 1.0), point(2.0, 1.0)))
-        view = default_view(box; factor=1.5)
+    for box in
+        (BBox(point(1.0, 0.0), point(1.0, 2.0)), BBox(point(0.0, 1.0), point(2.0, 1.0)))
+        view = default_view(box; factor = 1.5)
         @test width(view) ≈ 3.0
         @test height(view) ≈ 3.0
         @test is_inside(bottom_left(box), view)

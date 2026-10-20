@@ -12,8 +12,14 @@ using QuickEnv
 #   Page 2: Arrangement depth heatmap with inward directional whiskers along boundary lines.
 
 using BasicCompGeometry
-import BasicCompGeometry: cairo_draw_halfplanes, cairo_draw_polygon, cairo_draw_setup, cairo_set_line_width,
-    description, open_canvas, read_halfplanes
+import BasicCompGeometry:
+    cairo_draw_halfplanes,
+    cairo_draw_polygon,
+    cairo_draw_setup,
+    cairo_set_line_width,
+    description,
+    open_canvas,
+    read_halfplanes
 using Cairo
 import BasicCompGeometry: clip, width, height, faces, depth
 using LinearAlgebra
@@ -57,9 +63,9 @@ function viridis_color(t::Real)
         (0.25, 0.231, 0.322, 0.545),
         (0.50, 0.129, 0.569, 0.551),
         (0.75, 0.369, 0.789, 0.383),
-        (1.00, 0.993, 0.906, 0.144)
+        (1.00, 0.993, 0.906, 0.144),
     ]
-    for i in 1:(length(pts)-1)
+    for i = 1:(length(pts)-1)
         t0, r0, g0, b0 = pts[i]
         t1, r1, g1, b1 = pts[i+1]
         if t_clamped <= t1
@@ -111,8 +117,14 @@ function parse_args()
         end
         i += 1
     end
-    return (input_file = input_file, output_file = output_file, n_rand = n_rand,
-            cw = cw, ch = ch, factor = factor)
+    return (
+        input_file = input_file,
+        output_file = output_file,
+        n_rand = n_rand,
+        cw = cw,
+        ch = ch,
+        factor = factor,
+    )
 end
 
 function main()
@@ -132,7 +144,7 @@ function main()
             source_desc = "Loaded $(length(hps)) halfplanes from $(default_candidate)"
         else
             Random.seed!(42)
-            hps = [rand_halfplane() for _ in 1:opts.n_rand]
+            hps = [rand_halfplane() for _ = 1:opts.n_rand]
             source_desc = "Generated $(length(hps)) random halfplanes (seed=42)"
         end
     end
@@ -178,10 +190,10 @@ function main()
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face with a distinct pleasant color
-        for i in 1:num_faces
+        for i = 1:num_faces
             r, g, b = distinct_face_color(i)
             Cairo.set_source_rgb(canvas, r, g, b)
-            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=false)
+            cairo_draw_polygon(canvas, face_polys[i]; fill = true, stroke = false)
         end
 
         # 2. Draw input halfplane boundary lines across the view
@@ -205,14 +217,30 @@ function main()
         # 4. Header title in device pixel coordinates
         Cairo.save(canvas)
         Cairo.reset_transform(canvas)
-        Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.select_font_face(
+            canvas,
+            "Sans",
+            Cairo.FONT_SLANT_NORMAL,
+            Cairo.FONT_WEIGHT_BOLD,
+        )
         Cairo.set_font_size(canvas, 16.0)
         Cairo.set_source_rgb(canvas, 0.15, 0.15, 0.2)
         Cairo.move_to(canvas, 40.0, 32.0)
-        Cairo.show_text(canvas, @sprintf("Arrangement Faces: %d faces from %d trapezoids (%d halfplanes)", num_faces, length(traps), length(hps)))
+        Cairo.show_text(
+            canvas,
+            @sprintf(
+                "Arrangement Faces: %d faces from %d trapezoids (%d halfplanes)",
+                num_faces,
+                length(traps),
+                length(hps)
+            )
+        )
         Cairo.restore(canvas)
 
-        description(canvas, "Page 1: $(num_faces) polygonal faces of $(length(hps)) halfplanes, formed from $(length(chains)) trapezoid chains.")
+        description(
+            canvas,
+            "Page 1: $(num_faces) polygonal faces of $(length(hps)) halfplanes, formed from $(length(chains)) trapezoid chains.",
+        )
 
         Cairo.show_page(canvas)
 
@@ -226,21 +254,23 @@ function main()
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face according to its arrangement depth
-        for i in 1:num_faces
+        for i = 1:num_faces
             d = face_depths[i]
             t = d_max == d_min ? 0.5 : (d - d_min) / (d_max - d_min)
             r, g, b = viridis_color(t)
             Cairo.set_source_rgb(canvas, r, g, b)
-            cairo_draw_polygon(canvas, face_polys[i]; fill=true, stroke=false)
+            cairo_draw_polygon(canvas, face_polys[i]; fill = true, stroke = false)
         end
 
         # 2. Draw halfplane boundary lines with inward whiskers
         cairo_draw_halfplanes(
-            canvas, hps, view;
+            canvas,
+            hps,
+            view;
             line_width = 1.8,
             tick_len = 8.0,
             tick_spacing = 24.0,
-            color = (0.1, 0.1, 0.1)
+            color = (0.1, 0.1, 0.1),
         )
 
         # 3. Draw view bounding box outline
@@ -252,11 +282,23 @@ function main()
         # 4. Header title and colorbar in device pixel coordinates
         Cairo.save(canvas)
         Cairo.reset_transform(canvas)
-        Cairo.select_font_face(canvas, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+        Cairo.select_font_face(
+            canvas,
+            "Sans",
+            Cairo.FONT_SLANT_NORMAL,
+            Cairo.FONT_WEIGHT_BOLD,
+        )
         Cairo.set_font_size(canvas, 16.0)
         Cairo.set_source_rgb(canvas, 0.15, 0.15, 0.2)
         Cairo.move_to(canvas, 40.0, 32.0)
-        Cairo.show_text(canvas, @sprintf("Arrangement Depth Heatmap (depths %d .. %d) with Inward Whiskers", d_min, d_max))
+        Cairo.show_text(
+            canvas,
+            @sprintf(
+                "Arrangement Depth Heatmap (depths %d .. %d) with Inward Whiskers",
+                d_min,
+                d_max
+            )
+        )
 
         # Colorbar
         cb_x = cw - 320.0
@@ -264,11 +306,17 @@ function main()
         cb_w = 260.0
         cb_h = 12.0
         steps = 60
-        for s in 0:(steps-1)
+        for s = 0:(steps-1)
             t_col = s / (steps - 1)
             r, g, b = viridis_color(t_col)
             Cairo.set_source_rgb(canvas, r, g, b)
-            Cairo.rectangle(canvas, cb_x + s * (cb_w / steps), cb_y, cb_w / steps + 0.5, cb_h)
+            Cairo.rectangle(
+                canvas,
+                cb_x + s * (cb_w / steps),
+                cb_y,
+                cb_w / steps + 0.5,
+                cb_h,
+            )
             Cairo.fill(canvas)
         end
         Cairo.set_source_rgb(canvas, 0.2, 0.2, 0.2)
@@ -285,7 +333,10 @@ function main()
         Cairo.show_text(canvas, @sprintf("max = %d", d_max))
         Cairo.restore(canvas)
 
-        description(canvas, "Page 2: Arrangement depth heatmap (depths $d_min..$d_max) with inward halfplane whiskers.")
+        description(
+            canvas,
+            "Page 2: Arrangement depth heatmap (depths $d_min..$d_max) with inward halfplane whiskers.",
+        )
     end
 
     println("  Output PDF   : ", opts.output_file)

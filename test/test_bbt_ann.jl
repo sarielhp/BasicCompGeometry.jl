@@ -13,8 +13,14 @@ using StaticArrays
     @test values == [10, 20, 30]
     @test collect(eachindex(va)) == [1, 2, 3]
 
-    points = [point(0.0, 0.0), point(2.0, 1.0), point(4.0, 0.0),
-              point(1.0, 3.0), point(3.0, 4.0), point(5.0, 3.0)]
+    points = [
+        point(0.0, 0.0),
+        point(2.0, 1.0),
+        point(4.0, 0.0),
+        point(1.0, 3.0),
+        point(3.0, 4.0),
+        point(5.0, 3.0),
+    ]
     state = WSPD.init(PntSeq(points), 0.0)
     top = WSPD.get_top(state)
     @test WSPD.top_diam_ub(state) >= maximum(dist(p, q) for p in points, q in points)
@@ -30,7 +36,7 @@ using StaticArrays
         @test min(i, j) <= 3 < max(i, j)
         push!(represented, minmax(i, j))
     end
-    @test represented == Set((i, j) for i in 1:3 for j in 4:6)
+    @test represented == Set((i, j) for i = 1:3 for j = 4:6)
     @test WSPD.top_diam_ub(state) == 0.0
     @test WSPD.top_refine!(state) === nothing
     @test BBT.exact_naive_scan(state.tree, points[4]) == (0.0, points[4], 4)
@@ -44,7 +50,7 @@ end
 
     # Query point near (5.1, 5.1)
     q = point(5.1, 5.1)
-    
+
     # Exact NN (c=1.0)
     d, p, idx = approx_nn(tree, q, 1.0)
     @test p ≈ point(5.0, 5.0)
@@ -68,24 +74,24 @@ end
 
     # Test with many points
     n = 1000
-    pnts_rand = [rand_point(3) for _ in 1:n]
+    pnts_rand = [rand_point(3) for _ = 1:n]
     tree_rand = Tree_init(PntSeq(pnts_rand))
     Tree_fully_expand(tree_rand)
-    
+
     q_rand = rand_point(3)
     d_approx, p_approx, idx_approx = approx_nn(tree_rand, q_rand, 1.5)
-    
+
     # Brute force search
     best_d = Inf
     best_idx = -1
-    for i in 1:n
+    for i = 1:n
         cur_d = dist(q_rand, pnts_rand[i])
         if cur_d < best_d
             best_d = cur_d
             best_idx = i
         end
     end
-    
+
     @test d_approx <= 1.5 * best_d
 end
 
@@ -99,13 +105,13 @@ end
     @test root.split_val == 5.0
     @test root.left !== nothing
     @test root.right !== nothing
-    
+
     # Check that points are correctly partitioned
     # Pnts are at indices 1 and 2 in the original sequence
     # Partition might have swapped them in tree.PS
     left_pnt = tree.PS[first(root.left.r)]
     right_pnt = tree.PS[first(root.right.r)]
-    
+
     dim = root.split_dim
     @test left_pnt[dim] <= root.split_val
     @test right_pnt[dim] > root.split_val
@@ -118,13 +124,13 @@ end
 
     q = point(5.1, 5.1)
     d, p, idx = silly_nn(tree, q)
-    
+
     # Silly NN might not find the exact closest point, 
     # but it should return a point from the tree and its correct distance.
     @test p in pnts
     @test d ≈ dist(q, p)
     @test idx >= 1 && idx <= 100
-    
+
     # Check that silly_nn distance is >= exact_nn distance
     d_exact, _, _ = approx_nn(tree, q, 1.0)
     @test d >= d_exact
@@ -136,13 +142,13 @@ end
     Tree_fully_expand(tree)
 
     q = point(5.1, 5.1)
-    
+
     # Exact Hybrid (c=1.0)
     d, p, idx = hybrid_nn(tree, q, 1.0)
     @test p ≈ point(5.0, 5.0)
     @test d ≈ dist(q, point(5.0, 5.0))
     @test idx == 45
-    
+
     # Approx Hybrid (c=1.5)
     d_ap, p_ap, idx_ap = hybrid_nn(tree, q, 1.5)
     @test d_ap <= 1.5 * dist(q, point(5.0, 5.0))

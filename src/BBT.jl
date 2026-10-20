@@ -39,8 +39,17 @@ mutable struct Node{D,T,S,V}
         split_val::Union{Nothing,T},
     ) where {D,T,S,V}
         return new{D,T,S,V}(
-            bb, r, left, right, f_leaf, diam, id,
-            min_index, max_index, split_dim, split_val,
+            bb,
+            r,
+            left,
+            right,
+            f_leaf,
+            diam,
+            id,
+            min_index,
+            max_index,
+            split_dim,
+            split_val,
         )
     end
 end
@@ -263,7 +272,7 @@ function exact_naive_scan(tree::Tree{D,T,S,V}, q::Point{D}) where {D,T,S,V}
     min_dist = Inf
     best_p = nothing
     best_orig_idx = -1
-    for i in 1:length(tree.PS)
+    for i = 1:length(tree.PS)
         p = tree.PS[i]
         d = dist(p, q)
         if d < min_dist
@@ -460,6 +469,7 @@ function Tree_draw end
 export Node, Tree
 export Tree_draw, Tree_init, Tree_fully_expand
 export Tree_refine_node, depth
-export get_min_orig_index, get_max_orig_index, approx_nn, silly_nn, hybrid_nn, exact_naive_scan
+export get_min_orig_index,
+    get_max_orig_index, approx_nn, silly_nn, hybrid_nn, exact_naive_scan
 
 end # module BBT

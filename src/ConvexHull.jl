@@ -10,11 +10,17 @@ The optional kernel is passed to both coordinate comparisons and turn predicates
 changing the coordinate type of the returned vertices.
 """
 
-function convex_hull(ps::AbsPntSeq{2,T}; kernel::AbstractKernel=FloatingKernel()) where {T}
-    return convex_hull(Points(ps); kernel=kernel)
+function convex_hull(
+    ps::AbsPntSeq{2,T};
+    kernel::AbstractKernel = FloatingKernel(),
+) where {T}
+    return convex_hull(Points(ps); kernel = kernel)
 end
 
-function convex_hull(pnts::Vector{Point{2,T}}; kernel::AbstractKernel=FloatingKernel()) where {T}
+function convex_hull(
+    pnts::Vector{Point{2,T}};
+    kernel::AbstractKernel = FloatingKernel(),
+) where {T}
     return _convex_hull(kernel, pnts)
 end
 

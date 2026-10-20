@@ -16,7 +16,12 @@ end
 const CubicBezier2F = CubicBezier{2,Float64}
 const CubicBezier3F = CubicBezier{3,Float64}
 
-function CubicBezier(p0::Point{D,T}, p1::Point{D,S}, p2::Point{D,U}, p3::Point{D,V}) where {D,T,S,U,V}
+function CubicBezier(
+    p0::Point{D,T},
+    p1::Point{D,S},
+    p2::Point{D,U},
+    p3::Point{D,V},
+) where {D,T,S,U,V}
     R = promote_type(T, S, U, V)
     return CubicBezier{D,R}(Point{D,R}(p0), Point{D,R}(p1), Point{D,R}(p2), Point{D,R}(p3))
 end
@@ -41,7 +46,9 @@ Compute the tangent vector B'(t) at parameter `t`.
 function derivative(b::CubicBezier{D,T}, t::Real) where {D,T}
     u = one(T) - T(t)
     tt = T(t)
-    return 3 * u * u * (b.p1 - b.p0) + 6 * u * tt * (b.p2 - b.p1) + 3 * tt * tt * (b.p3 - b.p2)
+    return 3 * u * u * (b.p1 - b.p0) +
+           6 * u * tt * (b.p2 - b.p1) +
+           3 * tt * tt * (b.p3 - b.p2)
 end
 
 import Base: split
@@ -101,7 +108,7 @@ Compute exact axis-aligned bounding box of a cubic Bézier curve.
 function bbox(b::CubicBezier{D,T}) where {D,T}
     min_coords = zeros(T, D)
     max_coords = zeros(T, D)
-    for k in 1:D
+    for k = 1:D
         v0, v1, v2, v3 = b.p0[k], b.p1[k], b.p2[k], b.p3[k]
         vals = T[v0, v3]
         for t in _coord_roots_in_unit_interval(v0, v1, v2, v3)
@@ -124,7 +131,12 @@ function flatten(b::CubicBezier{D,T}; tol::Real = 1e-3, max_depth::Int = 10) whe
     return PntSeq(pts)
 end
 
-function _flatten_rec!(pts::Vector{Point{D,T}}, b::CubicBezier{D,T}, tol::T, depth::Int) where {D,T}
+function _flatten_rec!(
+    pts::Vector{Point{D,T}},
+    b::CubicBezier{D,T},
+    tol::T,
+    depth::Int,
+) where {D,T}
     seg = Segment(b.p0, b.p3)
     d1 = dist(b.p1, seg)
     d2 = dist(b.p2, seg)
@@ -172,7 +184,7 @@ end
 function bbox(s::CubicSpline{D,T}) where {D,T}
     isempty(s.segments) && error("Empty spline has no bbox")
     bb = bbox(s.segments[1])
-    for i in 2:length(s.segments)
+    for i = 2:length(s.segments)
         bound!(bb, bbox(s.segments[i]))
     end
     return bb
@@ -182,7 +194,7 @@ function flatten(s::CubicSpline{D,T}; tol::Real = 1e-3) where {D,T}
     isempty(s.segments) && return PntSeq{D,T}(Point{D,T}[])
     all_pts = Point{D,T}[]
     for (i, seg) in enumerate(s.segments)
-        pts = flatten(seg; tol=tol).pnts
+        pts = flatten(seg; tol = tol).pnts
         if i == 1
             append!(all_pts, pts)
         else
@@ -200,7 +212,7 @@ Construct a smooth C^1 cubic spline interpolating the given points via Catmull-R
 function interpolate_catmull_rom(
     pts::AbsPntSeq{D,T};
     tension::Real = 0.5,
-    closed::Bool = false
+    closed::Bool = false,
 ) where {D,T}
     n = cardin(pts)
     n >= 2 || error("Catmull-Rom interpolation requires at least 2 points")
@@ -208,7 +220,7 @@ function interpolate_catmull_rom(
     scale = (one(T) - T(tension)) / 3
 
     if closed
-        for i in 1:n
+        for i = 1:n
             im1 = i == 1 ? n : i - 1
             ip1 = i == n ? 1 : i + 1
             ip2 = ip1 == n ? 1 : ip1 + 1
@@ -221,15 +233,16 @@ function interpolate_catmull_rom(
             push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
         end
     else
-        for i in 1:(n-1)
+        for i = 1:(n-1)
             p_curr = pts[i]
             p_next = pts[i+1]
             v_curr = i == 1 ? scale * (p_next - p_curr) * 2 : scale * (p_next - pts[i-1])
-            v_next = i + 1 == n ? scale * (p_next - p_curr) * 2 : scale * (pts[i+2] - p_curr)
+            v_next =
+                i + 1 == n ? scale * (p_next - p_curr) * 2 : scale * (pts[i+2] - p_curr)
             push!(segs, CubicBezier(p_curr, p_curr + v_curr, p_next - v_next, p_next))
         end
     end
-    return CubicSpline(segs; closed=closed)
+    return CubicSpline(segs; closed = closed)
 end
 
 """
@@ -239,12 +252,12 @@ Construct a smooth C^2 natural cubic spline interpolating the given points.
 """
 function interpolate_natural_spline(pts::AbsPntSeq{D,T}; closed::Bool = false) where {D,T}
     n = cardin(pts)
-    n >= 3 || return interpolate_catmull_rom(pts; closed=closed)
+    n >= 3 || return interpolate_catmull_rom(pts; closed = closed)
     m = n - 1
     # Solve for first control points P1[1..m] per coordinate
-    P1_coords = [zeros(T, m) for _ in 1:D]
-    for k in 1:D
-        K = [pts[i][k] for i in 1:n]
+    P1_coords = [zeros(T, m) for _ = 1:D]
+    for k = 1:D
+        K = [pts[i][k] for i = 1:n]
         # Tridiagonal system: diag b, sub a, sup c, rhs r
         a = fill(one(T), m)
         b = fill(4 * one(T), m)
@@ -253,34 +266,35 @@ function interpolate_natural_spline(pts::AbsPntSeq{D,T}; closed::Bool = false) w
         b[1] = 2 * one(T)
         c[1] = one(T)
         r[1] = K[1] + 2 * K[2]
-        for i in 2:(m-1)
+        for i = 2:(m-1)
             r[i] = 4 * K[i] + 2 * K[i+1]
         end
         b[m] = 7 * one(T)
         a[m] = 2 * one(T)
         r[m] = 8 * K[m] + K[m+1]
         # Thomas algorithm
-        for i in 2:m
+        for i = 2:m
             w = a[i] / b[i-1]
             b[i] -= w * c[i-1]
             r[i] -= w * r[i-1]
         end
         P1_coords[k][m] = r[m] / b[m]
-        for i in (m-1):-1:1
+        for i = (m-1):-1:1
             P1_coords[k][i] = (r[i] - c[i] * P1_coords[k][i+1]) / b[i]
         end
     end
 
     segs = CubicBezier{D,T}[]
-    for i in 1:m
+    for i = 1:m
         p0 = pts[i]
         p3 = pts[i+1]
-        p1 = Point{D,T}([P1_coords[k][i] for k in 1:D]...)
-        p2 = i < m ? Point{D,T}([2 * pts[i+1][k] - P1_coords[k][i+1] for k in 1:D]...) :
-                     Point{D,T}([(pts[n][k] + P1_coords[k][m]) / 2 for k in 1:D]...)
+        p1 = Point{D,T}([P1_coords[k][i] for k = 1:D]...)
+        p2 =
+            i < m ? Point{D,T}([2 * pts[i+1][k] - P1_coords[k][i+1] for k = 1:D]...) :
+            Point{D,T}([(pts[n][k] + P1_coords[k][m]) / 2 for k = 1:D]...)
         push!(segs, CubicBezier(p0, p1, p2, p3))
     end
-    return CubicSpline(segs; closed=false)
+    return CubicSpline(segs; closed = false)
 end
 
 BBox(b::CubicBezier) = bbox(b)

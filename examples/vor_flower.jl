@@ -49,12 +49,17 @@ add_latex_macros!(raw"""
 Clip convex polygon `poly` by the halfplane { x | dot(x - M, n) <= 0 } using the Sutherland-Hodgman algorithm.
 `M` is a point on the dividing hyperplane and `n` is the outward normal vector pointing to the region to be clipped.
 """
-function clip_polygon_halfplane(poly::Vector{Point2F}, M::Point2F, n::Point2F; eps::Float64=1e-11)
+function clip_polygon_halfplane(
+    poly::Vector{Point2F},
+    M::Point2F,
+    n::Point2F;
+    eps::Float64 = 1e-11,
+)
     isempty(poly) && return Point2F[]
     out = Point2F[]
     nv = length(poly)
 
-    for i in 1:nv
+    for i = 1:nv
         A = poly[i]
         B = poly[mod1(i + 1, nv)]
         sA = dot(A - M, n)
@@ -89,10 +94,10 @@ Compute the Voronoi cell for each point in `pts`, restricted to `bbox_poly`.
 function compute_voronoi_cells(pts::Vector{Point2F}, bbox_poly::Vector{Point2F})
     N = length(pts)
     cells = Vector{Vector{Point2F}}(undef, N)
-    for i in 1:N
+    for i = 1:N
         p_i = pts[i]
         poly = copy(bbox_poly)
-        other_indices = [j for j in 1:N if j != i]
+        other_indices = [j for j = 1:N if j != i]
         sort!(other_indices, by = j -> dist_sq(p_i, pts[j]))
         for j in other_indices
             p_j = pts[j]
@@ -111,7 +116,7 @@ end
 
 Collect all unique vertices from a list of Voronoi polygon cells.
 """
-function collect_unique_vertices(cells::Vector{Vector{Point2F}}; eps::Float64=1e-6)
+function collect_unique_vertices(cells::Vector{Vector{Point2F}}; eps::Float64 = 1e-6)
     vertices = Point2F[]
     for cell in cells
         for v in cell
@@ -132,7 +137,11 @@ Returns (r, g, b) with values in [0, 1].
 function colormap_turbo(t::Float64)
     t_clamped = clamp(t, 0.0, 1.0)
     # Smooth RGB multi-segment colormap from vibrant blue to teal, yellow, orange, and red
-    r = clamp(1.5 * (t_clamped - 0.2) * (t_clamped > 0.2 ? 1.0 : 0.0) + 0.1 * (1.0 - t_clamped), 0.0, 1.0)
+    r = clamp(
+        1.5 * (t_clamped - 0.2) * (t_clamped > 0.2 ? 1.0 : 0.0) + 0.1 * (1.0 - t_clamped),
+        0.0,
+        1.0,
+    )
     g = clamp(sin(pi * t_clamped), 0.0, 1.0)
     b = clamp(1.2 * (0.8 - t_clamped) * (t_clamped < 0.8 ? 1.0 : 0.0) + 0.15, 0.0, 1.0)
     return (r, g, b)
@@ -148,12 +157,19 @@ end
 
 Helper to draw the basic Voronoi cells and sites in the standard coordinate system.
 """
-function draw_voronoi_diagram(cr, cells, sites, cw, ch, r_view;
-                              fill_color=(0.96, 0.96, 0.98),
-                              edge_color=(0.35, 0.35, 0.40),
-                              edge_width=1.0,
-                              site_color=(0.15, 0.15, 0.20),
-                              site_radius=2.5)
+function draw_voronoi_diagram(
+    cr,
+    cells,
+    sites,
+    cw,
+    ch,
+    r_view;
+    fill_color = (0.96, 0.96, 0.98),
+    edge_color = (0.35, 0.35, 0.40),
+    edge_width = 1.0,
+    site_color = (0.15, 0.15, 0.20),
+    site_radius = 2.5,
+)
     # Fill cells
     set_source_rgb(cr, fill_color[1], fill_color[2], fill_color[3])
     for cell in cells
@@ -197,16 +213,16 @@ end
 
 Generate the 6-page PDF document for the Voronoi Flower visualization.
 """
-function generate_flower_pdf(output_pdf::String="output/flower.pdf")
+function generate_flower_pdf(output_pdf::String = "output/flower.pdf")
     mkpath(dirname(abspath(output_pdf)))
 
     # 1. Construct Site Set T
     k = 10
-    angles = [2 * pi * j / k for j in 0:k-1]
+    angles = [2 * pi * j / k for j = 0:(k-1)]
     S0 = [point(cos(a), sin(a)) for a in angles]
 
     T = Point2F[point(0.0, 0.0)]
-    for i in 0:10
+    for i = 0:10
         scale = (1.1)^i
         for p in S0
             push!(T, point(scale * p[1], scale * p[2]))
@@ -219,7 +235,7 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
         point(-R_bound, -R_bound),
         point(R_bound, -R_bound),
         point(R_bound, R_bound),
-        point(-R_bound, R_bound)
+        point(-R_bound, R_bound),
     ]
 
     # Compute Voronoi cells of T
@@ -282,7 +298,7 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     cr = Cairo.CairoContext(surf)
 
     # Transform function for each diagram page
-    function setup_page_transform(page_title::String="")
+    function setup_page_transform(page_title::String = "")
         # Background
         set_source_rgb(cr, 0.99, 0.99, 1.0)
         Cairo.rectangle(cr, 0, 0, cw, ch)
@@ -291,7 +307,12 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
         # Title
         if !isempty(page_title)
             set_source_rgb(cr, 0.12, 0.15, 0.25)
-            Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
+            Cairo.select_font_face(
+                cr,
+                "Sans",
+                Cairo.FONT_SLANT_NORMAL,
+                Cairo.FONT_WEIGHT_BOLD,
+            )
             Cairo.set_font_size(cr, 18.0)
             Cairo.move_to(cr, margin, margin * 0.65)
             Cairo.show_text(cr, page_title)
@@ -317,12 +338,19 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     # Voronoi diagram of T
     Cairo.save(cr)
     setup_page_transform("Page 1: Voronoi Diagram of Set T")
-    draw_voronoi_diagram(cr, cells_T, T, cw, ch, view_radius;
-                         fill_color=(0.94, 0.95, 0.98),
-                         edge_color=(0.40, 0.45, 0.55),
-                         edge_width=1.0 / scale_factor,
-                         site_color=COLOR_T,
-                         site_radius=site_rad_world)
+    draw_voronoi_diagram(
+        cr,
+        cells_T,
+        T,
+        cw,
+        ch,
+        view_radius;
+        fill_color = (0.94, 0.95, 0.98),
+        edge_color = (0.40, 0.45, 0.55),
+        edge_width = 1.0 / scale_factor,
+        site_color = COLOR_T,
+        site_radius = site_rad_world,
+    )
     Cairo.restore(cr)
     Cairo.show_page(cr)
 
@@ -330,12 +358,19 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     # Voronoi diagram of T, highlighting origin cell and red vertices U
     Cairo.save(cr)
     setup_page_transform("Page 2: Origin Cell & Voronoi Vertices U (Red)")
-    draw_voronoi_diagram(cr, cells_T, T, cw, ch, view_radius;
-                         fill_color=(0.95, 0.95, 0.97),
-                         edge_color=(0.50, 0.52, 0.60),
-                         edge_width=0.9 / scale_factor,
-                         site_color=COLOR_T,
-                         site_radius=site_rad_world)
+    draw_voronoi_diagram(
+        cr,
+        cells_T,
+        T,
+        cw,
+        ch,
+        view_radius;
+        fill_color = (0.95, 0.95, 0.97),
+        edge_color = (0.50, 0.52, 0.60),
+        edge_width = 0.9 / scale_factor,
+        site_color = COLOR_T,
+        site_radius = site_rad_world,
+    )
 
     # Highlight origin cell in soft gold/amber
     set_source_rgba(cr, 1.0, 0.85, 0.30, 0.65)
@@ -385,12 +420,19 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     Cairo.save(cr)
     setup_page_transform("Page 4: Voronoi Diagram of T ∪ U (New Vertices V in Blue)")
     # Draw Voronoi cells and sites of T (dark navy)
-    draw_voronoi_diagram(cr, cells_T_prime, T, cw, ch, view_radius;
-                         fill_color=(0.95, 0.96, 0.98),
-                         edge_color=(0.42, 0.46, 0.56),
-                         edge_width=0.9 / scale_factor,
-                         site_color=COLOR_T,
-                         site_radius=site_rad_world)
+    draw_voronoi_diagram(
+        cr,
+        cells_T_prime,
+        T,
+        cw,
+        ch,
+        view_radius;
+        fill_color = (0.95, 0.96, 0.98),
+        edge_color = (0.42, 0.46, 0.56),
+        edge_width = 0.9 / scale_factor,
+        site_color = COLOR_T,
+        site_radius = site_rad_world,
+    )
 
     # Draw sites of U in consistent red
     for u in U
@@ -439,15 +481,22 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     # Voronoi diagram of T U U with new cells (cells of U) filled in light green
     Cairo.save(cr)
     setup_page_transform("Page 5: Voronoi of T ∪ U (New Cells of U in Light Green)")
-    draw_voronoi_diagram(cr, cells_T_prime, T, cw, ch, view_radius;
-                         fill_color=(0.95, 0.96, 0.98),
-                         edge_color=(0.42, 0.46, 0.56),
-                         edge_width=0.9 / scale_factor,
-                         site_color=COLOR_T,
-                         site_radius=site_rad_world)
+    draw_voronoi_diagram(
+        cr,
+        cells_T_prime,
+        T,
+        cw,
+        ch,
+        view_radius;
+        fill_color = (0.95, 0.96, 0.98),
+        edge_color = (0.42, 0.46, 0.56),
+        edge_width = 0.9 / scale_factor,
+        site_color = COLOR_T,
+        site_radius = site_rad_world,
+    )
 
     # Fill new cells of U (indices length(T)+1 to length(T_prime)) in light green
-    new_cell_indices = (length(T) + 1):length(T_prime)
+    new_cell_indices = (length(T)+1):length(T_prime)
     for idx in new_cell_indices
         cell = cells_T_prime[idx]
         length(cell) < 3 && continue
@@ -489,13 +538,22 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     # ================= PAGE 6 (Diagram 5) =================
     # Original Voronoi of T + points V (blue) + semi-transparent disks colored by nearest site distance
     Cairo.save(cr)
-    setup_page_transform("Page 6: Original Voronoi & Disks at V Colored by Nearest Distance")
-    draw_voronoi_diagram(cr, cells_T, T, cw, ch, view_radius;
-                         fill_color=(0.97, 0.97, 0.98),
-                         edge_color=(0.55, 0.58, 0.65),
-                         edge_width=0.8 / scale_factor,
-                         site_color=COLOR_T,
-                         site_radius=site_rad_world * 0.8)
+    setup_page_transform(
+        "Page 6: Original Voronoi & Disks at V Colored by Nearest Distance",
+    )
+    draw_voronoi_diagram(
+        cr,
+        cells_T,
+        T,
+        cw,
+        ch,
+        view_radius;
+        fill_color = (0.97, 0.97, 0.98),
+        edge_color = (0.55, 0.58, 0.65),
+        edge_width = 0.8 / scale_factor,
+        site_color = COLOR_T,
+        site_radius = site_rad_world * 0.8,
+    )
 
     # Draw semi-transparent disks for each vertex in V
     dist_span = max(max_dist_V - min_dist_V, 1e-6)
@@ -534,7 +592,7 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     cb_w = view_radius * 0.65
     cb_h = view_radius * 0.06
     n_bars = 50
-    for b in 0:n_bars-1
+    for b = 0:(n_bars-1)
         bx = cb_x + (b / n_bars) * cb_w
         bw = cb_w / n_bars + 1e-4
         bt = b / (n_bars - 1)
@@ -569,7 +627,7 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     Cairo.stroke(cr)
 
     # Redraw colorbar inside badge
-    for b in 0:n_bars-1
+    for b = 0:(n_bars-1)
         bx = cb_screen_x + (b / n_bars) * cb_screen_w
         bw = cb_screen_w / n_bars + 0.5
         bt = b / (n_bars - 1)
@@ -587,7 +645,10 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
     Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
     Cairo.set_font_size(cr, 10.5)
     Cairo.move_to(cr, cb_screen_x, cb_screen_y - 5.0)
-    Cairo.show_text(cr, @sprintf("Nearest Site Dist: %.3f (min) -> %.3f (max)", min_dist_V, max_dist_V))
+    Cairo.show_text(
+        cr,
+        @sprintf("Nearest Site Dist: %.3f (min) -> %.3f (max)", min_dist_V, max_dist_V)
+    )
 
     Cairo.show_page(cr)
     Cairo.finish(surf)
@@ -686,16 +747,28 @@ function generate_flower_pdf(output_pdf::String="output/flower.pdf")
 \end{itemize}
 """
 
-    latex_to_pdf([text_page1, text_page2, text_page3, text_page4, text_page5],
-                 tmp_text_pdf; paperwidth=800, paperheight=800, margin=55)
+    latex_to_pdf(
+        [text_page1, text_page2, text_page3, text_page4, text_page5],
+        tmp_text_pdf;
+        paperwidth = 800,
+        paperheight = 800,
+        margin = 55,
+    )
 
     # --- Merge into Interleaved 10-Page PDF (Figure followed by Summary) ---
-    pdf_merge(output_pdf,
-              (tmp_diagrams_pdf, 1), (tmp_text_pdf, 1),
-              (tmp_diagrams_pdf, 2), (tmp_text_pdf, 2),
-              (tmp_diagrams_pdf, 3), (tmp_text_pdf, 3),
-              (tmp_diagrams_pdf, 4), (tmp_text_pdf, 4),
-              (tmp_diagrams_pdf, 5), (tmp_text_pdf, 5))
+    pdf_merge(
+        output_pdf,
+        (tmp_diagrams_pdf, 1),
+        (tmp_text_pdf, 1),
+        (tmp_diagrams_pdf, 2),
+        (tmp_text_pdf, 2),
+        (tmp_diagrams_pdf, 3),
+        (tmp_text_pdf, 3),
+        (tmp_diagrams_pdf, 4),
+        (tmp_text_pdf, 4),
+        (tmp_diagrams_pdf, 5),
+        (tmp_text_pdf, 5),
+    )
 
     println("Successfully generated: ", relpath(output_pdf, PROJROOT))
 end
@@ -705,4 +778,3 @@ if abspath(PROGRAM_FILE) == @__FILE__
     out = length(ARGS) >= 1 ? ARGS[1] : example_output("flower.pdf")
     generate_flower_pdf(out)
 end
-

@@ -24,8 +24,8 @@ using Random
 Generate n random 3D points in [0,1]x[0,2]x[0,4].
 """
 function generate_random_points(n, rng)
-    pts = Point{3, Float64}[]
-    for _ in 1:n
+    pts = Point{3,Float64}[]
+    for _ = 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     return PntSeq(pts)
@@ -35,7 +35,7 @@ function (@main)(args)
     num_tests = example_size(100, 3)
     n = example_size(100, 32)
     ε = 0.01
-    
+
     @printf("Comparing two versions of approx_diam_subspace (Ordered Execution)\n")
     @printf("Settings: n=%d points, %d tests, ε=%.3f\n\n", n, num_tests, ε)
 
@@ -43,8 +43,8 @@ function (@main)(args)
     @printf("Warming up JIT compiler...\n")
     rng_warm = Random.Xoshiro(42)
     warmup_ps = generate_random_points(100, rng_warm)
-    warmup_dir = normalize(Point{3, Float64}(randn(rng_warm, 3)))
-    
+    warmup_dir = normalize(Point{3,Float64}(randn(rng_warm, 3)))
+
     _ = approx_diameter_subspace(warmup_ps, ε, warmup_dir)
     _ = MVBB.approx_diam_subspace(warmup_ps, ε, warmup_dir)
     @printf("Warm-up complete.\n\n")
@@ -53,16 +53,16 @@ function (@main)(args)
     datasets = []
     directions = []
     rng_data = Random.Xoshiro(123)
-    for i in 1:num_tests
+    for i = 1:num_tests
         push!(datasets, generate_random_points(n, rng_data))
-        push!(directions, normalize(Point{3, Float64}(randn(rng_data, 3))))
+        push!(directions, normalize(Point{3,Float64}(randn(rng_data, 3))))
     end
 
     # 2. Run WSPD-based tests
     @printf("Running %d tests for WSPD-based version...\n", num_tests)
     results_wspd = zeros(num_tests)
     t_start_wspd = time()
-    for i in 1:num_tests
+    for i = 1:num_tests
         results_wspd[i] = approx_diameter_subspace(datasets[i], ε, directions[i])
         if i % 20 == 0
             @printf("  Completed %d/%d...\n", i, num_tests)
@@ -74,7 +74,7 @@ function (@main)(args)
     @printf("Running %d tests for FST-based version...\n", num_tests)
     results_fst = zeros(num_tests)
     t_start_fst = time()
-    for i in 1:num_tests
+    for i = 1:num_tests
         res = MVBB.approx_diam_subspace(datasets[i], ε, directions[i])
         results_fst[i] = res.distance
         if i % 20 == 0

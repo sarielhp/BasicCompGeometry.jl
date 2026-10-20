@@ -8,7 +8,7 @@ a permutation vector `loc`. Accessing `va[i]` returns `vec[loc[i]]`.
 This is useful for algorithms that need to reorder elements without 
 modifying the original data or making expensive copies.
 """
-struct VArray{T, V <: AbstractVector{T}} <: AbstractVector{T}
+struct VArray{T,V<:AbstractVector{T}} <: AbstractVector{T}
     vec::V
     loc::Vector{Int}
 end
@@ -18,8 +18,8 @@ end
 
 Construct a `VArray` wrapping the given vector with an identity permutation.
 """
-function VArray(vec::V) where {T, V <: AbstractVector{T}}
-    return VArray{T, V}(vec, collect(1:length(vec)))
+function VArray(vec::V) where {T,V<:AbstractVector{T}}
+    return VArray{T,V}(vec, collect(1:length(vec)))
 end
 
 @inline Base.size(va::VArray) = size(va.loc)

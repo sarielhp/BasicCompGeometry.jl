@@ -225,14 +225,16 @@ function vertical_decomposition(
         throw(ArgumentError("View bounding box must have positive width and height: $view"))
     end
 
-    lines_typed = [Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
+    lines_typed =
+        [Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
 
     # Step 1: Find all pairwise line intersection vertices inside the view
     all_verts = vertices(lines_typed; tol = tol)
     in_view_verts = Point{2,R_type}[]
     for v in all_verts
         if (x_min - tol <= v[1] <= x_max + tol) && (y_min - tol <= v[2] <= y_max + tol)
-            clamped_v = Point{2,R_type}(clamp(v[1], x_min, x_max), clamp(v[2], y_min, y_max))
+            clamped_v =
+                Point{2,R_type}(clamp(v[1], x_min, x_max), clamp(v[2], y_min, y_max))
             push!(in_view_verts, clamped_v)
         end
     end
@@ -320,10 +322,18 @@ function vertical_decomposition(
     active_traps = _ActiveTrap{R_type}[]
 
     function make_trap(at::_ActiveTrap)
-        c1_y = at.bottom === nothing ? y_min : clamp(_line_y_at_x(at.bottom, at.x_left), y_min, y_max)
-        c2_y = at.bottom === nothing ? y_min : clamp(_line_y_at_x(at.bottom, at.x_right), y_min, y_max)
-        c3_y = at.top === nothing ? y_max : clamp(_line_y_at_x(at.top, at.x_right), y_min, y_max)
-        c4_y = at.top === nothing ? y_max : clamp(_line_y_at_x(at.top, at.x_left), y_min, y_max)
+        c1_y =
+            at.bottom === nothing ? y_min :
+            clamp(_line_y_at_x(at.bottom, at.x_left), y_min, y_max)
+        c2_y =
+            at.bottom === nothing ? y_min :
+            clamp(_line_y_at_x(at.bottom, at.x_right), y_min, y_max)
+        c3_y =
+            at.top === nothing ? y_max :
+            clamp(_line_y_at_x(at.top, at.x_right), y_min, y_max)
+        c4_y =
+            at.top === nothing ? y_max :
+            clamp(_line_y_at_x(at.top, at.x_left), y_min, y_max)
 
         c1 = Point{2,R_type}(at.x_left, c1_y)
         c2 = Point{2,R_type}(at.x_right, c2_y)
@@ -483,7 +493,7 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
         end
     end
 
-    for i in 1:n, j in 1:n
+    for i = 1:n, j = 1:n
         i == j && continue
         ti, tj = traps[i], traps[j]
         # ti must be to the left of tj
@@ -506,7 +516,7 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
     chains = Vector{Vector{Int}}()
     visited = fill(false, n)
 
-    for i in 1:n
+    for i = 1:n
         if left_neighbor[i] == 0
             chain = Int[i]
             visited[i] = true
@@ -521,7 +531,7 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
     end
 
     # Fallback for any unvisited trapezoids (e.g. isolates or cycles)
-    for i in 1:n
+    for i = 1:n
         if !visited[i]
             push!(chains, Int[i])
             visited[i] = true

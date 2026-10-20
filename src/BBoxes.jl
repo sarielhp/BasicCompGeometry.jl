@@ -215,28 +215,29 @@ after projection into the subspace orthogonal to `dir`.
 function max_dist_subspace(b::BBox{D,T}, c::BBox{D,T}, dir::Point{D,T}) where {D,T}
     !b.f_init && return zero(T)
     !c.f_init && return zero(T)
-    
+
     # The maximum distance between two boxes b and c is achieved at their corners.
     # Specifically, it's the maximum value of ||p - q||_subspace where p is a corner of b
     # and q is a corner of c. This is equivalent to maximizing ||d||_subspace where
     # d is in the Minkowski difference box B_diff = [b.mini - c.maxi, b.maxi - c.mini].
     # Since the subspace norm is convex, the maximum is achieved at a vertex of B_diff.
     # There are 2^D such vertices.
-    
+
     # Construct the Minkowski difference box
-    diff_box = BBox{D,T}(true, MVector{D,T}(b.mini .- c.maxi), MVector{D,T}(b.maxi .- c.mini))
-    
+    diff_box =
+        BBox{D,T}(true, MVector{D,T}(b.mini .- c.maxi), MVector{D,T}(b.maxi .- c.mini))
+
     max_d_sq = 0.0
-    for i in 0:(2^D - 1)
+    for i = 0:(2^D-1)
         d = corner(diff_box, i)
-        
+
         proj = dot(d, dir)
         d_sq = dot(d, d) - proj^2
         if d_sq > max_d_sq
             max_d_sq = d_sq
         end
     end
-    
+
     return sqrt(max(0.0, max_d_sq))
 end
 
@@ -309,7 +310,9 @@ function Base.isapprox(a::BBox{D}, b::BBox{D}; kwargs...) where {D}
     if !a.f_init && !b.f_init
         return true
     end
-    return a.f_init == b.f_init && isapprox(a.mini, b.mini; kwargs...) && isapprox(a.maxi, b.maxi; kwargs...)
+    return a.f_init == b.f_init &&
+           isapprox(a.mini, b.mini; kwargs...) &&
+           isapprox(a.maxi, b.maxi; kwargs...)
 end
 
 """

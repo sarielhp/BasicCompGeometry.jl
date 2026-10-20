@@ -58,7 +58,10 @@ This is a parabola (focus-directrix definition), not a hyperbola.
 Deprecated: use `Parabola(point, line)` instead.
 """
 function Hyperbola(line::Line{2,T}, point::Point{2,T}) where {T}
-    Base.depwarn("`Hyperbola(line, point)` is deprecated, use `Parabola(point, line)` instead.", :Hyperbola)
+    Base.depwarn(
+        "`Hyperbola(line, point)` is deprecated, use `Parabola(point, line)` instead.",
+        :Hyperbola,
+    )
     return Parabola(point, line)
 end
 
@@ -114,7 +117,7 @@ Uses the parametric form: `x = center + a*cosh(t)*u + b*sinh(t)*v` for branch 1,
 and `x = center - a*cosh(t)*u + b*sinh(t)*v` for branch 2,
 where `u` is the unit vector along the transverse axis and `v` is the unit vector along the conjugate axis.
 """
-function at(h::Hyperbola{T}, t::Real; branch::Int=1) where {T}
+function at(h::Hyperbola{T}, t::Real; branch::Int = 1) where {T}
     c = center(h)
     a = a_coeff(h)
     b = b_coeff(h)
@@ -229,8 +232,8 @@ function intersect_hyperbolas(h1::Hyperbola{T}, h2::Hyperbola{T}) where {T}
     r = max(dist(c1, c2) + max(c_coeff(h1), c_coeff(h2)), 10.0)
     for branch1 in (1, 2)
         for branch2 in (1, 2)
-            for t in range(-3.0, 3.0, length=200)
-                p1 = at(h1, t; branch=branch1)
+            for t in range(-3.0, 3.0, length = 200)
+                p1 = at(h1, t; branch = branch1)
                 d1 = abs(dist(p1, h1.f1) - dist(p1, h1.f2)) - h1.d
                 d2 = abs(dist(p1, h2.f1) - dist(p1, h2.f2)) - h2.d
                 if abs(d1) < 0.01 && abs(d2) < 0.01
@@ -252,8 +255,8 @@ Uses numerical optimization by sampling points on both branches.
 function distance(x::Point{2,T}, h::Hyperbola{T}) where {T}
     best = Inf
     for branch in (1, 2)
-        for t in range(-5.0, 5.0, length=500)
-            p = at(h, t; branch=branch)
+        for t in range(-5.0, 5.0, length = 500)
+            p = at(h, t; branch = branch)
             d = dist(x, p)
             if d < best
                 best = d

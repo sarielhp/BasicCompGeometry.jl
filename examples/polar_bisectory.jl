@@ -26,8 +26,14 @@ using QuickEnv
 #
 
 using BasicCompGeometry
-import BasicCompGeometry: Points, after_tangent_to_polygon, before_tangent_to_polygon, bound!,
-    cairo_draw_points, cairo_draw_polygon, cairo_draw_setup
+import BasicCompGeometry:
+    Points,
+    after_tangent_to_polygon,
+    before_tangent_to_polygon,
+    bound!,
+    cairo_draw_points,
+    cairo_draw_polygon,
+    cairo_draw_setup
 using LinearAlgebra
 using Cairo
 using Printf
@@ -111,7 +117,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
 
     # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
     sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
-    unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+    unique_v_info = Tuple{Float64,Tuple{Float64,Float64,Float64}}[]
     for item in sorted_v_info
         if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
             push!(unique_v_info, item)
@@ -208,7 +214,7 @@ function render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, c
     # 3. Stroke boundary of original polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
 
     # 4. Draw polar points in their corresponding colors
     for (x_i, col) in stair_v_info
@@ -284,7 +290,7 @@ end
 Draw a small filled square centered at the origin (0, 0).
 `s` is the scale factor returned by `cairo_draw_setup`. `sz` is the side length in pixels.
 """
-function draw_origin(cr, s::Real, sz::Real=20)
+function draw_origin(cr, s::Real, sz::Real = 20)
     half_w = (sz / 2) / s
     Cairo.new_path(cr)
     Cairo.rectangle(cr, -half_w, -half_w, 2 * half_w, 2 * half_w)
@@ -296,7 +302,11 @@ end
 
 Clip a 2D plane or line to bounding box `bb` and draw the line segment across `bb`.
 """
-function draw_plane_line(cr, shape::Union{Plane{2,Float64}, Line{2,Float64}}, bb::BBox{2,Float64})
+function draw_plane_line(
+    cr,
+    shape::Union{Plane{2,Float64},Line{2,Float64}},
+    bb::BBox{2,Float64},
+)
     pl = shape isa Line ? Plane(shape) : shape
     nx, ny = pl.n[1], pl.n[2]
     d = dot(pl.n, pl.p)
@@ -339,7 +349,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # Compute inverted circular arcs for bisector segments (halved hull edge segments)
     n_hull = length(hull)
-    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -348,7 +358,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     end
 
     # Compute supporting line inversions (full circles) for Page 5 background
-    inv_circles = Union{Circle2F, Line{2,Float64}}[]
+    inv_circles = Union{Circle2F,Line{2,Float64}}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -374,8 +384,12 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     bound!(bb4, BBox(point(-1.0, -1.0), point(1.0, 1.0)))
     for arc_obj in inv_bisector_arcs
         if arc_obj isa CircleArc2F
-            p1 = arc_obj.center + arc_obj.radius * point(cos(arc_obj.theta1), sin(arc_obj.theta1))
-            p2 = arc_obj.center + arc_obj.radius * point(cos(arc_obj.theta2), sin(arc_obj.theta2))
+            p1 =
+                arc_obj.center +
+                arc_obj.radius * point(cos(arc_obj.theta1), sin(arc_obj.theta1))
+            p2 =
+                arc_obj.center +
+                arc_obj.radius * point(cos(arc_obj.theta2), sin(arc_obj.theta2))
             bound!(bb4, p1)
             bound!(bb4, p2)
             bound!(bb4, arc_obj.center)
@@ -426,7 +440,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     cairo_draw_points(cr, Points(ps), 5 / s)
     set_source_rgb(cr, 1.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
     set_source_rgb(cr, 0.0, 0.6, 0.0)
     draw_origin(cr, s, 10)
     Cairo.restore(cr)
@@ -455,7 +469,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw original convex hull in black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
 
     # Draw origin in green square
     set_source_rgb(cr, 0.0, 0.6, 0.0)
@@ -468,7 +482,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw dual convex hull polygon of polar points in green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull; close=true)
+    cairo_draw_polygon(cr, dual_hull; close = true)
 
     Cairo.restore(cr)
     Cairo.show_page(cr)
@@ -526,12 +540,12 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 4. Draw edges of the polar polygon (dual_hull) in Green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull; close=true)
+    cairo_draw_polygon(cr, dual_hull; close = true)
 
     # 5. Draw original convex hull polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
 
     # 6. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
@@ -565,7 +579,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
         arc_obj = inv_bisector_arcs[i]
         if arc_obj isa CircleArc2F
             Cairo.new_path(cr)
-            Cairo.arc(cr, arc_obj.center[1], arc_obj.center[2], arc_obj.radius, arc_obj.theta1, arc_obj.theta2)
+            Cairo.arc(
+                cr,
+                arc_obj.center[1],
+                arc_obj.center[2],
+                arc_obj.radius,
+                arc_obj.theta1,
+                arc_obj.theta2,
+            )
             Cairo.stroke(cr)
         elseif arc_obj isa Segment2F
             Cairo.new_path(cr)
@@ -630,12 +651,12 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 5. Draw edges of the polar polygon (dual_hull) in Green
     set_source_rgb(cr, 0.1, 0.75, 0.2)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, dual_hull; close=true)
+    cairo_draw_polygon(cr, dual_hull; close = true)
 
     # 6. Draw original convex hull polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
 
     # 7. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
@@ -669,7 +690,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
         arc_obj = inv_bisector_arcs[i]
         if arc_obj isa CircleArc2F
             Cairo.new_path(cr)
-            Cairo.arc(cr, arc_obj.center[1], arc_obj.center[2], arc_obj.radius, arc_obj.theta1, arc_obj.theta2)
+            Cairo.arc(
+                cr,
+                arc_obj.center[1],
+                arc_obj.center[2],
+                arc_obj.radius,
+                arc_obj.theta1,
+                arc_obj.theta2,
+            )
             Cairo.stroke(cr)
         elseif arc_obj isa Segment2F
             Cairo.new_path(cr)
@@ -729,7 +757,8 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Q = dual_hull
     alpha_rand = 2pi * rand()
     line_tan, q_tan = tangent_line(Q, alpha_rand)
-    q_pt, u_pt, u_t, v_pt, v_t = BasicCompGeometry.tangent_intersections_cp(CP, Q, alpha_rand)
+    q_pt, u_pt, u_t, v_pt, v_t =
+        BasicCompGeometry.tangent_intersections_cp(CP, Q, alpha_rand)
 
     # 1. Draw outer shape CP filled in light gray
     Cairo.new_path(cr)
@@ -806,14 +835,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid in 0.0:0.2:1.0
+    for y_grid = 0.0:0.2:1.0
         x1, y1 = map_plot(0.0, y_grid)
         x2, y2 = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1, y1)
         Cairo.line_to(cr, x2, y2)
         Cairo.stroke(cr)
     end
-    for a_grid in 0.0:(pi/2):2pi
+    for a_grid = 0.0:(pi/2):2pi
         x1, y1 = map_plot(a_grid, 0.0)
         x2, y2 = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1, y1)
@@ -834,7 +863,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.set_font_size(cr, 18.0)
 
     # Y-axis labels
-    for y_val in 0.0:0.25:1.0
+    for y_val = 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -854,7 +883,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # Sample 800 values (4 times 200) on [0, 2π]
     n_samples = 800
-    alphas = range(0.0, 2pi, length=n_samples)
+    alphas = range(0.0, 2pi, length = n_samples)
     u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
     v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
 
@@ -898,14 +927,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid in 0.0:0.2:1.0
+    for y_grid = 0.0:0.2:1.0
         x1, y1 = map_plot(0.0, y_grid)
         x2, y2 = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1, y1)
         Cairo.line_to(cr, x2, y2)
         Cairo.stroke(cr)
     end
-    for a_grid in 0.0:(pi/2):2pi
+    for a_grid = 0.0:(pi/2):2pi
         x1, y1 = map_plot(a_grid, 0.0)
         x2, y2 = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1, y1)
@@ -923,7 +952,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
     Cairo.set_font_size(cr, 18.0)
 
-    for y_val in 0.0:0.25:1.0
+    for y_val = 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -979,7 +1008,23 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw Page 10 (PDF page) with random x1
     Cairo.save(cr)
     x1_pdf = 2pi * rand()
-    stair_v_info = draw_page_10!(cr, x1_pdf, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+    stair_v_info = draw_page_10!(
+        cr,
+        x1_pdf,
+        cw,
+        ch,
+        pad,
+        plot_w,
+        plot_h,
+        y_tr,
+        alphas,
+        u_vals,
+        v_vals,
+        n_samples,
+        map_plot,
+        draw_discontinuous_plot,
+        x_labels,
+    )
 
     Cairo.restore(cr)
     Cairo.show_page(cr)
@@ -991,7 +1036,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
     Q = dual_hull
     sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
-    unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+    unique_v_info = Tuple{Float64,Tuple{Float64,Float64,Float64}}[]
     for item in sorted_v_info
         if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
             push!(unique_v_info, item)
@@ -1181,7 +1226,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 3. Stroke boundary of original polygon in Black
     set_source_rgb(cr, 0.0, 0.0, 0.0)
     set_line_width(cr, 2.0)
-    cairo_draw_polygon(cr, hull; close=true)
+    cairo_draw_polygon(cr, hull; close = true)
 
     # 4. Draw polar points in their corresponding colors
     for (x_i, col) in stair_v_info
@@ -1214,7 +1259,23 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     println("Output written to ", relpath(pdf_path, PROJROOT))
 end
 
-function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+function draw_page_10!(
+    cr,
+    x1::Float64,
+    cw,
+    ch,
+    pad,
+    plot_w,
+    plot_h,
+    y_tr,
+    alphas,
+    u_vals,
+    v_vals,
+    n_samples,
+    map_plot,
+    draw_discontinuous_plot,
+    x_labels,
+)
     # Background fill (white)
     set_source_rgb(cr, 1.0, 1.0, 1.0)
     Cairo.rectangle(cr, 0, 0, cw, ch)
@@ -1223,14 +1284,14 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid in 0.0:0.2:1.0
+    for y_grid = 0.0:0.2:1.0
         x1_p, y1_p = map_plot(0.0, y_grid)
         x2_p, y2_p = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1_p, y1_p)
         Cairo.line_to(cr, x2_p, y2_p)
         Cairo.stroke(cr)
     end
-    for a_grid in 0.0:(pi/2):2pi
+    for a_grid = 0.0:(pi/2):2pi
         x1_p, y1_p = map_plot(a_grid, 0.0)
         x2_p, y2_p = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1_p, y1_p)
@@ -1248,7 +1309,7 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
     Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
     Cairo.set_font_size(cr, 18.0)
 
-    for y_val in 0.0:0.25:1.0
+    for y_val = 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -1372,10 +1433,10 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
 
     for step = 1:max_steps
         x_next = ray_shoot_f(x_curr, y_curr_top)
-        
+
         earliest_intersection_x = x_next
         found_intersection = false
-        
+
         for (x_v, y_start_v, y_end_v) in stair_v_segments
             dx = mod(x_v - x_curr, 2pi)
             if dx < 1e-6
@@ -1386,9 +1447,10 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
                 if y_start_v <= y_end_v
                     in_interval = (y_start_v - 1e-9 <= y_curr_top <= y_end_v + 1e-9)
                 else
-                    in_interval = (y_curr_top >= y_start_v - 1e-9) || (y_curr_top <= y_end_v + 1e-9)
+                    in_interval =
+                        (y_curr_top >= y_start_v - 1e-9) || (y_curr_top <= y_end_v + 1e-9)
                 end
-                
+
                 if in_interval
                     x_intersect = x_curr + dx
                     if x_intersect < earliest_intersection_x
@@ -1459,7 +1521,9 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         col = v_colors[mod1(i_v, length(v_colors))]
         set_source_rgb(cr, col...)
         x_draw = mod(x_val, 2pi)
-        is_intersect_v = (self_intersection_pt !== nothing) && abs(mod(x_val - self_intersection_pt[1], 2pi)) < 1e-5
+        is_intersect_v =
+            (self_intersection_pt !== nothing) &&
+            abs(mod(x_val - self_intersection_pt[1], 2pi)) < 1e-5
 
         if !is_intersect_v
             # Normal vertical segment (drawn solid)
@@ -1633,7 +1697,10 @@ function draw_page_10!(cr, x1::Float64, cw, ch, pad, plot_w, plot_h, y_tr, alpha
         Cairo.stroke(cr)
     end
 
-    return [(v[1], v_colors[mod1(i_v, length(v_colors))]) for (i_v, v) in enumerate(stair_v_segments)]
+    return [
+        (v[1], v_colors[mod1(i_v, length(v_colors))]) for
+        (i_v, v) in enumerate(stair_v_segments)
+    ]
 end
 
 """
@@ -1642,12 +1709,12 @@ end
 Generate 200 PNG frames of Page 10 for alpha1 in [0, 2π], saved in output/frames/%06d.png,
 and render an MP4 movie output/staircase.mp4 using ImageMagick / convert at 10 fps.
 """
-function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames = 200, fps = 10)
     # Pre-calculate convex hull, CP, Q, and functions before/after
     hull = convex_hull(ps)
     n_hull = length(hull)
 
-    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -1663,7 +1730,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
 
     # Pre-sample f and g with 800 values
     n_samples = 800
-    alphas = range(0.0, 2pi, length=n_samples)
+    alphas = range(0.0, 2pi, length = n_samples)
     u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
     v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
 
@@ -1704,14 +1771,36 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
     frames_dir = joinpath(outdir, "frames")
     mkpath(frames_dir)
 
-    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length = num_frames)
 
-    println("Generating ", num_frames, " PNG frames in ", relpath(frames_dir, PROJROOT), "...")
+    println(
+        "Generating ",
+        num_frames,
+        " PNG frames in ",
+        relpath(frames_dir, PROJROOT),
+        "...",
+    )
     for (idx, a1_val) in enumerate(alpha_list)
         img_surface = CairoARGBSurface(cw, ch)
         cr = CairoContext(img_surface)
 
-        draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        draw_page_10!(
+            cr,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
 
         frame_file = joinpath(frames_dir, @sprintf("%06d.png", idx))
         write_to_png(img_surface, frame_file)
@@ -1721,7 +1810,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
     mp4_path = joinpath(outdir, "staircase.mp4")
     gif_path = joinpath(outdir, "staircase.gif")
     println("Assembling movie (fps=", fps, ")...")
-    
+
     # Try ffmpeg for MP4 video assembly
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
@@ -1731,7 +1820,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
         # Fallback to ImageMagick convert if ffmpeg is not installed
         try
             delay_val = round(Int, 100 / fps)
-            frame_files = sort(readdir(frames_dir, join=true))
+            frame_files = sort(readdir(frames_dir, join = true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
             println("Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
         catch e
@@ -1746,12 +1835,12 @@ end
 Generate 200 PNG frames of Page 12 for alpha1 in [0, 2π], saved in output/frames_12/%06d.png,
 and render an MP4 movie output/staircase_12.mp4 using ffmpeg / convert at 10 fps.
 """
-function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fps = 10)
     # Pre-calculate convex hull, CP, Q, and functions before/after
     hull = convex_hull(ps)
     n_hull = length(hull)
 
-    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -1767,7 +1856,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
 
     # Pre-sample f and g with 800 values
     n_samples = 800
-    alphas = range(0.0, 2pi, length=n_samples)
+    alphas = range(0.0, 2pi, length = n_samples)
     u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
     v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
 
@@ -1776,7 +1865,10 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
     bound!(bb5, point(0.0, 0.0))
     bound!(bb5, BBox(point(-1.0, -1.0), point(1.0, 1.0)))
 
-    for inv_obj in [invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for i=1:n_hull]
+    for inv_obj in [
+        invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for
+        i = 1:n_hull
+    ]
         if inv_obj isa Circle2F
             c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
             c_max = inv_obj.center + point(inv_obj.radius, inv_obj.radius)
@@ -1822,15 +1914,37 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
     frames_dir = joinpath(outdir, "frames_12")
     mkpath(frames_dir)
 
-    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length = num_frames)
 
-    println("Generating ", num_frames, " PNG frames for Page 12 movie in ", relpath(frames_dir, PROJROOT), "...")
+    println(
+        "Generating ",
+        num_frames,
+        " PNG frames for Page 12 movie in ",
+        relpath(frames_dir, PROJROOT),
+        "...",
+    )
     for (idx, a1_val) in enumerate(alpha_list)
         img_surface = CairoARGBSurface(cw, ch)
         cr = CairoContext(img_surface)
 
         # Compute staircase for a1_val via draw_page_10!
-        stair_v_info = draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        stair_v_info = draw_page_10!(
+            cr,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
 
         # Now render Page 12
         Cairo.destroy(cr)
@@ -1876,9 +1990,10 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
 
         # Compute new polygon formed by intersecting consecutive tangent lines in counterclockwise order
         sorted_v_info = sort(stair_v_info, by = item -> mod(item[1], 2pi))
-        unique_v_info = Tuple{Float64, Tuple{Float64,Float64,Float64}}[]
+        unique_v_info = Tuple{Float64,Tuple{Float64,Float64,Float64}}[]
         for item in sorted_v_info
-            if isempty(unique_v_info) || abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
+            if isempty(unique_v_info) ||
+               abs(mod(item[1] - unique_v_info[end][1], 2pi)) > 1e-5
                 push!(unique_v_info, item)
             end
         end
@@ -1886,7 +2001,8 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
         m_v = length(unique_v_info)
         intersections = Point{2,Float64}[]
         if m_v >= 3
-            lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+            lines_and_cols =
+                [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
             for j = 1:m_v
                 l_curr = lines_and_cols[j][1]
                 l_next = lines_and_cols[mod1(j + 1, m_v)][1]
@@ -1919,7 +2035,8 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
 
         # 6. Draw boundary of the new polygon (colored edges and vertices)
         if m_v >= 3
-            lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
+            lines_and_cols =
+                [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
             for j = 1:m_v
                 p_start = intersections[mod1(j - 1, m_v)]
                 p_end = intersections[j]
@@ -1949,13 +2066,19 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames=200, fps=
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Page 12 MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
+        println(
+            "Page 12 MP4 movie generated successfully at: ",
+            relpath(mp4_path, PROJROOT),
+        )
     catch
         try
             delay_val = round(Int, 100 / fps)
-            frame_files = sort(readdir(frames_dir, join=true))
+            frame_files = sort(readdir(frames_dir, join = true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Page 12 Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
+            println(
+                "Page 12 Animated GIF movie generated at: ",
+                relpath(gif_path, PROJROOT),
+            )
         catch e
             println("Could not assemble Page 12 movie: ", e)
         end
@@ -1968,12 +2091,12 @@ end
 Generate 200 PNG frames of Page 13 for alpha1 in [0, 2π], saved in output/frames_cover/%06d.png,
 and render an MP4 movie output/staircase_cover.mp4 using ffmpeg / convert at 10 fps.
 """
-function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames = 200, fps = 10)
     # Pre-calculate convex hull, CP, Q, and functions before/after
     hull = convex_hull(ps)
     n_hull = length(hull)
 
-    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -1989,7 +2112,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
 
     # Pre-sample f and g with 800 values
     n_samples = 800
-    alphas = range(0.0, 2pi, length=n_samples)
+    alphas = range(0.0, 2pi, length = n_samples)
     u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
     v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
 
@@ -2030,18 +2153,39 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
     frames_dir = joinpath(outdir, "frames_cover")
     mkpath(frames_dir)
 
-    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length = num_frames)
 
-    println("Pre-computing global bounding box across all ", num_frames, " frames for movie_cover...")
+    println(
+        "Pre-computing global bounding box across all ",
+        num_frames,
+        " frames for movie_cover...",
+    )
     bb_cover_global = BBox(ps) + 0.2
     bound!(bb_cover_global, point(0.0, 0.0))
 
-    all_stair_v_info = Vector{Vector{Tuple{Float64, Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
+    all_stair_v_info =
+        Vector{Vector{Tuple{Float64,Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
 
     for (idx, a1_val) in enumerate(alpha_list)
         img_dummy = CairoARGBSurface(1, 1)
         cr_dummy = CairoContext(img_dummy)
-        stair_v_info = draw_page_10!(cr_dummy, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        stair_v_info = draw_page_10!(
+            cr_dummy,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
         Cairo.destroy(cr_dummy)
         Cairo.finish(img_dummy)
 
@@ -2057,7 +2201,13 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
     end
     bb_cover_global = bb_cover_global + 0.2
 
-    println("Generating ", num_frames, " PNG frames for Page 13 movie (movie_cover) in ", relpath(frames_dir, PROJROOT), "...")
+    println(
+        "Generating ",
+        num_frames,
+        " PNG frames for Page 13 movie (movie_cover) in ",
+        relpath(frames_dir, PROJROOT),
+        "...",
+    )
     for (idx, a1_val) in enumerate(alpha_list)
         stair_v_info = all_stair_v_info[idx]
 
@@ -2098,7 +2248,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
         # 3. Stroke boundary of original polygon in Black
         set_source_rgb(cr, 0.0, 0.0, 0.0)
         set_line_width(cr, 2.0)
-        cairo_draw_polygon(cr, hull; close=true)
+        cairo_draw_polygon(cr, hull; close = true)
 
         # 4. Draw polar points in their corresponding colors
         for (x_i, col) in stair_v_info
@@ -2136,13 +2286,19 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames=200, f
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Page 13 MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
+        println(
+            "Page 13 MP4 movie generated successfully at: ",
+            relpath(mp4_path, PROJROOT),
+        )
     catch
         try
             delay_val = round(Int, 100 / fps)
-            frame_files = sort(readdir(frames_dir, join=true))
+            frame_files = sort(readdir(frames_dir, join = true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Page 13 Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
+            println(
+                "Page 13 Animated GIF movie generated at: ",
+                relpath(gif_path, PROJROOT),
+            )
         catch e
             println("Could not assemble Page 13 movie: ", e)
         end
@@ -2159,11 +2315,11 @@ Generate a 1000-frame combined MP4 movie (output/staircase_all.mp4) at 2000x1000
   Part 4 (frames 601..800): Page 12 & Page 13 side-by-side
   Part 5 (frames 801..1000): Page 13 alone
 """
-function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps=10)
+function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames = 200, fps = 10)
     hull = convex_hull(ps)
     n_hull = length(hull)
 
-    inv_bisector_arcs = Union{CircleArc2F, Segment2F}[]
+    inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
     for i = 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
@@ -2178,7 +2334,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     Q = dual_hull
 
     n_samples = 800
-    alphas = range(0.0, 2pi, length=n_samples)
+    alphas = range(0.0, 2pi, length = n_samples)
     u_vals = [before_tangent_to_polygon(CP, Q, a) for a in alphas]
     v_vals = [after_tangent_to_polygon(CP, Q, a) for a in alphas]
 
@@ -2187,7 +2343,10 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     bound!(bb5, point(0.0, 0.0))
     bound!(bb5, BBox(point(-1.0, -1.0), point(1.0, 1.0)))
 
-    for inv_obj in [invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for i=1:n_hull]
+    for inv_obj in [
+        invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for
+        i = 1:n_hull
+    ]
         if inv_obj isa Circle2F
             c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
             c_max = inv_obj.center + point(inv_obj.radius, inv_obj.radius)
@@ -2229,18 +2388,35 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
 
     x_labels = [("0", 0.0), ("π/2", pi/2), ("π", pi), ("3π/2", 3pi/2), ("2π", 2pi)]
 
-    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length=num_frames)
+    alpha_list = range(0.0, 2pi * (1.0 - 1.0 / num_frames), length = num_frames)
 
     println("Pre-computing global bounding box for Page 13 panels across all frames...")
     bb_cover_global = BBox(ps) + 0.2
     bound!(bb_cover_global, point(0.0, 0.0))
 
-    all_stair_v_info = Vector{Vector{Tuple{Float64, Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
+    all_stair_v_info =
+        Vector{Vector{Tuple{Float64,Tuple{Float64,Float64,Float64}}}}(undef, num_frames)
 
     for (idx, a1_val) in enumerate(alpha_list)
         img_dummy = CairoARGBSurface(1, 1)
         cr_dummy = CairoContext(img_dummy)
-        stair_v_info = draw_page_10!(cr_dummy, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        stair_v_info = draw_page_10!(
+            cr_dummy,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
         Cairo.destroy(cr_dummy)
         Cairo.finish(img_dummy)
 
@@ -2262,7 +2438,13 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     mkpath(frames_dir)
 
     total_video_frames = 5 * num_frames
-    println("Generating ", total_video_frames, " PNG frames (2000x1000) for movie_all in ", relpath(frames_dir, PROJROOT), "...")
+    println(
+        "Generating ",
+        total_video_frames,
+        " PNG frames (2000x1000) for movie_all in ",
+        relpath(frames_dir, PROJROOT),
+        "...",
+    )
 
     global_frame_idx = 0
 
@@ -2271,11 +2453,29 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
         global_frame_idx += 1
         img_surface = CairoARGBSurface(cw_video, ch_video)
         cr = CairoContext(img_surface)
-        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw_video, ch_video)
+        Cairo.fill(cr)
 
         Cairo.save(cr)
         Cairo.translate(cr, 500.0, 0.0)
-        draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        draw_page_10!(
+            cr,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
         Cairo.restore(cr)
 
         frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
@@ -2288,11 +2488,29 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
         global_frame_idx += 1
         img_surface = CairoARGBSurface(cw_video, ch_video)
         cr = CairoContext(img_surface)
-        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw_video, ch_video)
+        Cairo.fill(cr)
 
         # Left: Page 10
         Cairo.save(cr)
-        stair_v_info = draw_page_10!(cr, a1_val, cw, ch, pad, plot_w, plot_h, y_tr, alphas, u_vals, v_vals, n_samples, map_plot, draw_discontinuous_plot, x_labels)
+        stair_v_info = draw_page_10!(
+            cr,
+            a1_val,
+            cw,
+            ch,
+            pad,
+            plot_w,
+            plot_h,
+            y_tr,
+            alphas,
+            u_vals,
+            v_vals,
+            n_samples,
+            map_plot,
+            draw_discontinuous_plot,
+            x_labels,
+        )
         Cairo.restore(cr)
 
         # Right: Page 12
@@ -2302,8 +2520,11 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
         Cairo.restore(cr)
 
         # Separator line
-        set_source_rgb(cr, 0.8, 0.8, 0.8); set_line_width(cr, 2.0)
-        Cairo.move_to(cr, 1000.0, 0.0); Cairo.line_to(cr, 1000.0, 1000.0); Cairo.stroke(cr)
+        set_source_rgb(cr, 0.8, 0.8, 0.8)
+        set_line_width(cr, 2.0)
+        Cairo.move_to(cr, 1000.0, 0.0)
+        Cairo.line_to(cr, 1000.0, 1000.0)
+        Cairo.stroke(cr)
 
         frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
         write_to_png(img_surface, frame_file)
@@ -2317,7 +2538,9 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
 
         img_surface = CairoARGBSurface(cw_video, ch_video)
         cr = CairoContext(img_surface)
-        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw_video, ch_video)
+        Cairo.fill(cr)
 
         Cairo.save(cr)
         Cairo.translate(cr, 500.0, 0.0)
@@ -2336,7 +2559,9 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
 
         img_surface = CairoARGBSurface(cw_video, ch_video)
         cr = CairoContext(img_surface)
-        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw_video, ch_video)
+        Cairo.fill(cr)
 
         # Left: Page 12
         Cairo.save(cr)
@@ -2350,8 +2575,11 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
         Cairo.restore(cr)
 
         # Separator line
-        set_source_rgb(cr, 0.8, 0.8, 0.8); set_line_width(cr, 2.0)
-        Cairo.move_to(cr, 1000.0, 0.0); Cairo.line_to(cr, 1000.0, 1000.0); Cairo.stroke(cr)
+        set_source_rgb(cr, 0.8, 0.8, 0.8)
+        set_line_width(cr, 2.0)
+        Cairo.move_to(cr, 1000.0, 0.0)
+        Cairo.line_to(cr, 1000.0, 1000.0)
+        Cairo.stroke(cr)
 
         frame_file = joinpath(frames_dir, @sprintf("%06d.png", global_frame_idx))
         write_to_png(img_surface, frame_file)
@@ -2365,7 +2593,9 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
 
         img_surface = CairoARGBSurface(cw_video, ch_video)
         cr = CairoContext(img_surface)
-        set_source_rgb(cr, 1.0, 1.0, 1.0); Cairo.rectangle(cr, 0, 0, cw_video, ch_video); Cairo.fill(cr)
+        set_source_rgb(cr, 1.0, 1.0, 1.0)
+        Cairo.rectangle(cr, 0, 0, cw_video, ch_video)
+        Cairo.fill(cr)
 
         Cairo.save(cr)
         Cairo.translate(cr, 500.0, 0.0)
@@ -2384,13 +2614,19 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames=200, fps
     ffmpeg_cmd = `ffmpeg -y -framerate $fps -i $(joinpath(frames_dir, "%06d.png")) -c:v libx264 -pix_fmt yuv420p $mp4_path`
     try
         run(ffmpeg_cmd)
-        println("Combined MP4 movie generated successfully at: ", relpath(mp4_path, PROJROOT))
+        println(
+            "Combined MP4 movie generated successfully at: ",
+            relpath(mp4_path, PROJROOT),
+        )
     catch
         try
             delay_val = round(Int, 100 / fps)
-            frame_files = sort(readdir(frames_dir, join=true))
+            frame_files = sort(readdir(frames_dir, join = true))
             run(`convert -delay $delay_val $frame_files $gif_path`)
-            println("Combined Animated GIF movie generated at: ", relpath(gif_path, PROJROOT))
+            println(
+                "Combined Animated GIF movie generated at: ",
+                relpath(gif_path, PROJROOT),
+            )
         catch e
             println("Could not assemble combined movie: ", e)
         end
@@ -2418,12 +2654,12 @@ function wrap_text(text::String, width::Int, indent::Int)
     return lines
 end
 
-function print_option(cmd::String, desc::String, term_w::Int; desc_offset::Int=24)
+function print_option(cmd::String, desc::String, term_w::Int; desc_offset::Int = 24)
     cmd_colored = "\e[1m\e[36m" * cmd * "\e[0m" # Bold Cyan
     pad_len = max(1, desc_offset - 2 - length(cmd))
-    
+
     desc_lines = wrap_text(desc, term_w, desc_offset)
-    
+
     print("  ", cmd_colored, " "^pad_len)
     if !isempty(desc_lines)
         println("\e[37m", desc_lines[1], "\e[0m")
@@ -2443,20 +2679,46 @@ function print_usage()
         80
     end
 
-    println("\e[1m\e[33mUsage:\e[0m \e[1m\e[32mjulia --project=examples examples/polar_bisectory.jl\e[0m \e[1m\e[36m[OPTION]\e[0m\n")
+    println(
+        "\e[1m\e[33mUsage:\e[0m \e[1m\e[32mjulia --project=examples examples/polar_bisectory.jl\e[0m \e[1m\e[36m[OPTION]\e[0m\n",
+    )
     println("\e[1m\e[33mCommand Line Options:\e[0m")
-    
-    print_option("default", "Generate default 13-page PDF output (bisectory_random.pdf) for a random point set.", term_w)
-    print_option("-all, --all", "Generate all 3 PDF outputs: bisectory_random.pdf (random point set), bisectory_square.pdf (square centered at origin), bisectory_20.pdf (regular 20-gon).", term_w)
-    print_option("movie", "Generate 200-frame MP4 movie of Page 10 (output/staircase.mp4).", term_w)
-    print_option("movie_12", "Generate 200-frame MP4 movie of Page 12 (output/staircase_12.mp4).", term_w)
-    print_option("movie_cover", "Generate 200-frame MP4 movie of Page 13 (output/staircase_cover.mp4).", term_w)
-    print_option("movie_all", "Generate 1000-frame 5-part combined MP4 movie (output/staircase_all.mp4).", term_w)
+
+    print_option(
+        "default",
+        "Generate default 13-page PDF output (bisectory_random.pdf) for a random point set.",
+        term_w,
+    )
+    print_option(
+        "-all, --all",
+        "Generate all 3 PDF outputs: bisectory_random.pdf (random point set), bisectory_square.pdf (square centered at origin), bisectory_20.pdf (regular 20-gon).",
+        term_w,
+    )
+    print_option(
+        "movie",
+        "Generate 200-frame MP4 movie of Page 10 (output/staircase.mp4).",
+        term_w,
+    )
+    print_option(
+        "movie_12",
+        "Generate 200-frame MP4 movie of Page 12 (output/staircase_12.mp4).",
+        term_w,
+    )
+    print_option(
+        "movie_cover",
+        "Generate 200-frame MP4 movie of Page 13 (output/staircase_cover.mp4).",
+        term_w,
+    )
+    print_option(
+        "movie_all",
+        "Generate 1000-frame 5-part combined MP4 movie (output/staircase_all.mp4).",
+        term_w,
+    )
     print_option("-h, --help", "Display this detailed usage message.", term_w)
     println()
 end
 
-function main(args=ARGS)
+function main(args = ARGS)
     if isempty(args) || any(a -> a in ("-h", "--help", "help"), args)
         print_usage()
         return
@@ -2464,9 +2726,22 @@ function main(args=ARGS)
 
     do_default = any(a -> a in ("default", "-default", "--default"), args)
     do_all = "-all" in args || "--all" in args
-    do_movie12 = any(a -> a in ("movie_12", "-movie_12", "--movie_12", "movie12", "-movie12"), args)
-    do_cover = any(a -> a in ("movie_cover", "-movie_cover", "--movie_cover", "moviecover", "-moviecover"), args)
-    do_movieall = any(a -> a in ("movie_all", "-movie_all", "--movie_all", "movieall", "-movieall"), args)
+    do_movie12 =
+        any(a -> a in ("movie_12", "-movie_12", "--movie_12", "movie12", "-movie12"), args)
+    do_cover = any(
+        a -> a in (
+            "movie_cover",
+            "-movie_cover",
+            "--movie_cover",
+            "moviecover",
+            "-moviecover",
+        ),
+        args,
+    )
+    do_movieall = any(
+        a -> a in ("movie_all", "-movie_all", "--movie_all", "movieall", "-movieall"),
+        args,
+    )
     do_movie = any(a -> a in ("movie", "-movie", "--movie", "staircase"), args)
 
     # 1. Random points example (bisectory_random.pdf)
@@ -2490,9 +2765,9 @@ function main(args=ARGS)
         s_half = 0.8 / 2.0
         sq_pts = [
             point(-s_half, -s_half),
-            point( s_half, -s_half),
-            point( s_half,  s_half),
-            point(-s_half,  s_half),
+            point(s_half, -s_half),
+            point(s_half, s_half),
+            point(-s_half, s_half),
         ]
         ps_square = PntSeq(sq_pts)
         generate_bisectory_pdf("bisectory_square.pdf", ps_square)
@@ -2505,22 +2780,26 @@ function main(args=ARGS)
 
     # 4. Generate PNG frames and MP4 movie of Page 10 for random points
     if do_movie
-        generate_staircase_movie(ps_random; num_frames=example_size(200, 2), fps=10)
+        generate_staircase_movie(ps_random; num_frames = example_size(200, 2), fps = 10)
     end
 
     # 5. Generate PNG frames and MP4 movie of Page 12 for random points
     if do_movie12
-        generate_staircase_movie_12(ps_random; num_frames=example_size(200, 2), fps=10)
+        generate_staircase_movie_12(ps_random; num_frames = example_size(200, 2), fps = 10)
     end
 
     # 6. Generate PNG frames and MP4 movie of Page 13 for random points (movie_cover)
     if do_cover
-        generate_staircase_movie_cover(ps_random; num_frames=example_size(200, 2), fps=10)
+        generate_staircase_movie_cover(
+            ps_random;
+            num_frames = example_size(200, 2),
+            fps = 10,
+        )
     end
 
     # 7. Generate 1000-frame combined movie for movie_all
     if do_movieall
-        generate_staircase_movie_all(ps_random; num_frames=example_size(200, 2), fps=10)
+        generate_staircase_movie_all(ps_random; num_frames = example_size(200, 2), fps = 10)
     end
 end
 

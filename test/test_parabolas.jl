@@ -4,7 +4,7 @@ using BasicCompGeometry
 @testset "Parabola distance sampling" begin
     parabola = Parabola(point(0.0, 1.0), Line(point(0.0, -1.0), point(1.0, 0.0)))
     @test occursin("Parabola(focus=", sprint(show, parabola))
-    sampled_t = range(-5.0, 5.0; length=500)[123]
+    sampled_t = range(-5.0, 5.0; length = 500)[123]
     on_curve = BasicCompGeometry.at(parabola, sampled_t)
     @test BasicCompGeometry.distance(on_curve, parabola) ≈ 0.0 atol=1e-12
     # The exact focus-to-parabola distance is 1; sampling slightly overestimates it.

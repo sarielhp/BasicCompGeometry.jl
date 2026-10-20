@@ -24,7 +24,12 @@ using Random
 using Statistics
 using Cairo
 
-function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool = false, plot_path::String = example_output("rand_halfplanes_depth.pdf"))
+function run_rand_halfplanes_depth(
+    n::Int = 100;
+    seed::Int = 42,
+    do_plot::Bool = false,
+    plot_path::String = example_output("rand_halfplanes_depth.pdf"),
+)
     rng = Random.Xoshiro(seed)
 
     println("="^70)
@@ -45,10 +50,19 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
     view_w = width(view)
     view_h = height(view)
     view_area = view_w * view_h
-    @printf("      View box:                 [%.4f, %.4f] × [%.4f, %.4f]\n",
-            view.mini[1], view.maxi[1], view.mini[2], view.maxi[2])
-    @printf("      Dimensions:               width = %.4f, height = %.4f, area = %.4f\n\n",
-            view_w, view_h, view_area)
+    @printf(
+        "      View box:                 [%.4f, %.4f] × [%.4f, %.4f]\n",
+        view.mini[1],
+        view.maxi[1],
+        view.mini[2],
+        view.maxi[2]
+    )
+    @printf(
+        "      Dimensions:               width = %.4f, height = %.4f, area = %.4f\n\n",
+        view_w,
+        view_h,
+        view_area
+    )
 
     # 3. Compute vertical decomposition inside the view
     println("[3/4] Computing vertical decomposition inside view...")
@@ -61,8 +75,11 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
     @printf("      Decomposition time:       %.3f s\n", t_decomp)
     @printf("      Vertices in view:         %d\n", num_verts)
     @printf("      Vertical trapezoids:      %d\n", num_traps)
-    @printf("      Area conservation check:  sum(areas) = %.6f (relative error: %.2e)\n\n",
-            total_area, rel_area_err)
+    @printf(
+        "      Area conservation check:  sum(areas) = %.6f (relative error: %.2e)\n\n",
+        total_area,
+        rel_area_err
+    )
 
     # 4. Compute center of each vertical trapezoid and its depth
     println("[4/4] Computing trapezoid centers and evaluating depths...")
@@ -70,8 +87,11 @@ function run_rand_halfplanes_depth(n::Int = 100; seed::Int = 42, do_plot::Bool =
 
     t_depth = @elapsed depths = [depth(hps, c) for c in centers]
     EXAMPLE_SMOKE && @assert all(d -> 0 <= d <= n, depths)
-    @printf("      Depth query time:         %.3f s (%.1f µs/trapezoid)\n\n",
-            t_depth, (t_depth / num_traps) * 1e6)
+    @printf(
+        "      Depth query time:         %.3f s (%.1f µs/trapezoid)\n\n",
+        t_depth,
+        (t_depth / num_traps) * 1e6
+    )
 
     # 5. Summary statistics and total depth
     min_depth = minimum(depths)
@@ -151,8 +171,14 @@ function render_plot(decomp, depths, min_d, max_d, outfile)
         end
     end
 
-    description(c, @sprintf("Vertical decomposition of %d halfplanes inside default view. Total arrangement depth = %d.",
-                            length(decomp.lines), min_d))
+    description(
+        c,
+        @sprintf(
+            "Vertical decomposition of %d halfplanes inside default view. Total arrangement depth = %d.",
+            length(decomp.lines),
+            min_d
+        )
+    )
     Cairo.finish(c)
     println("Saved visualization to: ", outfile)
 end

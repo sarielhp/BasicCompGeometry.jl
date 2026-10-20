@@ -17,9 +17,17 @@ using Test
     @testset "split_edges" begin
         P = PntSeq([point(0.0, 0.0), point(2.0, 0.0), point(2.0, 2.0)])
         Q = split_edges(P)
-        @test Q.pnts == [point(0.0, 0.0), point(1.0, 0.0), point(2.0, 0.0), point(2.0, 1.0), point(2.0, 2.0)]
+        @test Q.pnts == [
+            point(0.0, 0.0),
+            point(1.0, 0.0),
+            point(2.0, 0.0),
+            point(2.0, 1.0),
+            point(2.0, 2.0),
+        ]
         @test length(split_edges(PntSeq2F())) == 0
-        @test_throws ArgumentError split_edges(PntSeq([Point{2,Int}(1, 2), Point{2,Int}(3, 4)]))
+        @test_throws ArgumentError split_edges(
+            PntSeq([Point{2,Int}(1, 2), Point{2,Int}(3, 4)]),
+        )
         @test split_edges(PntSeq([point(1.0, 1.0)])).pnts == [point(1.0, 1.0)]
         # Repeated points collapse.
         R = split_edges(PntSeq([point(0.0, 0.0), point(0.0, 0.0), point(1.0, 0.0)]))
@@ -53,14 +61,17 @@ using Test
             m = joinpath(dir, "d.txt")
             write(m, "# comment\n1.0, 2.0\n\n3.0\t4.0\n  5.0 ,6.0  \n\n")
             @test read_plt(m).pnts == [point(1.0, 2.0), point(3.0, 4.0), point(5.0, 6.0)]
-            @test length(read_plt(joinpath(dir, "empty.txt") |> f -> (write(f, ""); f))) == 0
+            @test length(read_plt(joinpath(dir, "empty.txt") |> f -> (write(f, ""); f))) ==
+                  0
         end
     end
 
     @testset "read_geolife_plt" begin
         mktempdir() do dir
             f = joinpath(dir, "t.plt")
-            write(f, """Geolife trajectory
+            write(
+                f,
+                """Geolife trajectory
 WGS 84
 Altitude is in Feet
 Reserved 3
@@ -69,7 +80,8 @@ Reserved 3
 39.9,116.3,0,492,39744.12,2008-10-23,02:53:04
 39.9,116.3,0,492,39744.12,2008-10-23,02:53:05
 39.95,116.4,0,492,39744.13,2008-10-23,02:53:06
-""")
+""",
+            )
             @test read_geolife_plt(f).pnts == [point(39.9, 116.3), point(39.95, 116.4)]
             write(f, readchomp(f) * "\n\n")      # trailing blank lines are ignored
             @test length(read_geolife_plt(f)) == 2

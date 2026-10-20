@@ -12,13 +12,19 @@ using BasicCompGeometry: area, locate, vertices, width, height, lines, faces
     @test !(point(2.0, 0.5) in trap)
     @test occursin("VerticalTrapezoid(", sprint(show, trap))
     @test occursin("ArrVertDecomp", sprint(show, decomp))
-    narrow_corners = typeof(trap.corners)(point(0.0, 0.0), point(0.0, 0.0),
-                                         point(0.0, 1.0), point(0.0, 1.0))
+    narrow_corners = typeof(trap.corners)(
+        point(0.0, 0.0),
+        point(0.0, 0.0),
+        point(0.0, 1.0),
+        point(0.0, 1.0),
+    )
     narrow = VerticalTrapezoid(0.0, 0.0, nothing, nothing, narrow_corners)
     @test point(0.0, 0.5) in narrow
     @test !(point(0.0, 2.0) in narrow)
-    @test_throws ArgumentError vertical_decomposition(Line{2,Float64}[],
-        BBox(point(0.0, 0.0), point(0.0, 1.0)))
+    @test_throws ArgumentError vertical_decomposition(
+        Line{2,Float64}[],
+        BBox(point(0.0, 0.0), point(0.0, 1.0)),
+    )
     cutting_line = Line(point(0.5, 0.0), point(0.0, 1.0))
     regions = faces([cutting_line, Line(point(0.0, 0.5), point(1.0, 0.0))])
     @test length(regions) == 4

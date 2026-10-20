@@ -17,7 +17,12 @@ The y-axis is flipped so that the coordinate system matches the standard
 mathematical orientation (y increases upward).
 """
 function BasicCompGeometry.cairo_draw_setup(
-    cr, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20; center::Bool=true
+    cr,
+    bb::BBox{2,T},
+    cw::Real,
+    ch::Real,
+    margin::Real = 20;
+    center::Bool = true,
 ) where {T}
     bl = bottom_left(bb)
     tr = top_right(bb)
@@ -49,7 +54,7 @@ end
 Draw points as filled circles of the given `radius` using the Cairo context `cr`.
 `points` is any iterable of `Point{2, Float64}`.
 """
-function BasicCompGeometry.cairo_draw_points(cr, points, radius::Real=2)
+function BasicCompGeometry.cairo_draw_points(cr, points, radius::Real = 2)
     C = Cairo
     m = C.get_matrix(cr)
     scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
@@ -71,7 +76,12 @@ If `line_width` is provided, `cairo_set_line_width` is called first.
 If `close` is true, the polygon is closed by connecting the last vertex back to the first.
 """
 function BasicCompGeometry.cairo_draw_polygon(
-    cr, poly; line_width=nothing, close::Bool=true, fill::Bool=false, stroke::Bool=true
+    cr,
+    poly;
+    line_width = nothing,
+    close::Bool = true,
+    fill::Bool = false,
+    stroke::Bool = true,
 )
     C = Cairo
     n = length(poly)
@@ -105,10 +115,17 @@ Draw the boundary line of halfplane `h` clipped to `bb` with inward perpendicula
 ("whiskers") indicating the interior of the halfplane.
 """
 function BasicCompGeometry.cairo_draw_halfplane(
-    cr_or_canvas, h::Halfplane, bb::BBox{2};
-    line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing
+    cr_or_canvas,
+    h::Halfplane,
+    bb::BBox{2};
+    line_width = 1.5,
+    tick_len = 8.0,
+    tick_spacing = 25.0,
+    color = nothing,
 )
-    cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
+    cr =
+        cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) :
+        cr_or_canvas
     seg = clip(h.boundary, bb)
     seg === nothing && return
 
@@ -144,7 +161,7 @@ function BasicCompGeometry.cairo_draw_halfplane(
     # Draw perpendicular ticks along the segment pointing inward
     L = dist(seg.p, seg.q)
     num_ticks = max(1, round(Int, L / eff_spacing))
-    for i in 1:num_ticks
+    for i = 1:num_ticks
         t = (Float64(i) - 0.5) / num_ticks
         pt = at(seg, t)
         C.move_to(cr, pt[1], pt[2])
@@ -161,13 +178,23 @@ end
 Draw a collection of halfplanes inside `bb` with inward whiskers.
 """
 function BasicCompGeometry.cairo_draw_halfplanes(
-    cr_or_canvas, hps::AbstractVector{<:Halfplane}, bb::BBox{2};
-    line_width=1.5, tick_len=8.0, tick_spacing=25.0, color=nothing
+    cr_or_canvas,
+    hps::AbstractVector{<:Halfplane},
+    bb::BBox{2};
+    line_width = 1.5,
+    tick_len = 8.0,
+    tick_spacing = 25.0,
+    color = nothing,
 )
     for h in hps
         BasicCompGeometry.cairo_draw_halfplane(
-            cr_or_canvas, h, bb;
-            line_width=line_width, tick_len=tick_len, tick_spacing=tick_spacing, color=color
+            cr_or_canvas,
+            h,
+            bb;
+            line_width = line_width,
+            tick_len = tick_len,
+            tick_spacing = tick_spacing,
+            color = color,
         )
     end
     return
@@ -199,17 +226,19 @@ mutable struct Canvas
     htmldir::String
     index_html_path::String
     title::String
-    descriptions::Dict{Int, String}
+    descriptions::Dict{Int,String}
     needs_new_surface::Bool
     surface::Cairo.CairoSurfaceBase
     cr::Cairo.CairoContext
 end
 
-BasicCompGeometry.description(c::Canvas, text::AbstractString) = (c.descriptions[c.page] = String(text); text)
+BasicCompGeometry.description(c::Canvas, text::AbstractString) =
+    (c.descriptions[c.page] = String(text); text)
 BasicCompGeometry.description(cr::Cairo.CairoContext, text::AbstractString) = text
 BasicCompGeometry.description(any, text::AbstractString) = text
 
-BasicCompGeometry.get_file_path(c::Canvas) = (c.fmt == :html ? abspath(c.index_html_path) : abspath(c.path))
+BasicCompGeometry.get_file_path(c::Canvas) =
+    (c.fmt == :html ? abspath(c.index_html_path) : abspath(c.path))
 BasicCompGeometry.get_file_path(path::AbstractString) = abspath(path)
 
 function _svg_page_filename(pattern::String, page::Int)
@@ -242,14 +271,21 @@ function _ensure_surface!(c::Canvas)
         c.surface = surf
         c.cr = Cairo.CairoContext(surf)
     elseif c.fmt in (:png, :gif)
-        surf = Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
+        surf =
+            Cairo.CairoImageSurface(Int(round(c.cw)), Int(round(c.ch)), Cairo.FORMAT_ARGB32)
         c.surface = surf
         c.cr = Cairo.CairoContext(surf)
     end
     return
 end
 
-function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20, title::Union{String, Nothing}=nothing)
+function BasicCompGeometry.Canvas(
+    path::String,
+    cw::Real,
+    ch::Real;
+    fps::Int = 20,
+    title::Union{String,Nothing} = nothing,
+)
     ext = lowercase(splitext(path)[2])
     w = Float64(cw)
     h = Float64(ch)
@@ -257,21 +293,81 @@ function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20,
     if ext == ".pdf"
         surf = Cairo.CairoPDFSurface(path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :pdf, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
+        return Canvas(
+            path,
+            w,
+            h,
+            :pdf,
+            1,
+            fps,
+            "",
+            "",
+            "",
+            "",
+            Dict{Int,String}(),
+            false,
+            surf,
+            cr,
+        )
     elseif ext == ".svg"
         fmt_path = _svg_page_filename(path, 1)
         surf = Cairo.CairoSVGSurface(fmt_path, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :svg, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
+        return Canvas(
+            path,
+            w,
+            h,
+            :svg,
+            1,
+            fps,
+            "",
+            "",
+            "",
+            "",
+            Dict{Int,String}(),
+            false,
+            surf,
+            cr,
+        )
     elseif ext == ".png"
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :png, 1, fps, "", "", "", "", Dict{Int, String}(), false, surf, cr)
+        return Canvas(
+            path,
+            w,
+            h,
+            :png,
+            1,
+            fps,
+            "",
+            "",
+            "",
+            "",
+            Dict{Int,String}(),
+            false,
+            surf,
+            cr,
+        )
     elseif ext == ".gif"
         tmp = mktempdir()
         surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :gif, 1, fps, tmp, "", "", "", Dict{Int, String}(), false, surf, cr)
+        return Canvas(
+            path,
+            w,
+            h,
+            :gif,
+            1,
+            fps,
+            tmp,
+            "",
+            "",
+            "",
+            Dict{Int,String}(),
+            false,
+            surf,
+            cr,
+        )
     elseif ext in (".html", ".htm")
         title_str = isnothing(title) ? "" : title
         if basename(lowercase(path)) in ("index.html", "index.htm")
@@ -292,16 +388,33 @@ function BasicCompGeometry.Canvas(path::String, cw::Real, ch::Real; fps::Int=20,
         mkpath(htmldir)
         for f in readdir(htmldir)
             if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
-                rm(joinpath(htmldir, f), force=true)
+                rm(joinpath(htmldir, f), force = true)
             end
         end
 
         first_svg = joinpath(htmldir, "page_001.svg")
         surf = Cairo.CairoSVGSurface(first_svg, w, h)
         cr = Cairo.CairoContext(surf)
-        return Canvas(path, w, h, :html, 1, fps, "", htmldir, index_html_path, title_str, Dict{Int, String}(), false, surf, cr)
+        return Canvas(
+            path,
+            w,
+            h,
+            :html,
+            1,
+            fps,
+            "",
+            htmldir,
+            index_html_path,
+            title_str,
+            Dict{Int,String}(),
+            false,
+            surf,
+            cr,
+        )
     else
-        error("Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, .gif, or .html")
+        error(
+            "Unsupported Canvas format: '$ext'. Expected .pdf, .svg, .png, .gif, or .html",
+        )
     end
 end
 
@@ -318,7 +431,7 @@ function _embed_svg_description(svg_path::String, text::String)
     m = match(r"(<svg[^>]*>)", content)
     if m !== nothing
         pos = m.offset + length(m.match)
-        new_content = content[1:pos] * injection * content[(pos + 1):end]
+        new_content = content[1:pos] * injection * content[(pos+1):end]
         write(svg_path, new_content)
     end
 end
@@ -368,7 +481,7 @@ function _write_html_presentation(c::Canvas)
     end
 
     slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
-    desc_array = [get(c.descriptions, i, "") for i in 1:length(svg_files)]
+    desc_array = [get(c.descriptions, i, "") for i = 1:length(svg_files)]
     desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
 
     page_title = isempty(c.title) ? "Presentation" : c.title
@@ -603,7 +716,7 @@ function Cairo.finish(c::Canvas)
         if total_pages == 1 && !occursin("%", c.path)
             orig_page1 = _svg_page_filename(c.path, 1)
             if isfile(orig_page1) && orig_page1 != c.path
-                mv(orig_page1, c.path, force=true)
+                mv(orig_page1, c.path, force = true)
             end
             if haskey(c.descriptions, 1)
                 _embed_svg_description(c.path, c.descriptions[1])
@@ -629,7 +742,7 @@ function Cairo.finish(c::Canvas)
         if total_pages == 1 && !occursin("%", c.path)
             orig_page1 = _png_page_filename(c.path, 1)
             if isfile(orig_page1) && orig_page1 != c.path
-                mv(orig_page1, c.path, force=true)
+                mv(orig_page1, c.path, force = true)
             end
         end
     elseif c.fmt == :gif
@@ -646,13 +759,19 @@ function Cairo.finish(c::Canvas)
                 @warn "ffmpeg not found in PATH; GIF was not generated at $(c.path)"
             end
         finally
-            rm(c.tempdir, recursive=true, force=true)
+            rm(c.tempdir, recursive = true, force = true)
         end
     end
     return
 end
 
-function BasicCompGeometry.open_canvas(f::Function, path::String, cw::Real, ch::Real; kwargs...)
+function BasicCompGeometry.open_canvas(
+    f::Function,
+    path::String,
+    cw::Real,
+    ch::Real;
+    kwargs...,
+)
     c = BasicCompGeometry.Canvas(path, cw, ch; kwargs...)
     try
         f(c)
@@ -672,10 +791,19 @@ end
 Base.cconvert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, c::Canvas) = (_ensure_surface!(c); c.cr.ptr)
 
-BasicCompGeometry.cairo_draw_setup(c::Canvas, bb::BBox{2,T}, cw::Real, ch::Real, margin::Real=20; kwargs...) where {T} =
-    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin; kwargs...))
+BasicCompGeometry.cairo_draw_setup(
+    c::Canvas,
+    bb::BBox{2,T},
+    cw::Real,
+    ch::Real,
+    margin::Real = 20;
+    kwargs...,
+) where {T} = (
+    _ensure_surface!(c);
+    BasicCompGeometry.cairo_draw_setup(c.cr, bb, cw, ch, margin; kwargs...)
+)
 
-BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real=2) =
+BasicCompGeometry.cairo_draw_points(c::Canvas, points, radius::Real = 2) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_points(c.cr, points, radius))
 
 BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly; kwargs...) =
@@ -684,11 +812,25 @@ BasicCompGeometry.cairo_draw_polygon(c::Canvas, poly; kwargs...) =
 BasicCompGeometry.cairo_draw_halfplane(c::Canvas, h::Halfplane, bb::BBox{2}; kwargs...) =
     (_ensure_surface!(c); BasicCompGeometry.cairo_draw_halfplane(c.cr, h, bb; kwargs...))
 
-BasicCompGeometry.cairo_draw_halfplanes(c::Canvas, hps::AbstractVector{<:Halfplane}, bb::BBox{2}; kwargs...) =
-    (_ensure_surface!(c); BasicCompGeometry.cairo_draw_halfplanes(c.cr, hps, bb; kwargs...))
+BasicCompGeometry.cairo_draw_halfplanes(
+    c::Canvas,
+    hps::AbstractVector{<:Halfplane},
+    bb::BBox{2};
+    kwargs...,
+) = (_ensure_surface!(c); BasicCompGeometry.cairo_draw_halfplanes(c.cr, hps, bb; kwargs...))
 
 # Cairo drawing primitives forwarding
-for fn in (:save, :restore, :reset_transform, :new_path, :close_path, :stroke, :fill, :fill_preserve, :paint)
+for fn in (
+    :save,
+    :restore,
+    :reset_transform,
+    :new_path,
+    :close_path,
+    :stroke,
+    :fill,
+    :fill_preserve,
+    :paint,
+)
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
@@ -727,9 +869,13 @@ To ensure consistent rendering across all supported formats without requiring ma
 2. When an explicit pixel width `a >= 1.0` is passed, the value is passed directly to Cairo as device pixels.
 """
 function BasicCompGeometry.cairo_set_line_width(cr_or_canvas, a::Real)
-    cr = cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) : cr_or_canvas
-    surf_ptr = ccall((:cairo_get_target, Cairo._jl_libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cr.ptr)
-    stype = ccall((:cairo_surface_get_type, Cairo._jl_libcairo), Cint, (Ptr{Cvoid},), surf_ptr)
+    cr =
+        cr_or_canvas isa Canvas ? (_ensure_surface!(cr_or_canvas); cr_or_canvas.cr) :
+        cr_or_canvas
+    surf_ptr =
+        ccall((:cairo_get_target, Cairo._jl_libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cr.ptr)
+    stype =
+        ccall((:cairo_surface_get_type, Cairo._jl_libcairo), Cint, (Ptr{Cvoid},), surf_ptr)
     m = Cairo.get_matrix(cr)
     scale = sqrt(abs(m.xx * m.yy - m.xy * m.yx))
 
@@ -759,21 +905,28 @@ end
 Cairo.rotate(c::Canvas, angle::Real) = (_ensure_surface!(c); Cairo.rotate(c.cr, angle))
 
 for fn in (:set_source_rgb,)
-    @eval Cairo.$fn(c::Canvas, a, b, d...) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d...))
+    @eval Cairo.$fn(c::Canvas, a, b, d...) =
+        (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d...))
 end
 
 for fn in (:set_source_rgba, :rectangle)
-    @eval Cairo.$fn(c::Canvas, a, b, d, e) = (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d, e))
+    @eval Cairo.$fn(c::Canvas, a, b, d, e) =
+        (_ensure_surface!(c); Cairo.$fn(c.cr, a, b, d, e))
 end
 
-Cairo.arc(c::Canvas, x, y, r, a1, a2) = (_ensure_surface!(c); Cairo.arc(c.cr, x, y, r, a1, a2))
-Cairo.set_source_surface(c::Canvas, s, x, y) = (_ensure_surface!(c); Cairo.set_source_surface(c.cr, s, x, y))
+Cairo.arc(c::Canvas, x, y, r, a1, a2) =
+    (_ensure_surface!(c); Cairo.arc(c.cr, x, y, r, a1, a2))
+Cairo.set_source_surface(c::Canvas, s, x, y) =
+    (_ensure_surface!(c); Cairo.set_source_surface(c.cr, s, x, y))
 
 # Cairo text primitives forwarding
 Cairo.select_font_face(c::Canvas, family::AbstractString, slant, weight) =
     (_ensure_surface!(c); Cairo.select_font_face(c.cr, family, slant, weight))
-Cairo.set_font_size(c::Canvas, size) = (_ensure_surface!(c); Cairo.set_font_size(c.cr, size))
-Cairo.show_text(c::Canvas, text::AbstractString) = (_ensure_surface!(c); Cairo.show_text(c.cr, text))
-Cairo.text_extents(c::Canvas, text::AbstractString) = (_ensure_surface!(c); Cairo.text_extents(c.cr, text))
+Cairo.set_font_size(c::Canvas, size) =
+    (_ensure_surface!(c); Cairo.set_font_size(c.cr, size))
+Cairo.show_text(c::Canvas, text::AbstractString) =
+    (_ensure_surface!(c); Cairo.show_text(c.cr, text))
+Cairo.text_extents(c::Canvas, text::AbstractString) =
+    (_ensure_surface!(c); Cairo.text_extents(c.cr, text))
 
 end # module

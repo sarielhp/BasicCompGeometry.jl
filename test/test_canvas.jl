@@ -1,7 +1,12 @@
 using Test
 using BasicCompGeometry
-import BasicCompGeometry: cairo_draw_points, cairo_draw_polygon, cairo_draw_setup, description,
-    get_file_path, open_canvas
+import BasicCompGeometry:
+    cairo_draw_points,
+    cairo_draw_polygon,
+    cairo_draw_setup,
+    description,
+    get_file_path,
+    open_canvas
 using Cairo
 
 @testset "Unified Canvas (PDF, SVG, PNG, GIF)" begin
@@ -71,7 +76,7 @@ using Cairo
         # Test 5: PNG Sequence
         png_pat = joinpath(temp_dir, "frame_%03d.png")
         open_canvas(png_pat, 200, 200) do canvas
-            for _ in 1:3
+            for _ = 1:3
                 cairo_draw_setup(canvas, bb, 200, 200)
                 cairo_draw_points(canvas, pts, 2.0)
                 Cairo.show_page(canvas)
@@ -87,8 +92,8 @@ using Cairo
         # Test 6: Animated GIF (if ffmpeg is available)
         if Sys.which("ffmpeg") !== nothing
             gif_file = joinpath(temp_dir, "anim.gif")
-            open_canvas(gif_file, 200, 200; fps=5) do canvas
-                for _ in 1:4
+            open_canvas(gif_file, 200, 200; fps = 5) do canvas
+                for _ = 1:4
                     cairo_draw_setup(canvas, bb, 200, 200)
                     cairo_draw_points(canvas, pts, 2.0)
                     Cairo.show_page(canvas)
@@ -140,6 +145,6 @@ using Cairo
         @test occursin("<desc>Standalone Voronoi site embedding</desc>", c_txt)
 
     finally
-        rm(temp_dir, recursive=true, force=true)
+        rm(temp_dir, recursive = true, force = true)
     end
 end

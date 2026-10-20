@@ -9,9 +9,9 @@ using Printf
     # Generate 10000 points uniformly on the 3D unit sphere
     n = 10000
     rng = Random.Xoshiro(42) # Fixed seed for reproducibility
-    pts = Point{3, Float64}[]
-    for _ in 1:n
-        p = Point{3, Float64}(randn(rng, 3))
+    pts = Point{3,Float64}[]
+    for _ = 1:n
+        p = Point{3,Float64}(randn(rng, 3))
         push!(pts, normalize(p))
     end
     ps = PntSeq(pts)

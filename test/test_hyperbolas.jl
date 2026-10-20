@@ -1,7 +1,6 @@
 using Test
 using BasicCompGeometry
-import BasicCompGeometry: a_coeff, at, b_coeff, c_coeff,
-    center, rotation_angle
+import BasicCompGeometry: a_coeff, at, b_coeff, c_coeff, center, rotation_angle
 using BasicCompGeometry: distance
 using LinearAlgebra
 
@@ -29,11 +28,11 @@ using LinearAlgebra
 
     @testset "Point on hyperbola" begin
         h = Hyperbola(point(0.0, 0.0), 5.0, 3.0, 0.0)
-        p0 = at(h, 0.0; branch=1)
+        p0 = at(h, 0.0; branch = 1)
         @test p0 ≈ point(5.0, 0.0)
-        p0b = at(h, 0.0; branch=2)
+        p0b = at(h, 0.0; branch = 2)
         @test p0b ≈ point(-5.0, 0.0)
-        p1 = at(h, 1.0; branch=1)
+        p1 = at(h, 1.0; branch = 1)
         @test dist(p1, point(5.0 * cosh(1.0), 3.0 * sinh(1.0))) < 1e-10
     end
 
@@ -44,7 +43,7 @@ using LinearAlgebra
         @test a_coeff(h) ≈ 4.0
         @test b_coeff(h) ≈ 2.0
         @test rotation_angle(h) ≈ angle
-        p0 = at(h, 0.0; branch=1)
+        p0 = at(h, 0.0; branch = 1)
         expected = point(1.0, 2.0) + 4.0 * point(cos(angle), sin(angle))
         @test p0 ≈ expected
     end
@@ -97,11 +96,11 @@ end
     asymptote = Line(point(0.0, 0.0), point(2.0, 1.0))
     @test isempty(intersect_line_curve(asymptote, h))
 
-    t = range(-3.0, 3.0; length=200)[130]
+    t = range(-3.0, 3.0; length = 200)[130]
     other = Hyperbola(point(0.0, 2sinh(t)), 2.0, 1.0, 0.0)
     hits = intersect_hyperbolas(h, other)
     @test any(p -> p ≈ point(2cosh(t), sinh(t)), hits)
     @test all(p -> abs(abs(dist(p, other.f1) - dist(p, other.f2)) - other.d) < 0.01, hits)
     @test pairwise_intersections(h, other) == hits
-    @test BasicCompGeometry.vertices([h, other]; unique=true) == hits
+    @test BasicCompGeometry.vertices([h, other]; unique = true) == hits
 end

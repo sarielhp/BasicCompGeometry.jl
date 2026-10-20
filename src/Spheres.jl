@@ -101,8 +101,11 @@ end
 
 Return `true` if point `p` is inside or on the boundary of sphere `s`.
 """
-@inline function is_inside(p::Point{D,T1}, s::Sphere{D,T2};
-    kernel::AbstractKernel=FloatingKernel()) where {D,T1,T2}
+@inline function is_inside(
+    p::Point{D,T1},
+    s::Sphere{D,T2};
+    kernel::AbstractKernel = FloatingKernel(),
+) where {D,T1,T2}
     return compare_distance(kernel, p, s.center, s.radius) <= 0
 end
 
@@ -136,7 +139,8 @@ Return the zero, one, or two finite intersection points of two circles.
 Coincident circles have infinitely many intersections and raise `ArgumentError`.
 """
 function intersections(
-    c1::Sphere{2,T1}, c2::Sphere{2,T2};
+    c1::Sphere{2,T1},
+    c2::Sphere{2,T2};
     atol::Real = 0,
     rtol::Real = sqrt(eps(Float64)),
 ) where {T1,T2}
@@ -163,7 +167,7 @@ function intersections(
     half_chord <= tol && return Point{2,R}[midpoint]
 
     normal = Point{2,R}(-delta.y / d, delta.x / d)
-    return Point{2,R}[midpoint + half_chord * normal, midpoint - half_chord * normal]
+    return Point{2,R}[midpoint+half_chord*normal, midpoint-half_chord*normal]
 end
 
 ###############################################
@@ -184,7 +188,9 @@ function invert(
     R2 = Float64(ref.radius)^2
     diff = Point{D,Float64}(p) - O
     d2 = sum(abs2, diff)
-    d2 == 0.0 && error("Cannot invert the center of the reference sphere (maps to point at infinity).")
+    d2 == 0.0 && error(
+        "Cannot invert the center of the reference sphere (maps to point at infinity).",
+    )
     return O + (R2 / d2) * diff
 end
 
@@ -301,12 +307,29 @@ function CircleArc(center::Point{2,T}, radius::Real, theta1::Real, theta2::Real)
 end
 
 function CircleArc(center::NTuple{2,Real}, radius::Real, theta1::Real, theta2::Real)
-    T = promote_type(typeof(center[1]), typeof(center[2]), typeof(radius), typeof(theta1), typeof(theta2))
+    T = promote_type(
+        typeof(center[1]),
+        typeof(center[2]),
+        typeof(radius),
+        typeof(theta1),
+        typeof(theta2),
+    )
     return CircleArc{T}(Point{2,T}(center), T(radius), T(theta1), T(theta2))
 end
 
 function Base.show(io::IO, arc::CircleArc{T}) where {T}
-    print(io, "CircleArc(", arc.center, ", r=", arc.radius, ", θ1=", arc.theta1, ", θ2=", arc.theta2, ")")
+    print(
+        io,
+        "CircleArc(",
+        arc.center,
+        ", r=",
+        arc.radius,
+        ", θ1=",
+        arc.theta1,
+        ", θ2=",
+        arc.theta2,
+        ")",
+    )
 end
 
 """
@@ -329,7 +352,7 @@ function invert(
     sum(abs2, dir) == 0.0 && return Segment(invert(P1, ref), invert(P2, ref))
     l = Line(P1, dir)
 
-    inv_l = invert(l, ref; tol=tol)
+    inv_l = invert(l, ref; tol = tol)
 
     if inv_l isa Sphere{2,Float64}
         A_prime = inv_l.center

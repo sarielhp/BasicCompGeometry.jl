@@ -9,9 +9,9 @@ using LinearAlgebra
     D, N = 3, 10
     M = rand(D, N)
     mp = MatPntSeq(M)
-    
+
     @testset "Basics" begin
-        @test mp isa AbsPntSeq{3, Float64}
+        @test mp isa AbsPntSeq{3,Float64}
         @test dim(mp) == 3
         @test length(mp) == N
         @test size(mp) == N
@@ -19,27 +19,27 @@ using LinearAlgebra
         @test mp[N] == M[:, N]
         @test Points(mp) === mp.pnts
     end
-    
+
     @testset "Zero-copy" begin
         original_val = M[1, 1]
         M[1, 1] = 999.0
         @test mp[1][1] == 999.0
-        
+
         # Test that updating the pnt seq (if possible) updates the matrix
         # Since Point is SVector (immutable), we have to set the whole point
         # But setindex! is defined for AbsPntSeq
-        new_p = Point{3, Float64}(1.0, 2.0, 3.0)
+        new_p = Point{3,Float64}(1.0, 2.0, 3.0)
         mp[2] = new_p
         @test M[:, 2] == [1.0, 2.0, 3.0]
     end
-    
+
     @testset "Algorithms compatibility" begin
         @test exact_diameter(mp) > 0
         @test approx_diameter(mp, 0.1) > 0
-        
+
         tree = Tree_init(mp)
         @test depth(tree.root) >= 1
-        
+
         W = WSPD.init(mp, 2.0)
         finals = WSPD.expand!(W)
         @test length(finals) > 0
@@ -88,12 +88,14 @@ end
     singleton, indexes = hausdorff_simplify(PntSeq(points[1:1]), 0.1)
     @test collect(singleton) == points[1:1]
     @test indexes == [1]
-    zigzag = PntSeq([point(Float64(i), isodd(i) ? 1.0 : 0.0) for i in 0:30])
+    zigzag = PntSeq([point(Float64(i), isodd(i) ? 1.0 : 0.0) for i = 0:30])
     for tolerance in (0.1, 0.6, 1.0)
         simplified, indexes = hausdorff_simplify(zigzag, tolerance)
         @test first(indexes) == 1 && last(indexes) == length(zigzag)
         @test collect(simplified) == [zigzag[i] for i in indexes]
-        @test all(r -> BasicCompGeometry.hausdorff_dist_subseg(zigzag, r) <= tolerance,
-                  (indexes[i]:indexes[i+1] for i in 1:length(indexes)-1))
+        @test all(
+            r -> BasicCompGeometry.hausdorff_dist_subseg(zigzag, r) <= tolerance,
+            (indexes[i]:indexes[i+1] for i = 1:(length(indexes)-1)),
+        )
     end
 end

@@ -21,13 +21,31 @@ Names are not exported; use qualified calls such as
 """
 module PntSeqHierarchy
 
-import ..BasicCompGeometry: AbsPntSeq, PntSeq, cardin, dist_point_segment,
-    geom_length, hausdorff_dist_subseg, hausdorff_simplify
+import ..BasicCompGeometry:
+    AbsPntSeq,
+    PntSeq,
+    cardin,
+    dist_point_segment,
+    geom_length,
+    hausdorff_dist_subseg,
+    hausdorff_simplify
 
-export SplitRule, MidpointSplit, FarthestSplit, Palette, palette,
-    palette_extract, palette_level, HierarchyMeasure, hausdorff_measure,
-    SimplificationHierarchy, hierarchy_init, hierarchy_push!, hierarchy_find,
-    hierarchy_approx, hierarchy_build!, hierarchy_print
+export SplitRule,
+    MidpointSplit,
+    FarthestSplit,
+    Palette,
+    palette,
+    palette_extract,
+    palette_level,
+    HierarchyMeasure,
+    hausdorff_measure,
+    SimplificationHierarchy,
+    hierarchy_init,
+    hierarchy_push!,
+    hierarchy_find,
+    hierarchy_approx,
+    hierarchy_build!,
+    hierarchy_print
 
 #######################################################################
 # Split rules
@@ -139,7 +157,11 @@ costs O(n) per split, so a badly skewed subdivision (for example a spiral
 with a very large number of vertices) takes quadratic time and deep recursion;
 [`MidpointSplit`](@ref) has logarithmic depth.
 """
-function palette(P::AbsPntSeq{D,T}, err; rule::SplitRule = MidpointSplit()) where {D,T<:AbstractFloat}
+function palette(
+    P::AbsPntSeq{D,T},
+    err;
+    rule::SplitRule = MidpointSplit(),
+) where {D,T<:AbstractFloat}
     n = length(P)
     errs = zeros(T, n)
     kids = rule isa MidpointSplit ? NTuple{2,Int}[] : fill((0, 0), n)
@@ -279,7 +301,10 @@ distance to its chord, simplification is `hausdorff_simplify`, and palettes
 split at the vertex farthest from the chord.
 """
 hausdorff_measure() = HierarchyMeasure(
-    hausdorff_dist_subseg, hausdorff_simplify, _hausdorff_certify, FarthestSplit(),
+    hausdorff_dist_subseg,
+    hausdorff_simplify,
+    _hausdorff_certify,
+    FarthestSplit(),
 )
 
 #######################################################################
@@ -316,8 +341,13 @@ function hierarchy_init(
     lock::ReentrantLock = ReentrantLock(),
 ) where {D,T<:AbstractFloat}
     h = SimplificationHierarchy(
-        convert(T, geom_length(P)), P, palette(P, measure.err; rule = measure.rule),
-        PntSeq{D,T}[], Float64[], lock, measure,
+        convert(T, geom_length(P)),
+        P,
+        palette(P, measure.err; rule = measure.rule),
+        PntSeq{D,T}[],
+        Float64[],
+        lock,
+        measure,
     )
     hierarchy_push!(h, PntSeq{D,T}([P[1], P[end]]), Float64(measure.err(P, 1:length(P))))
     return h
@@ -330,7 +360,11 @@ Add the simplification `Q` of error `w`. A previous last level that is no
 narrower and no smaller than `Q` is dropped, and the levels stay sorted by
 decreasing width.
 """
-function hierarchy_push!(h::SimplificationHierarchy{D,T}, Q::PntSeq{D,T}, w::Float64) where {D,T}
+function hierarchy_push!(
+    h::SimplificationHierarchy{D,T},
+    Q::PntSeq{D,T},
+    w::Float64,
+) where {D,T}
     @assert cardin(Q) > 1
 
     lock(h.lock) do
@@ -372,7 +406,13 @@ function hierarchy_find(widths::Vector{Float64}, w, resolution)
     return -1
 end
 
-function _push_target!(h::SimplificationHierarchy{D,T}, w::Float64, P::PntSeq, lmt::Int, w_extra::Real) where {D,T}
+function _push_target!(
+    h::SimplificationHierarchy{D,T},
+    w::Float64,
+    P::PntSeq,
+    lmt::Int,
+    w_extra::Real,
+) where {D,T}
     R, R_indices = h.measure.simplify(P, convert(T, w))
     cardin(R) > lmt && return -1.0
 

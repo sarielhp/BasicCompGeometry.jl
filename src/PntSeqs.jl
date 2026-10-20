@@ -302,7 +302,8 @@ function split_edges(P::AbsPntSeq{D,T}) where {D,T<:AbstractFloat}
     return Q
 end
 
-split_edges(::AbsPntSeq) = throw(ArgumentError("split_edges requires floating-point coordinates"))
+split_edges(::AbsPntSeq) =
+    throw(ArgumentError("split_edges requires floating-point coordinates"))
 
 """
     reverse(P::PntSeq)

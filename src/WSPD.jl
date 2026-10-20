@@ -61,7 +61,11 @@ end
     return (min(u.id, v.id), max(u.id, v.id))
 end
 
-function push_pair!(W::PD{D,T,S,V}, u::BBT.Node{D,T,S,V}, v::BBT.Node{D,T,S,V}) where {D,T,S,V}
+function push_pair!(
+    W::PD{D,T,S,V},
+    u::BBT.Node{D,T,S,V},
+    v::BBT.Node{D,T,S,V},
+) where {D,T,S,V}
     id = get_id(u, v)
     if haskey(W.hash_pairs, id)
         return nothing

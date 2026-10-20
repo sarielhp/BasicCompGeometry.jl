@@ -17,14 +17,14 @@ Run a single comparison test and return (d_wspd, d_fst, t_wspd, t_fst).
 """
 function run_comparison_test(n, ε, rng)
     # Generate points
-    pts = Point{3, Float64}[]
-    for _ in 1:n
+    pts = Point{3,Float64}[]
+    for _ = 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     ps = PntSeq(pts)
 
     # Random unit direction
-    dir = normalize(Point{3, Float64}(randn(rng, 3)))
+    dir = normalize(Point{3,Float64}(randn(rng, 3)))
 
     # Measure WSPD version
     t_wspd = @elapsed d_wspd = approx_diameter_subspace(ps, ε, dir)
@@ -46,7 +46,7 @@ function (@main)(args)
     n = example_size(1000, 32)
     ε = 0.1
     rng = Random.Xoshiro(123) # Reproducible tests
-    
+
     @printf("Starting comparison: %d tests, n=%d, ε=%.2f\n", num_tests, n, ε)
     @printf("Points in [0,1]x[0,2]x[0,4], random directions.\n\n")
 
@@ -59,14 +59,14 @@ function (@main)(args)
     total_t_wspd = 0.0
     total_t_fst = 0.0
     max_diff = 0.0
-    
+
     @printf("Running %d tests...\n", num_tests)
-    for i in 1:num_tests
+    for i = 1:num_tests
         d1, d2, t1, t2 = run_comparison_test(n, ε, rng)
-        
+
         total_t_wspd += t1
         total_t_fst += t2
-        
+
         diff = abs(d1 - d2)
         if diff > max_diff
             max_diff = diff
@@ -92,6 +92,6 @@ function (@main)(args)
     else
         @printf("WARNING: Results differ by %e\n", max_diff)
     end
-    
+
     return 0
 end

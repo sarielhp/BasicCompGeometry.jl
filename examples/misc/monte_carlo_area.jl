@@ -30,10 +30,10 @@ Return the 4 infinite lines forming the boundary of the unit square [0, 1] x [0,
 - Top:    y = 1
 """
 function square_boundary_lines()
-    left   = Line(point(0.0, 0.0), point(0.0, 1.0))
-    right  = Line(point(1.0, 0.0), point(0.0, 1.0))
+    left = Line(point(0.0, 0.0), point(0.0, 1.0))
+    right = Line(point(1.0, 0.0), point(0.0, 1.0))
     bottom = Line(point(0.0, 0.0), point(1.0, 0.0))
-    top    = Line(point(0.0, 1.0), point(1.0, 0.0))
+    top = Line(point(0.0, 1.0), point(1.0, 0.0))
     return [left, right, bottom, top]
 end
 
@@ -57,10 +57,10 @@ w.r.t. the four boundary lines of the unit square.
 function voronoi_cell_vertices(p::Point{2,T}) where {T}
     lines = square_boundary_lines()
     n = 4
-    parabolas = [Parabola(p, lines[i]) for i in 1:n]
+    parabolas = [Parabola(p, lines[i]) for i = 1:n]
     interior = point(T(0.5), T(0.5))
     normals = Vector{Point{2,T}}(undef, n)
-    for i in 1:n
+    for i = 1:n
         ni = Point{2,T}(-lines[i].u.y, lines[i].u.x)
         ni = ni / norm(ni)
         if dot(interior - lines[i].p, ni) < 0
@@ -69,10 +69,12 @@ function voronoi_cell_vertices(p::Point{2,T}) where {T}
         normals[i] = ni
     end
     candidates = Point{2,T}[]
-    for i in 1:n
-        for j in (i+1):n
+    for i = 1:n
+        for j = (i+1):n
             nd = normals[i] - normals[j]
-            if norm(nd) < 1e-12; continue; end
+            if norm(nd) < 1e-12
+                continue
+            end
             ci = dot(lines[i].p, normals[i])
             cj = dot(lines[j].p, normals[j])
             d = ci - cj
@@ -88,10 +90,11 @@ function voronoi_cell_vertices(p::Point{2,T}) where {T}
             for (pt, _) in pts
                 d_p = dist(pt, p)
                 ok = true
-                for kk in 1:n
+                for kk = 1:n
                     sd = dot(pt - lines[kk].p, normals[kk])
                     if sd < d_p - 1e-8
-                        ok = false; break
+                        ok = false
+                        break
                     end
                 end
                 if ok && abs(dot(pt - lines[i].p, normals[i]) - d_p) < 1e-8
@@ -101,7 +104,7 @@ function voronoi_cell_vertices(p::Point{2,T}) where {T}
         end
     end
     isempty(candidates) && return parabolas, Point{2,T}[]
-    sort!(candidates, by=pt -> atan(pt.y - p.y, pt.x - p.x))
+    sort!(candidates, by = pt -> atan(pt.y - p.y, pt.x - p.x))
     unique_pts = Point{2,T}[]
     for pt in candidates
         if isempty(unique_pts) || dist(pt, unique_pts[end]) > 1e-8
@@ -122,16 +125,17 @@ function voronoi_curved_polygon(p::Point{2,T}) where {T}
     length(verts) < 3 && return CurvePolygon2D(ParabolaArc{T}[])
     m = length(verts)
     arcs = ParabolaArc{T}[]
-    for idx in 1:m
+    for idx = 1:m
         p_cur = verts[idx]
         p_next = verts[mod1(idx + 1, m)]
         mid = (p_cur + p_next) / 2
         best_k = 0
         best_diff = Inf
-        for k in 1:4
+        for k = 1:4
             d = abs(dist(mid, p) - distance_to_line(mid, lines[k]))
             if d < best_diff
-                best_diff = d; best_k = k
+                best_diff = d
+                best_k = k
             end
         end
         push!(arcs, ParabolaArc(parabolas[best_k], p_cur, p_next))
@@ -144,13 +148,13 @@ end
 
 Sample `n_samples` points evenly along the boundary of the curved polygon `cp`.
 """
-function sample_cell_boundary(cp::CurvePolygon2D{T}, n_samples::Int=400) where {T}
+function sample_cell_boundary(cp::CurvePolygon2D{T}, n_samples::Int = 400) where {T}
     isempty(cp.curves) && return Point{2,T}[]
     m = length(cp.curves)
     pts = Point{2,T}[]
     samples_per_curve = max(2, n_samples ÷ m)
     for c in cp.curves
-        for s in range(0.0, 1.0, length=samples_per_curve)
+        for s in range(0.0, 1.0, length = samples_per_curve)
             push!(pts, at(c, s))
         end
     end
@@ -167,7 +171,7 @@ function computed_cell_area(cp::CurvePolygon2D{T}) where {T}
     boundary = sample_cell_boundary(cp, 800)
     isempty(boundary) && return 0.0
     area = 0.0
-    for i in 1:length(boundary)
+    for i = 1:length(boundary)
         j = mod1(i + 1, length(boundary))
         area += boundary[i].x * boundary[j].y
         area -= boundary[j].x * boundary[i].y
@@ -183,7 +187,7 @@ and testing inside/outside status with `is_inside(q, cp)`.
 """
 function estimate_area_monte_carlo(cp::CurvePolygon2D{T}, n_samples::Int) where {T}
     inside_count = 0
-    for _ in 1:n_samples
+    for _ = 1:n_samples
         q = point(rand(T), rand(T))
         if is_inside(q, cp)
             inside_count += 1
@@ -213,7 +217,9 @@ function main()
 
     # Construct curved polygon
     cp = voronoi_curved_polygon(p)
-    println(@sprintf("Constructed CurvePolygon2D with %d parabolic arcs.", length(cp.curves)))
+    println(
+        @sprintf("Constructed CurvePolygon2D with %d parabolic arcs.", length(cp.curves))
+    )
     println(@sprintf("Boundary perimeter (arc length): %.6f", geom_length(cp)))
     println()
 
@@ -224,8 +230,16 @@ function main()
 
     println("Running Monte Carlo sampling across sample sizes:")
     println("-"^75)
-    println(@sprintf("%-12s | %-15s | %-12s | %-12s | %-10s",
-                     "Samples (N)", "Estimated Area", "Abs Error", "Std Dev (1σ)", "Rel Error"))
+    println(
+        @sprintf(
+            "%-12s | %-15s | %-12s | %-12s | %-10s",
+            "Samples (N)",
+            "Estimated Area",
+            "Abs Error",
+            "Std Dev (1σ)",
+            "Rel Error"
+        )
+    )
     println("-"^75)
 
     sample_sizes = example_size([10_000, 100_000, 1_000_000, 10_000_000], [100, 1000])
@@ -237,16 +251,28 @@ function main()
         # Theoretical Monte Carlo standard deviation: sigma = sqrt(A * (1 - A) / N)
         sigma = sqrt(ref_area * (1.0 - ref_area) / n)
         EXAMPLE_SMOKE && @assert abs_err < 6sigma
-        
-        println(@sprintf("%-12d | %-15.6f | %-12.6f | %-12.6f | %-9.2f%%",
-                         n, est_area, abs_err, sigma, rel_err * 100.0))
+
+        println(
+            @sprintf(
+                "%-12d | %-15.6f | %-12.6f | %-12.6f | %-9.2f%%",
+                n,
+                est_area,
+                abs_err,
+                sigma,
+                rel_err * 100.0
+            )
+        )
     end
     println("-"^75)
     println()
     println("Conclusion:")
-    println("  As the number of samples increases from 10^4 to 10^7, the Monte Carlo estimate")
+    println(
+        "  As the number of samples increases from 10^4 to 10^7, the Monte Carlo estimate",
+    )
     println("  converges to the reference area with error scaling as O(1/sqrt(N)),")
-    println("  verifying both the ParabolaArc geometry and the ray-casting `is_inside` test.")
+    println(
+        "  verifying both the ParabolaArc geometry and the ray-casting `is_inside` test.",
+    )
     println("="^75)
 end
 

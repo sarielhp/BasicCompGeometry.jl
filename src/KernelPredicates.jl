@@ -11,7 +11,7 @@ end
 
 Compare two 2D points lexicographically, returning -1, 0, or 1.
 """
-@inline compare_xy(p::Point{2}, q::Point{2}; kernel::AbstractKernel=FloatingKernel()) =
+@inline compare_xy(p::Point{2}, q::Point{2}; kernel::AbstractKernel = FloatingKernel()) =
     compare_xy(kernel, p, q)
 
 @inline function compare_xy(kernel::BuiltinKernel, p::Point{2}, q::Point{2})
@@ -31,13 +31,22 @@ Compare the squared distance between points with `squared`, returning -1, 0,
 or 1. Supply an exact squared threshold when using `ExactKernel`; the kernel
 cannot undo rounding or overflow in a threshold computed by the caller.
 """
-@inline compare_squared_distance(p::Point{D}, q::Point{D}, squared::Real;
-    kernel::AbstractKernel=FloatingKernel()) where {D} =
-    compare_squared_distance(kernel, p, q, squared)
+@inline compare_squared_distance(
+    p::Point{D},
+    q::Point{D},
+    squared::Real;
+    kernel::AbstractKernel = FloatingKernel(),
+) where {D} = compare_squared_distance(kernel, p, q, squared)
 
-@inline function compare_squared_distance(kernel::BuiltinKernel, p::Point{D},
-    q::Point{D}, squared::Real) where {D}
-    return _predicate_sign(_kernel_distance_sq(kernel, p, q) - _kernel_scalar(kernel, squared))
+@inline function compare_squared_distance(
+    kernel::BuiltinKernel,
+    p::Point{D},
+    q::Point{D},
+    squared::Real,
+) where {D}
+    return _predicate_sign(
+        _kernel_distance_sq(kernel, p, q) - _kernel_scalar(kernel, squared),
+    )
 end
 
 """
@@ -47,9 +56,12 @@ Compare the distance between points with a nonnegative radius, returning -1,
 0, or 1. Squaring occurs inside the selected kernel, without taking a square
 root. Equality includes tangency when this predicate is used for disk tests.
 """
-@inline compare_distance(p::Point{D}, q::Point{D}, radius::Real;
-    kernel::AbstractKernel=FloatingKernel()) where {D} =
-    compare_distance(kernel, p, q, radius)
+@inline compare_distance(
+    p::Point{D},
+    q::Point{D},
+    radius::Real;
+    kernel::AbstractKernel = FloatingKernel(),
+) where {D} = compare_distance(kernel, p, q, radius)
 
 @inline function _kernel_radius(kernel, radius)
     value = _kernel_scalar(kernel, radius)
@@ -57,8 +69,12 @@ root. Equality includes tangency when this predicate is used for disk tests.
     return value
 end
 
-@inline function compare_distance(kernel::BuiltinKernel, p::Point{D}, q::Point{D},
-    radius::Real) where {D}
+@inline function compare_distance(
+    kernel::BuiltinKernel,
+    p::Point{D},
+    q::Point{D},
+    radius::Real,
+) where {D}
     r = _kernel_radius(kernel, radius)
     return _predicate_sign(_kernel_distance_sq(kernel, p, q) - r * r)
 end
@@ -91,11 +107,21 @@ and the corresponding expression for `q`, returning -1, 0, or 1. Both circles
 have the same nonnegative radius. The height must be in both arc domains.
 The exact kernel compares radicals algebraically, without constructing them.
 """
-@inline compare_right_arcs(p::Point{2}, q::Point{2}, height::Real, radius::Real;
-    kernel::AbstractKernel=FloatingKernel()) = compare_right_arcs(kernel, p, q, height, radius)
+@inline compare_right_arcs(
+    p::Point{2},
+    q::Point{2},
+    height::Real,
+    radius::Real;
+    kernel::AbstractKernel = FloatingKernel(),
+) = compare_right_arcs(kernel, p, q, height, radius)
 
-function compare_right_arcs(kernel::BuiltinKernel, p::Point{2}, q::Point{2},
-    height::Real, radius::Real)
+function compare_right_arcs(
+    kernel::BuiltinKernel,
+    p::Point{2},
+    q::Point{2},
+    height::Real,
+    radius::Real,
+)
     r, y = _kernel_radius(kernel, radius), _kernel_scalar(kernel, height)
     a, b = _arc_radicand(kernel, p, y, r), _arc_radicand(kernel, q, y, r)
     d = _kernel_scalar(kernel, p.x) - _kernel_scalar(kernel, q.x)
@@ -108,11 +134,19 @@ end
 Compare the right circular boundary at `q.y` with `q.x`, returning -1, 0, or 1.
 The height must be in the circle's arc domain; the radius must be nonnegative.
 """
-@inline compare_right_arc_to_point(center::Point{2}, q::Point{2}, radius::Real;
-    kernel::AbstractKernel=FloatingKernel()) = compare_right_arc_to_point(kernel, center, q, radius)
+@inline compare_right_arc_to_point(
+    center::Point{2},
+    q::Point{2},
+    radius::Real;
+    kernel::AbstractKernel = FloatingKernel(),
+) = compare_right_arc_to_point(kernel, center, q, radius)
 
-function compare_right_arc_to_point(kernel::BuiltinKernel, center::Point{2},
-    q::Point{2}, radius::Real)
+function compare_right_arc_to_point(
+    kernel::BuiltinKernel,
+    center::Point{2},
+    q::Point{2},
+    radius::Real,
+)
     r, y = _kernel_radius(kernel, radius), _kernel_scalar(kernel, q.y)
     a = _arc_radicand(kernel, center, y, r)
     d = _kernel_scalar(kernel, center.x) - _kernel_scalar(kernel, q.x)

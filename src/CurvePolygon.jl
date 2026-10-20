@@ -5,7 +5,7 @@
 
 Type alias for a 2D curve primitive, which can be a `Segment{2, T}`, `CircleArc{T}`, or `Hyperbola{T}`.
 """
-const Curve2D{T} = Union{Segment{2,T}, CircleArc{T}, Hyperbola{T}, Parabola{T}, ParabolaArc{T}}
+const Curve2D{T} = Union{Segment{2,T},CircleArc{T},Hyperbola{T},Parabola{T},ParabolaArc{T}}
 const Curve2DF = Curve2D{Float64}
 
 """
@@ -93,7 +93,7 @@ Return the point on `cp` at relative length `t` in `[0, 1]`, traversing counterc
 function point_on(cp::CurvePolygon2D{T}, t::Real) where {T}
     n = length(cp.curves)
     n == 0 && throw(ArgumentError("Empty CurvePolygon2D"))
-    
+
     plens = prefix_lengths(cp)
     total_len = plens[end]
     total_len == 0.0 && return at(cp.curves[1], 0.0)
@@ -124,7 +124,7 @@ end
 Return the point on `pnt_seq` at relative distance `t` in `[0, 1]`, traversing along the sequence (or closed polygon).
 If treated as a closed polygon, pass `point_on(pnt_seq, t; closed=true)`.
 """
-function point_on(pnt_seq::AbsPntSeq{D,T}, t::Real; closed::Bool=false) where {D,T}
+function point_on(pnt_seq::AbsPntSeq{D,T}, t::Real; closed::Bool = false) where {D,T}
     n = length(pnt_seq)
     n == 0 && throw(ArgumentError("Empty point sequence"))
     n == 1 && return pnt_seq.pnts[1]
@@ -176,7 +176,7 @@ and `q` is the extreme point in `poly` in the direction of `v`.
 function tangent_line(poly::AbsPntSeq{2,T}, alpha::Real) where {T}
     v = direction(alpha)
     pnts = Points(poly)
-    
+
     # Find extreme point q maximizing dot(p, v)
     max_dot = -Inf
     best_idx = 1
@@ -188,7 +188,7 @@ function tangent_line(poly::AbsPntSeq{2,T}, alpha::Real) where {T}
         end
     end
     q = Point{2,Float64}(pnts[best_idx])
-    
+
     # Line direction orthogonal to v (counterclockwise rotation by 90 deg: (-v[2], v[1]))
     u = Point{2,Float64}(-v[2], v[1])
     line = Line(q, u)

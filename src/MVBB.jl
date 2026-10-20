@@ -89,7 +89,12 @@ function update_diam!(pp::GPointPair{D,T}, p::Point{D,T}, q::Point{D,T}) where {
     end
 end
 
-function update_diam_subspace!(pp::GPointPair{D,T}, p::Point{D,T}, q::Point{D,T}, dir::Point{D,T}) where {D,T}
+function update_diam_subspace!(
+    pp::GPointPair{D,T},
+    p::Point{D,T},
+    q::Point{D,T},
+    dir::Point{D,T},
+) where {D,T}
     # Compute distance in the subspace orthogonal to dir
     # Project p-q onto dir
     diff = p - q
@@ -141,7 +146,7 @@ function rotating_calipers_min_area(hull::AbsPntSeq{2,T}) where {T}
     angles = Vector{T}(undef, n)
     for i = 1:n
         p1 = hull[i]
-        p2 = hull[i % n + 1]
+        p2 = hull[i%n+1]
         angles[i] = atan(p2[2] - p1[2], p2[1] - p1[1])
         if angles[i] < 0
             angles[i] += 2 * pi
@@ -158,7 +163,7 @@ function rotating_calipers_min_area(hull::AbsPntSeq{2,T}) where {T}
         while true
             curr_angle = angles[idx]
             prev_angle = angles[idx == 1 ? n : idx - 1]
-            
+
             # Normalize angles to [0, 2pi) and handle wrap-around
             if prev_angle <= curr_angle
                 if prev_angle < target_angle <= curr_angle
@@ -231,18 +236,18 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
     # Ensure it's fully expanded if we want to use it like the C++ code
     # though the C++ code splits nodes lazily.
     # For now, let's follow the C++ logic: start with root-root pair.
-    
+
     # Initialize with an arbitrary pair
     pp = GPointPair(PS[1], PS[end], dist(PS[1], PS[end]))
-    
+
     # Priority Queue for pairs of nodes
     # We want to maximize the maximum possible distance between nodes
     # Max possible distance is max_dist(bb1, bb2)
     pq = PriorityQueue{Tuple{Node,Node},T}(Base.Order.Reverse)
-    
+
     root = tree.root
     pq[(root, root)] = max_dist(root.bb, root.bb)
-    
+
     # Initial diameter estimate from longest dimension of bounding box
     dim_max = get_longest_dim(root.bb)
     # Find extreme points in this dimension
@@ -265,11 +270,11 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
     while !isempty(pq)
         (n1, n2), d_max = first(pq)
         popfirst!(pq)
-        
+
         if d_max <= (1 + ε) * pp.distance
             break
         end
-        
+
         # If both are leaves, just update diameter
         if n1.f_leaf && n2.f_leaf
             # In a fair split tree, each leaf has at least one point.
@@ -279,7 +284,7 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
             update_diam!(pp, p1, p2)
             continue
         end
-        
+
         # Split the pair
         # Ensure children exist
         if !n1.f_leaf && (isnothing(n1.left) || isnothing(n1.right))
@@ -288,7 +293,7 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
         if !n2.f_leaf && (isnothing(n2.left) || isnothing(n2.right))
             Tree_refine_node(tree, n2)
         end
-        
+
         # Try to update diameter with some points from the nodes
         p1 = tree.PS[first(n1.r)]
         p2 = tree.PS[first(n2.r)]
@@ -326,7 +331,7 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
             end
         end
     end
-    
+
     return pp
 end
 
@@ -352,19 +357,19 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
     tree = Tree_init(PS)
     pp = GPointPair(PS[1], PS[end], 0.0)
     update_diam_subspace!(pp, PS[1], PS[end], dir)
-    
+
     pq = PriorityQueue{Tuple{Node,Node},T}(Base.Order.Reverse)
     root = tree.root
     pq[(root, root)] = max_dist_subspace(root.bb, root.bb, dir)
-    
+
     while !isempty(pq)
         (n1, n2), d_max_ub = first(pq)
         popfirst!(pq)
-        
+
         if d_max_ub <= (1 + ε) * pp.distance
             break
         end
-        
+
         if n1.f_leaf && n2.f_leaf
             p1 = tree.PS[first(n1.r)]
             p2 = tree.PS[first(n2.r)]
@@ -428,19 +433,19 @@ function solve_2d_subspace(PS::AbsPntSeq{3,T}, dir::Point{3,T}) where {T}
     pnts2d = [Point{2,T}(dot(p, base[2]), dot(p, base[3])) for p in Points(PS)]
     hull2d = convex_hull(PntSeq(pnts2d))
     bbox2d = rotating_calipers_min_area(hull2d)
-    
+
     # Vertices of 2D box to get directions
     v0 = bbox2d.vertices[1]
     v1 = bbox2d.vertices[2]
     v3 = bbox2d.vertices[4]
-    
+
     dir2_2d = normalize(v1 - v0)
     dir3_2d = normalize(v3 - v0)
-    
+
     # Lift back to 3D
     dir2 = normalize(dir2_2d[1] * base[2] + dir2_2d[2] * base[3])
     dir3 = normalize(dir3_2d[1] * base[2] + dir3_2d[2] * base[3])
-    
+
     obb = OBBox(SVector{3,Point{3,T}}(norm_dir, dir2, dir3))
     bound!(obb, PS)
     return obb
@@ -454,13 +459,13 @@ Iteratively refine the OBBox by rotating the subspace.
 function optimize(PS::AbsPntSeq{3,T}, obb::OBBox{3,T}, iterations::Int) where {T}
     best_obb = obb
     best_vol = volume(best_obb)
-    
+
     for i = 1:iterations
         # Cycle through axes as projection normals
         axis_idx = (i - 1) % 3 + 1
         new_obb = solve_2d_subspace(PS, best_obb.axes[axis_idx])
         new_vol = volume(new_obb)
-        
+
         if new_vol < best_vol
             best_vol = new_vol
             best_obb = new_obb
@@ -478,25 +483,41 @@ function approx_mvbb(PS::AbsPntSeq{3,T}, ε::Real) where {T}
     # 1. Start with approximate diameter as first axis
     pp1 = approx_diam(PS, ε)
     dir1 = normalize(pp1.p - pp1.q)
-    
+
     obb_init = solve_2d_subspace(PS, dir1)
-    
+
     # 2. Iteratively refine
     obb_refined = optimize(PS, obb_init, 10)
-    
+
     # 3. Also consider axis-aligned box
     aabb = BBox(PS)
     vol_obb = volume(obb_refined)
-    vol_aabb = volume(OBBox(SVector{3,Point{3,T}}(
-        Point{3,T}(1,0,0), Point{3,T}(0,1,0), Point{3,T}(0,0,1)),
-        MVector{3,T}(aabb.mini), MVector{3,T}(aabb.maxi), true))
-        
+    vol_aabb = volume(
+        OBBox(
+            SVector{3,Point{3,T}}(
+                Point{3,T}(1, 0, 0),
+                Point{3,T}(0, 1, 0),
+                Point{3,T}(0, 0, 1),
+            ),
+            MVector{3,T}(aabb.mini),
+            MVector{3,T}(aabb.maxi),
+            true,
+        ),
+    )
+
     if vol_aabb < vol_obb
-        return OBBox(SVector{3,Point{3,T}}(
-            Point{3,T}(1,0,0), Point{3,T}(0,1,0), Point{3,T}(0,0,1)),
-            MVector{3,T}(aabb.mini), MVector{3,T}(aabb.maxi), true)
+        return OBBox(
+            SVector{3,Point{3,T}}(
+                Point{3,T}(1, 0, 0),
+                Point{3,T}(0, 1, 0),
+                Point{3,T}(0, 0, 1),
+            ),
+            MVector{3,T}(aabb.mini),
+            MVector{3,T}(aabb.maxi),
+            true,
+        )
     end
-    
+
     return obb_refined
 end
 

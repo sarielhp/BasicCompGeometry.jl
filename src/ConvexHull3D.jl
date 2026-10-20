@@ -79,7 +79,7 @@ function find_initial_tetrahedron(pnts::Vector{Point3F})
     # 1. Find two distinct points
     i1 = 1
     i2 = 0
-    for i in 2:n
+    for i = 2:n
         if dist(pnts[i1], pnts[i]) > 1e-9
             i2 = i
             break
@@ -90,7 +90,7 @@ function find_initial_tetrahedron(pnts::Vector{Point3F})
     # 2. Find a third point not collinear with the first two
     i3 = 0
     line_dir = pnts[i2] - pnts[i1]
-    for i in 1:n
+    for i = 1:n
         (i == i1 || i == i2) && continue
         # Distance from point to line
         v = pnts[i] - pnts[i1]
@@ -106,7 +106,7 @@ function find_initial_tetrahedron(pnts::Vector{Point3F})
     i4 = 0
     p1, p2, p3 = pnts[i1], pnts[i2], pnts[i3]
     normal = cross(p2 - p1, p3 - p1)
-    for i in 1:n
+    for i = 1:n
         (i == i1 || i == i2 || i == i3) && continue
         if abs(dot(normal, pnts[i] - p1)) > 1e-9
             i4 = i
@@ -167,8 +167,8 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     # 2. Setup internal structures
     faces = Vector{Face}()
     # Maps oriented edge (u, v) to face index
-    edge_to_face = Dict{Tuple{Int, Int}, Int}()
-    
+    edge_to_face = Dict{Tuple{Int,Int},Int}()
+
     # Create 4 faces of the tetrahedron
     i1, i2, i3, i4 = tetra_idx
     push!(faces, Face(i1, i2, i3, pnts_in))
@@ -185,9 +185,11 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
 
     # Remaining points
     claimed = fill(false, n_in)
-    for i in tetra_idx; claimed[i] = true; end
-    
-    unclaimed = [i for i in 1:n_in if !claimed[i]]
+    for i in tetra_idx
+        claimed[i] = true
+    end
+
+    unclaimed = [i for i = 1:n_in if !claimed[i]]
     shuffle!(unclaimed)
 
     # Initial conflict graph
@@ -214,7 +216,7 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
         end
 
         # Find the horizon edges
-        edges_count = Dict{Tuple{Int, Int}, Int}()
+        edges_count = Dict{Tuple{Int,Int},Int}()
         for f_idx in visible_faces_indices
             f = faces[f_idx]
             v = f.v
@@ -241,13 +243,13 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
                     u, v_e = e
                     f_nonvis_idx = edge_to_face[(v_e, u)]
                     f_nonvis = faces[f_nonvis_idx]
-                    
+
                     # Create new face (u, v_e, p_idx)
                     new_f = Face(u, v_e, p_idx, pnts_in)
                     if new_f.active
                         push!(faces, new_f)
                         nf_idx = length(faces)
-                        
+
                         # Update conflict list: candidates are points from 
                         # the two faces sharing the horizon edge.
                         candidates = [f.visible_points; f_nonvis.visible_points]
@@ -294,8 +296,8 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     # Mapping from original indices to 1:m indices
     vert_list = sort(collect(used_verts))
     idx_map = Dict(orig => i for (i, orig) in enumerate(vert_list))
-    
-    mapped_faces = [ [idx_map[v] for v in f] for f in final_faces]
+
+    mapped_faces = [[idx_map[v] for v in f] for f in final_faces]
 
     return vert_list, mapped_faces
 end
@@ -312,9 +314,13 @@ Checks:
 
 Returns `(success::Bool, message::String)`.
 """
-function verify_convex_hull_3d(pnts::Vector{Point3F}, verts_idx::Vector{Int}, faces::Vector{Vector{Int}})
+function verify_convex_hull_3d(
+    pnts::Vector{Point3F},
+    verts_idx::Vector{Int},
+    faces::Vector{Vector{Int}},
+)
     hull_pnts = pnts[verts_idx]
-    
+
     # 1. Basic Triangle Check
     for (i, f) in enumerate(faces)
         if length(f) != 3
@@ -337,19 +343,21 @@ function verify_convex_hull_3d(pnts::Vector{Point3F}, verts_idx::Vector{Int}, fa
         for (j, p) in enumerate(pnts)
             # Use a slightly relaxed epsilon for float precision
             if dot(n, p) > offset + 1e-7
-                return false, "Convexity violated: Point $j is outside face $i by $(dot(n, p) - offset)"
+                return false,
+                "Convexity violated: Point $j is outside face $i by $(dot(n, p) - offset)"
             end
         end
     end
 
     # 3. Topological Check (Manifold & Orientation)
     # Map from oriented edge (u, v) to the face index that contains it
-    edge_map = Dict{Tuple{Int, Int}, Int}()
+    edge_map = Dict{Tuple{Int,Int},Int}()
     for (i, f) in enumerate(faces)
         edges = [(f[1], f[2]), (f[2], f[3]), (f[3], f[1])]
         for e in edges
             if haskey(edge_map, e)
-                return false, "Edge $e is duplicated (shared by faces $(edge_map[e]) and $i with same orientation)"
+                return false,
+                "Edge $e is duplicated (shared by faces $(edge_map[e]) and $i with same orientation)"
             end
             edge_map[e] = i
         end
@@ -358,7 +366,8 @@ function verify_convex_hull_3d(pnts::Vector{Point3F}, verts_idx::Vector{Int}, fa
     for (e, f_idx) in edge_map
         rev_e = (e[2], e[1])
         if !haskey(edge_map, rev_e)
-            return false, "Edge $e (face $f_idx) has no matching reverse edge (hole in hull or inconsistent orientation)"
+            return false,
+            "Edge $e (face $f_idx) has no matching reverse edge (hole in hull or inconsistent orientation)"
         end
     end
 

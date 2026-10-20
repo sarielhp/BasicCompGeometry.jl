@@ -14,11 +14,16 @@ using LinearAlgebra, Printf, Random
 # Halfplane clipping (from prophet.jl)
 # ==============================================================================
 
-function clip_polygon_halfplane(poly::Vector{Point2F}, M::Point2F, n::Point2F; eps::Float64=1e-11)
+function clip_polygon_halfplane(
+    poly::Vector{Point2F},
+    M::Point2F,
+    n::Point2F;
+    eps::Float64 = 1e-11,
+)
     isempty(poly) && return Point2F[]
     out = Point2F[]
     nv = length(poly)
-    for i in 1:nv
+    for i = 1:nv
         A = poly[i]
         B = poly[mod1(i + 1, nv)]
         sA = dot(A - M, n)
@@ -66,20 +71,24 @@ end
 # Curved polygon (bisector cell) computation — numerical sampling
 # ==============================================================================
 
-function sample_curved_cell_boundary(p::Point2F, square::Vector{Point2F}, n_samples::Int=200)
+function sample_curved_cell_boundary(
+    p::Point2F,
+    square::Vector{Point2F},
+    n_samples::Int = 200,
+)
     lines = Line{2,Float64}[]
-    for i in 1:length(square)
+    for i = 1:length(square)
         p1 = square[i]
         p2 = square[mod1(i + 1, length(square))]
         push!(lines, Line(p1, p2 - p1))
     end
     max_r = maximum(dist(p, v) for v in square) * 2.0
     boundary = Point2F[]
-    for i in 0:(n_samples-1)
+    for i = 0:(n_samples-1)
         theta = 2 * pi * i / n_samples
         d = point(cos(theta), sin(theta))
         lo, hi = 0.0, max_r
-        for _ in 1:60
+        for _ = 1:60
             mid = (lo + hi) / 2
             x = p + mid * d
             d_p = dist(x, p)
@@ -104,13 +113,13 @@ function draw_curved_cell(cr, boundary::Vector{Point2F})
     n < 3 && return
     Cairo.new_path(cr)
     Cairo.move_to(cr, boundary[1][1], boundary[1][2])
-    for i in 2:n
+    for i = 2:n
         Cairo.line_to(cr, boundary[i][1], boundary[i][2])
     end
     Cairo.close_path(cr)
 end
 
-function draw_page_number(cr, page_num, cw, ch, margin; show=true)
+function draw_page_number(cr, page_num, cw, ch, margin; show = true)
     show || return
     Cairo.save(cr)
     Cairo.set_source_rgb(cr, 0.4, 0.4, 0.4)
@@ -121,10 +130,10 @@ function draw_page_number(cr, page_num, cw, ch, margin; show=true)
     Cairo.restore(cr)
 end
 
-function draw_grid(cr, grid_n, cell_size, lw=1.0)
+function draw_grid(cr, grid_n, cell_size, lw = 1.0)
     Cairo.set_source_rgb(cr, 0, 0, 0)
     Cairo.set_line_width(cr, lw)
-    for i in 0:grid_n
+    for i = 0:grid_n
         Cairo.move_to(cr, i * cell_size, 0)
         Cairo.line_to(cr, i * cell_size, 1)
         Cairo.stroke(cr)
@@ -153,16 +162,16 @@ end
 # Main
 # ==============================================================================
 
-function main(; show_page_numbers::Bool=true)
+function main(; show_page_numbers::Bool = true)
     N = example_size(300, 60)
     grid_n = example_size(10, 5)
     cell_size = 1.0 / grid_n
 
     Random.seed!(42)
-    pts = [point(rand(), rand()) for _ in 1:N]
+    pts = [point(rand(), rand()) for _ = 1:N]
 
     cell_counts = zeros(Int, grid_n, grid_n)
-    cell_points = [Point2F[] for _ in 1:grid_n, _ in 1:grid_n]
+    cell_points = [Point2F[] for _ = 1:grid_n, _ = 1:grid_n]
     for p in pts
         ix = min(floor(Int, p[1] * grid_n) + 1, grid_n)
         iy = min(floor(Int, p[2] * grid_n) + 1, grid_n)
@@ -170,7 +179,7 @@ function main(; show_page_numbers::Bool=true)
         push!(cell_points[ix, iy], p)
     end
 
-    all_singletons = [(ix, iy) for ix in 1:grid_n, iy in 1:grid_n if cell_counts[ix, iy] == 1]
+    all_singletons = [(ix, iy) for ix = 1:grid_n, iy = 1:grid_n if cell_counts[ix, iy] == 1]
     k = length(all_singletons)
     @printf("Total singleton cells: %d\n", k)
 
@@ -183,7 +192,15 @@ function main(; show_page_numbers::Bool=true)
     cx0, cy0 = (ix - 1) * cell_size, (iy - 1) * cell_size
     cx1, cy1 = ix * cell_size, iy * cell_size
 
-    @printf("Center singleton cell: (%d, %d) = [%.4f, %.4f] x [%.4f, %.4f]\n", ix, iy, cx0, cx1, cy0, cy1)
+    @printf(
+        "Center singleton cell: (%d, %d) = [%.4f, %.4f] x [%.4f, %.4f]\n",
+        ix,
+        iy,
+        cx0,
+        cx1,
+        cy0,
+        cy1
+    )
     @printf("Singleton point: (%.6f, %.6f)\n", singleton_pt[1], singleton_pt[2])
 
     outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
@@ -194,30 +211,36 @@ function main(; show_page_numbers::Bool=true)
     curved_boundary = sample_curved_cell_boundary(singleton_pt, square, 300)
 
     tiled_pts = copy(pts)
-    for dy in -1:1, dx in -1:1
+    for dy = -1:1, dx = -1:1
         (dx == 0 && dy == 0) && continue
         for p in pts
             push!(tiled_pts, p + point(dx, dy))
         end
     end
-    singleton_indices = [findfirst(p -> p == cell_points[sx, sy][1], pts) for (sx, sy) in all_singletons]
-    singleton_voronoi_cells = [compute_voronoi_cell(tiled_pts, idx, outer_box) for idx in singleton_indices]
+    singleton_indices =
+        [findfirst(p -> p == cell_points[sx, sy][1], pts) for (sx, sy) in all_singletons]
+    singleton_voronoi_cells =
+        [compute_voronoi_cell(tiled_pts, idx, outer_box) for idx in singleton_indices]
 
     n_zoom = example_size(20, 2)
-    zoom_boxes = [BBox(
-        point((1 - t) * 0.0 + t * cx0, (1 - t) * 0.0 + t * cy0),
-        point((1 - t) * 1.0 + t * cx1, (1 - t) * 1.0 + t * cy1)
-    ) for t in range(0.0, 1.0, length=n_zoom)]
+    zoom_boxes = [
+        BBox(
+            point((1 - t) * 0.0 + t * cx0, (1 - t) * 0.0 + t * cy0),
+            point((1 - t) * 1.0 + t * cx1, (1 - t) * 1.0 + t * cy1),
+        ) for t in range(0.0, 1.0, length = n_zoom)
+    ]
 
     n_zoom_out = example_size(20, 2)
     p15_x0 = max(0.0, (ix - 2) * cell_size)
     p15_x1 = min(1.0, (ix + 1) * cell_size)
     p15_y0 = max(0.0, (iy - 2) * cell_size)
     p15_y1 = min(1.0, (iy + 1) * cell_size)
-    zoom_out_boxes = [BBox(
-        point((1 - t) * p15_x0 + t * 0.0, (1 - t) * p15_y0 + t * 0.0),
-        point((1 - t) * p15_x1 + t * 1.0, (1 - t) * p15_y1 + t * 1.0)
-    ) for t in range(0.0, 1.0, length=n_zoom_out)]
+    zoom_out_boxes = [
+        BBox(
+            point((1 - t) * p15_x0 + t * 0.0, (1 - t) * p15_y0 + t * 0.0),
+            point((1 - t) * p15_x1 + t * 1.0, (1 - t) * p15_y1 + t * 1.0),
+        ) for t in range(0.0, 1.0, length = n_zoom_out)
+    ]
 
     output_dir = example_output()
     mkpath(output_dir)
@@ -225,10 +248,33 @@ function main(; show_page_numbers::Bool=true)
     cw, ch = 800, 800
     margin = 40.0
 
-function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, iy,
-            singleton_pt, cell_points, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell,
-            singleton_voronoi_cells, n_zoom, zoom_boxes, n_zoom_out, zoom_out_boxes,
-            cw, ch, margin; show_page_numbers=true)
+    function draw_all_pages(
+        canvas,
+        pts,
+        grid_n,
+        cell_size,
+        all_singletons,
+        k,
+        ix,
+        iy,
+        singleton_pt,
+        cell_points,
+        cx0,
+        cx1,
+        cy0,
+        cy1,
+        curved_boundary,
+        voronoi_cell,
+        singleton_voronoi_cells,
+        n_zoom,
+        zoom_boxes,
+        n_zoom_out,
+        zoom_out_boxes,
+        cw,
+        ch,
+        margin;
+        show_page_numbers = true,
+    )
         page_num = 1
         bg_r, bg_g, bg_b = 1.0, 0.995, 0.95
 
@@ -239,7 +285,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         cairo_draw_setup(canvas, BBox(point(0, 0), point(1, 1)), cw, ch, margin)
         draw_grid(canvas, grid_n, cell_size)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
         description(canvas, "Page $page_num: Empty 10x10 grid")
         page_num += 1
         Cairo.show_page(canvas)
@@ -257,8 +303,11 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], 0.008, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: $N random points in 10x10 grid (blue = singleton)")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: $N random points in 10x10 grid (blue = singleton)",
+        )
         page_num += 1
         Cairo.show_page(canvas)
 
@@ -281,14 +330,14 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.arc(canvas, sp[1], sp[2], 0.008, 0, 2pi)
             Cairo.fill(canvas)
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
             description(canvas, "Page $page_num: Singleton cell $ci of $k")
             page_num += 1
             Cairo.show_page(canvas)
         end
 
         # Alternating green frames
-        for fi in 1:example_size(6, 1)
+        for fi = 1:example_size(6, 1)
             is_light = isodd(fi)
             r, g, b = is_light ? (0.8, 0.95, 0.8) : (0.3, 0.8, 0.3)
             Cairo.save(canvas)
@@ -305,15 +354,18 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], 0.008, 0, 2pi)
             Cairo.fill(canvas)
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
             shade = is_light ? "light green" : "green"
-            description(canvas, "Page $page_num: Singleton cells highlighted in $shade ($fi/6)")
+            description(
+                canvas,
+                "Page $page_num: Singleton cells highlighted in $shade ($fi/6)",
+            )
             page_num += 1
             Cairo.show_page(canvas)
         end
 
         # Zoom into singleton cell
-        for zi in 1:n_zoom
+        for zi = 1:n_zoom
             bb = zoom_boxes[zi]
             bl = bottom_left(bb)
             tr = top_right(bb)
@@ -335,8 +387,11 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], sing_r, 0, 2pi)
             Cairo.fill(canvas)
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-            description(canvas, "Page $page_num: Zoom into cell ($ix, $iy) — step $zi of $n_zoom")
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+            description(
+                canvas,
+                "Page $page_num: Zoom into cell ($ix, $iy) — step $zi of $n_zoom",
+            )
             page_num += 1
             Cairo.show_page(canvas)
         end
@@ -368,8 +423,11 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p13_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: Curved polygon (bisector cell against grid cell boundary)")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: Curved polygon (bisector cell against grid cell boundary)",
+        )
         page_num += 1
         Cairo.show_page(canvas)
 
@@ -403,7 +461,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p14_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
         description(canvas, "Page $page_num: Grid cell and neighbors with curved polygon")
         page_num += 1
         Cairo.show_page(canvas)
@@ -417,11 +475,17 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         p15_max_r = p15_w / 200.0
         p15_pt_r = min(0.003, p15_max_r)
         p15_sing_r = min(0.008, p15_max_r * 1.6)
-        for rep in 1:example_size(4, 1)
+        for rep = 1:example_size(4, 1)
             Cairo.save(canvas)
             Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
             Cairo.paint(canvas)
-            cairo_draw_setup(canvas, BBox(point(p15_x0, p15_y0), point(p15_x1, p15_y1)), cw, ch, margin)
+            cairo_draw_setup(
+                canvas,
+                BBox(point(p15_x0, p15_y0), point(p15_x1, p15_y1)),
+                cw,
+                ch,
+                margin,
+            )
             fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
             draw_grid(canvas, grid_n, cell_size)
             Cairo.set_source_rgb(canvas, 0.85, 0.15, 0.15)
@@ -458,14 +522,17 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p15_sing_r, 0, 2pi)
             Cairo.fill(canvas)
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-            description(canvas, "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)")
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+            description(
+                canvas,
+                "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)",
+            )
             page_num += 1
             Cairo.show_page(canvas)
         end
 
         # Zoom out to full grid
-        for zi in 1:n_zoom_out
+        for zi = 1:n_zoom_out
             bb = zoom_out_boxes[zi]
             bl = bottom_left(bb)
             tr = top_right(bb)
@@ -507,17 +574,20 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
                 Cairo.fill(canvas)
             end
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-            description(canvas, "Page $page_num: Zoom out — all singleton Voronoi cells (step $zi of $n_zoom_out)")
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+            description(
+                canvas,
+                "Page $page_num: Zoom out — all singleton Voronoi cells (step $zi of $n_zoom_out)",
+            )
             page_num += 1
             Cairo.show_page(canvas)
         end
 
         n_last = example_size(page_num - 1, 1)
         Random.seed!(123)
-        vc_colors = [(rand(), rand(), rand()) for _ in 1:length(all_singletons)]
-        for extra in 1:n_last
-            for ci in 1:length(all_singletons)
+        vc_colors = [(rand(), rand(), rand()) for _ = 1:length(all_singletons)]
+        for extra = 1:n_last
+            for ci = 1:length(all_singletons)
                 if rand() < 1/3
                     vc_colors[ci] = (rand(), rand(), rand())
                 end
@@ -557,35 +627,112 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
                 Cairo.fill(canvas)
             end
             Cairo.restore(canvas)
-            draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-            description(canvas, "Page $page_num: Random Voronoi cell colors ($extra of $n_last)")
+            draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+            description(
+                canvas,
+                "Page $page_num: Random Voronoi cell colors ($extra of $n_last)",
+            )
             page_num += 1
             Cairo.show_page(canvas)
         end
     end
 
     open_canvas(pdf_path, cw, ch) do canvas
-        draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, iy,
-            singleton_pt, cell_points, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell,
-            singleton_voronoi_cells, n_zoom, zoom_boxes, n_zoom_out, zoom_out_boxes,
-            cw, ch, margin; show_page_numbers=show_page_numbers)
+        draw_all_pages(
+            canvas,
+            pts,
+            grid_n,
+            cell_size,
+            all_singletons,
+            k,
+            ix,
+            iy,
+            singleton_pt,
+            cell_points,
+            cx0,
+            cx1,
+            cy0,
+            cy1,
+            curved_boundary,
+            voronoi_cell,
+            singleton_voronoi_cells,
+            n_zoom,
+            zoom_boxes,
+            n_zoom_out,
+            zoom_out_boxes,
+            cw,
+            ch,
+            margin;
+            show_page_numbers = show_page_numbers,
+        )
     end
 
     gif_path = joinpath(output_dir, "points_and_bins.gif")
-    open_canvas(gif_path, cw, ch; fps=4) do canvas
-        draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, iy,
-            singleton_pt, cell_points, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell,
-            singleton_voronoi_cells, n_zoom, zoom_boxes, n_zoom_out, zoom_out_boxes,
-            cw, ch, margin; show_page_numbers=show_page_numbers)
+    open_canvas(gif_path, cw, ch; fps = 4) do canvas
+        draw_all_pages(
+            canvas,
+            pts,
+            grid_n,
+            cell_size,
+            all_singletons,
+            k,
+            ix,
+            iy,
+            singleton_pt,
+            cell_points,
+            cx0,
+            cx1,
+            cy0,
+            cy1,
+            curved_boundary,
+            voronoi_cell,
+            singleton_voronoi_cells,
+            n_zoom,
+            zoom_boxes,
+            n_zoom_out,
+            zoom_out_boxes,
+            cw,
+            ch,
+            margin;
+            show_page_numbers = show_page_numbers,
+        )
     end
 
-    println("Output: ", relpath(get_file_path(pdf_path), normpath(joinpath(@__DIR__, ".."))))
-    println("Output: ", relpath(get_file_path(gif_path), normpath(joinpath(@__DIR__, ".."))))
+    println(
+        "Output: ",
+        relpath(get_file_path(pdf_path), normpath(joinpath(@__DIR__, ".."))),
+    )
+    println(
+        "Output: ",
+        relpath(get_file_path(gif_path), normpath(joinpath(@__DIR__, ".."))),
+    )
 
     # ==============================================================================
     # Key pages PDF + HTML (many_cells)
     # ==============================================================================
-    function _render_many_cells!(canvas, pts, grid_n, cell_size, N, ix, iy, singleton_pt, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell, all_singletons, cell_points, singleton_voronoi_cells, cw, ch, margin; show_page_numbers=true)
+    function _render_many_cells!(
+        canvas,
+        pts,
+        grid_n,
+        cell_size,
+        N,
+        ix,
+        iy,
+        singleton_pt,
+        cx0,
+        cx1,
+        cy0,
+        cy1,
+        curved_boundary,
+        voronoi_cell,
+        all_singletons,
+        cell_points,
+        singleton_voronoi_cells,
+        cw,
+        ch,
+        margin;
+        show_page_numbers = true,
+    )
         page_num = 1
         bg_r, bg_g, bg_b = 1.0, 0.995, 0.95
 
@@ -596,7 +743,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         cairo_draw_setup(canvas, BBox(point(0, 0), point(1, 1)), cw, ch, margin)
         draw_grid(canvas, grid_n, cell_size)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
         description(canvas, "Page $page_num: Empty 10x10 grid")
         page_num += 1
         Cairo.show_page(canvas)
@@ -614,8 +761,11 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], 0.008, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: $N random points in 10x10 grid (blue = singleton)")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: $N random points in 10x10 grid (blue = singleton)",
+        )
         page_num += 1
         Cairo.show_page(canvas)
 
@@ -646,8 +796,11 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p13_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: Curved polygon (bisector cell against grid cell boundary)")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: Curved polygon (bisector cell against grid cell boundary)",
+        )
         page_num += 1
         Cairo.show_page(canvas)
 
@@ -681,7 +834,7 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p14_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
         description(canvas, "Page $page_num: Grid cell and neighbors with curved polygon")
         page_num += 1
         Cairo.show_page(canvas)
@@ -698,7 +851,13 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.save(canvas)
         Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
         Cairo.paint(canvas)
-        cairo_draw_setup(canvas, BBox(point(p15_x0, p15_y0), point(p15_x1, p15_y1)), cw, ch, margin)
+        cairo_draw_setup(
+            canvas,
+            BBox(point(p15_x0, p15_y0), point(p15_x1, p15_y1)),
+            cw,
+            ch,
+            margin,
+        )
         fill_cell(canvas, ix, iy, cell_size, 0.85, 0.85, 0.85)
         draw_grid(canvas, grid_n, cell_size)
         Cairo.set_source_rgb(canvas, 0.85, 0.15, 0.15)
@@ -735,14 +894,17 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
         Cairo.arc(canvas, singleton_pt[1], singleton_pt[2], p15_sing_r, 0, 2pi)
         Cairo.fill(canvas)
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: Voronoi cell (red) and curved polygon (green) of singleton point — 3x3 neighborhood around cell ($ix, $iy)",
+        )
         page_num += 1
         Cairo.show_page(canvas)
 
         # Final frame: all singleton Voronoi cells with random colors
         Random.seed!(123)
-        vc_colors = [(rand(), rand(), rand()) for _ in 1:length(all_singletons)]
+        vc_colors = [(rand(), rand(), rand()) for _ = 1:length(all_singletons)]
         Cairo.save(canvas)
         Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
         Cairo.paint(canvas)
@@ -778,24 +940,77 @@ function draw_all_pages(canvas, pts, grid_n, cell_size, all_singletons, k, ix, i
             Cairo.fill(canvas)
         end
         Cairo.restore(canvas)
-        draw_page_number(canvas, page_num, cw, ch, margin; show=show_page_numbers)
-        description(canvas, "Page $page_num: All singleton Voronoi cells with random colors")
+        draw_page_number(canvas, page_num, cw, ch, margin; show = show_page_numbers)
+        description(
+            canvas,
+            "Page $page_num: All singleton Voronoi cells with random colors",
+        )
         page_num += 1
         Cairo.show_page(canvas)
     end
 
     many_cells_pdf = joinpath(output_dir, "many_cells.pdf")
     open_canvas(many_cells_pdf, cw, ch) do canvas
-        _render_many_cells!(canvas, pts, grid_n, cell_size, N, ix, iy, singleton_pt, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell, all_singletons, cell_points, singleton_voronoi_cells, cw, ch, margin; show_page_numbers=show_page_numbers)
+        _render_many_cells!(
+            canvas,
+            pts,
+            grid_n,
+            cell_size,
+            N,
+            ix,
+            iy,
+            singleton_pt,
+            cx0,
+            cx1,
+            cy0,
+            cy1,
+            curved_boundary,
+            voronoi_cell,
+            all_singletons,
+            cell_points,
+            singleton_voronoi_cells,
+            cw,
+            ch,
+            margin;
+            show_page_numbers = show_page_numbers,
+        )
     end
-    println("Output: ", relpath(get_file_path(many_cells_pdf), normpath(joinpath(@__DIR__, ".."))))
+    println(
+        "Output: ",
+        relpath(get_file_path(many_cells_pdf), normpath(joinpath(@__DIR__, ".."))),
+    )
 
     many_cells_svg_dir = joinpath(output_dir, "many_cells_html")
     many_cells_html = joinpath(many_cells_svg_dir, "index.html")
-    open_canvas(many_cells_html, cw, ch; title="Many Cells — Key Pages") do canvas
-        _render_many_cells!(canvas, pts, grid_n, cell_size, N, ix, iy, singleton_pt, cx0, cx1, cy0, cy1, curved_boundary, voronoi_cell, all_singletons, cell_points, singleton_voronoi_cells, cw, ch, margin; show_page_numbers=show_page_numbers)
+    open_canvas(many_cells_html, cw, ch; title = "Many Cells — Key Pages") do canvas
+        _render_many_cells!(
+            canvas,
+            pts,
+            grid_n,
+            cell_size,
+            N,
+            ix,
+            iy,
+            singleton_pt,
+            cx0,
+            cx1,
+            cy0,
+            cy1,
+            curved_boundary,
+            voronoi_cell,
+            all_singletons,
+            cell_points,
+            singleton_voronoi_cells,
+            cw,
+            ch,
+            margin;
+            show_page_numbers = show_page_numbers,
+        )
     end
-    println("Output: ", relpath(get_file_path(many_cells_html), normpath(joinpath(@__DIR__, ".."))))
+    println(
+        "Output: ",
+        relpath(get_file_path(many_cells_html), normpath(joinpath(@__DIR__, ".."))),
+    )
 end
 
-main(; show_page_numbers=true)
+main(; show_page_numbers = true)

@@ -26,7 +26,7 @@ using LinearAlgebra
     # Test point_on for CurvePolygon2D
     @test point_on(cp, 0.0) ≈ point(0.0, 0.0)
     @test point_on(cp, 1.0) ≈ point(0.0, 0.0) # end of seg
-    
+
     total_l = geom_length(cp)
     t_arc_mid = (1.0 + (pi / 4)) / total_l
     @test point_on(cp, t_arc_mid) ≈ point(cos(pi / 4), sin(pi / 4))
@@ -35,10 +35,10 @@ using LinearAlgebra
     pnts = [point(0.0, 0.0), point(2.0, 0.0), point(2.0, 2.0), point(0.0, 2.0)]
     poly = PntSeq(pnts)
     # Closed parameterization: total length 8.0
-    @test point_on(poly, 0.0, closed=true) ≈ point(0.0, 0.0)
-    @test point_on(poly, 0.25, closed=true) ≈ point(2.0, 0.0)
-    @test point_on(poly, 0.5, closed=true) ≈ point(2.0, 2.0)
-    @test point_on(poly, 0.75, closed=true) ≈ point(0.0, 2.0)
+    @test point_on(poly, 0.0, closed = true) ≈ point(0.0, 0.0)
+    @test point_on(poly, 0.25, closed = true) ≈ point(2.0, 0.0)
+    @test point_on(poly, 0.5, closed = true) ≈ point(2.0, 2.0)
+    @test point_on(poly, 0.75, closed = true) ≈ point(0.0, 2.0)
     # Test direction and tangent_line
     v = direction(pi / 4)
     @test v ≈ point(cos(pi / 4), sin(pi / 4))
@@ -103,20 +103,20 @@ end
 
     # Helper functions as in examples/sq_vs_point.jl
     function square_boundary_lines()
-        left   = Line(point(0.0, 0.0), point(0.0, 1.0))
-        right  = Line(point(1.0, 0.0), point(0.0, 1.0))
+        left = Line(point(0.0, 0.0), point(0.0, 1.0))
+        right = Line(point(1.0, 0.0), point(0.0, 1.0))
         bottom = Line(point(0.0, 0.0), point(1.0, 0.0))
-        top    = Line(point(0.0, 1.0), point(1.0, 0.0))
+        top = Line(point(0.0, 1.0), point(1.0, 0.0))
         return [left, right, bottom, top]
     end
 
     function compute_voronoi_curved_polygon(p::Point{2,T}) where {T}
         lines = square_boundary_lines()
         n = 4
-        parabolas = [Parabola(p, lines[i]) for i in 1:n]
+        parabolas = [Parabola(p, lines[i]) for i = 1:n]
         interior = point(T(0.5), T(0.5))
         normals = Vector{Point{2,T}}(undef, n)
-        for i in 1:n
+        for i = 1:n
             ni = Point{2,T}(-lines[i].u[2], lines[i].u[1])
             ni = ni / norm(ni)
             if dot(interior - lines[i].p, ni) < 0
@@ -125,10 +125,12 @@ end
             normals[i] = ni
         end
         candidates = Point{2,T}[]
-        for i in 1:n
-            for j in (i+1):n
+        for i = 1:n
+            for j = (i+1):n
                 nd = normals[i] - normals[j]
-                if norm(nd) < 1e-12; continue; end
+                if norm(nd) < 1e-12
+                    continue
+                end
                 ci = dot(lines[i].p, normals[i])
                 cj = dot(lines[j].p, normals[j])
                 d = ci - cj
@@ -144,10 +146,11 @@ end
                 for (pt, _) in pts
                     d_p = dist(pt, p)
                     ok = true
-                    for kk in 1:n
+                    for kk = 1:n
                         sd = dot(pt - lines[kk].p, normals[kk])
                         if sd < d_p - 1e-8
-                            ok = false; break
+                            ok = false
+                            break
                         end
                     end
                     if ok && abs(dot(pt - lines[i].p, normals[i]) - d_p) < 1e-8
@@ -156,26 +159,27 @@ end
                 end
             end
         end
-        sort!(candidates, by=pt -> atan(pt[2] - p[2], pt[1] - p[1]))
+        sort!(candidates, by = pt -> atan(pt[2] - p[2], pt[1] - p[1]))
         unique_pts = Point{2,T}[]
         for pt in candidates
             if isempty(unique_pts) || dist(pt, unique_pts[end]) > 1e-8
                 push!(unique_pts, pt)
             end
         end
-        
+
         m = length(unique_pts)
         arcs = ParabolaArc{T}[]
-        for idx in 1:m
+        for idx = 1:m
             p_cur = unique_pts[idx]
             p_next = unique_pts[mod1(idx + 1, m)]
             mid = (p_cur + p_next) / 2
             best_k = 0
             best_diff = Inf
-            for k in 1:n
+            for k = 1:n
                 d = abs(dist(mid, p) - BasicCompGeometry.distance(mid, lines[k]))
                 if d < best_diff
-                    best_diff = d; best_k = k
+                    best_diff = d
+                    best_k = k
                 end
             end
             push!(arcs, ParabolaArc(parabolas[best_k], p_cur, p_next))
@@ -191,7 +195,7 @@ end
 
     Random.seed!(42)
     n_samples = 100_000
-    pts = [point(rand(), rand()) for _ in 1:n_samples]
+    pts = [point(rand(), rand()) for _ = 1:n_samples]
 
     # Verify that for all 100,000 points, distance test and is_inside test are identical
     mismatches = 0

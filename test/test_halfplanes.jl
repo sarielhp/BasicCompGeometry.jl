@@ -10,7 +10,7 @@ using BasicCompGeometry
     @test Halfplane(point(0.0, 0.0), point(1.0, 0.0)) == h
     @test occursin("Halfplane(Line(", sprint(show, h))
     rng = Random.Xoshiro(42)
-    @test length(rand_halfplane(3; rng=rng)) == 3
+    @test length(rand_halfplane(3; rng = rng)) == 3
     @test rand(rng, Halfplane) isa Halfplane2F
     @test rand(rng, Halfplane2F) isa Halfplane2F
     @test rand(Halfplane) isa Halfplane2F
@@ -95,10 +95,10 @@ using BasicCompGeometry: boundary, complement, distance, depth, clip
     # x <= 1  => Line((1,0), (0,1)) with z=(0,0)
     # y >= 0  => Line((0,0), (1,0)) with z=(0,1)
     # y <= 1  => Line((0,1), (1,0)) with z=(0,0)
-    h_left   = Halfplane(Line(point(0.0, 0.0), point(0.0, 1.0)), point(1.0, 0.0))
-    h_right  = Halfplane(Line(point(1.0, 0.0), point(0.0, 1.0)), point(0.0, 0.0))
+    h_left = Halfplane(Line(point(0.0, 0.0), point(0.0, 1.0)), point(1.0, 0.0))
+    h_right = Halfplane(Line(point(1.0, 0.0), point(0.0, 1.0)), point(0.0, 0.0))
     h_bottom = Halfplane(Line(point(0.0, 0.0), point(1.0, 0.0)), point(0.0, 1.0))
-    h_top    = Halfplane(Line(point(0.0, 1.0), point(1.0, 0.0)), point(0.0, 0.0))
+    h_top = Halfplane(Line(point(0.0, 1.0), point(1.0, 0.0)), point(0.0, 0.0))
 
     H = [h_left, h_right, h_bottom, h_top]
 
@@ -161,7 +161,7 @@ using BasicCompGeometry: boundary, complement, distance, depth, clip
     # Clip PntSeq
     ps_square = PntSeq(square)
     ps_clipped = clip(ps_square, h_half)
-    @test ps_clipped isa PntSeq{2, Float64}
+    @test ps_clipped isa PntSeq{2,Float64}
     @test length(ps_clipped) == 4
 
     # 7. File I/O: write_halfplanes and read_halfplanes
@@ -172,7 +172,7 @@ using BasicCompGeometry: boundary, complement, distance, depth, clip
 
     loaded_hps = read_halfplanes(tmp_path)
     @test length(loaded_hps) == 4
-    for i in 1:4
+    for i = 1:4
         @test loaded_hps[i].boundary.p ≈ test_hps[i].boundary.p
         @test loaded_hps[i].boundary.u ≈ test_hps[i].boundary.u
     end

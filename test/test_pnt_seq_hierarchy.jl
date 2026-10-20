@@ -70,26 +70,34 @@ end
                 @test collect(Q) == [P[i] for i in idx]
             end
             # Finer thresholds never keep fewer vertices.
-            sizes = [length(palette_extract(P, pal, w)[2]) for w in (4.0, 2.0, 1.0, 0.5, 0.1)]
+            sizes =
+                [length(palette_extract(P, pal, w)[2]) for w in (4.0, 2.0, 1.0, 0.5, 0.1)]
             @test issorted(sizes)
         end
         P = walk(10)
         pal = palette(P, hausdorff_dist_subseg)
-        @test palette_extract(walk(4), palette(walk(4), hausdorff_dist_subseg), 1.0)[2] == 1:4
+        @test palette_extract(walk(4), palette(walk(4), hausdorff_dist_subseg), 1.0)[2] ==
+              1:4
         @test palette_level(P, pal, 0)[2] == [1, 10]
         @test palette_level(P, pal, 1)[2] == [1, 5, 10]
         @test palette_level(P, pal, 100)[2] == 1:10
     end
 
     @testset "Farthest split is Douglas-Peucker" begin
-        P = PntSeq([point(0.0, 0.0), point(1.0, 0.1), point(2.0, 3.0), point(3.0, 0.2), point(4.0, 0.0)])
+        P = PntSeq([
+            point(0.0, 0.0),
+            point(1.0, 0.1),
+            point(2.0, 3.0),
+            point(3.0, 0.2),
+            point(4.0, 0.0),
+        ])
         pal = palette(P, hausdorff_dist_subseg; rule = FarthestSplit())
         @test palette_level(P, pal, 1)[2] == [1, 3, 5]
         @test pal[3] ≥ pal[2] && pal[3] ≥ pal[4]
     end
 
     @testset "Degenerate curves" begin
-        for n in 0:3
+        for n = 0:3
             P = n == 0 ? PntSeq2F() : walk(n)
             @test length(palette(P, hausdorff_dist_subseg)) == n
             @test all(iszero, palette(P, hausdorff_dist_subseg; rule = FarthestSplit()))
@@ -128,29 +136,31 @@ end
         end
     end
 
-@testset "Push keeps levels sorted and drops dominated ones" begin
-    P = walk(20)
-    h = hierarchy_init(P)
-    h.widths[1] = 10.0
-    seq(n) = PntSeq(P.pnts[1:n])
-    hierarchy_push!(h, seq(5), 6.0)
-    @test h.widths == [10.0, 6.0]
-    hierarchy_push!(h, seq(9), 8.0)          # not dominated: sorted into place
-    @test h.widths == [10.0, 8.0, 6.0]
-    @test map(cardin, h.polys) == [2, 9, 5]
-    hierarchy_push!(h, seq(3), 5.0)          # last level is narrower-or-equal and larger: dropped
-    @test h.widths == [10.0, 8.0, 5.0]
-    @test map(cardin, h.polys) == [2, 9, 3]
-    @test_throws AssertionError hierarchy_push!(h, PntSeq([P[1]]), 1.0)
-end
+    @testset "Push keeps levels sorted and drops dominated ones" begin
+        P = walk(20)
+        h = hierarchy_init(P)
+        h.widths[1] = 10.0
+        seq(n) = PntSeq(P.pnts[1:n])
+        hierarchy_push!(h, seq(5), 6.0)
+        @test h.widths == [10.0, 6.0]
+        hierarchy_push!(h, seq(9), 8.0)          # not dominated: sorted into place
+        @test h.widths == [10.0, 8.0, 6.0]
+        @test map(cardin, h.polys) == [2, 9, 5]
+        hierarchy_push!(h, seq(3), 5.0)          # last level is narrower-or-equal and larger: dropped
+        @test h.widths == [10.0, 8.0, 5.0]
+        @test map(cardin, h.polys) == [2, 9, 3]
+        @test_throws AssertionError hierarchy_push!(h, PntSeq([P[1]]), 1.0)
+    end
 
     @testset "Custom measure" begin
         P = walk(100; seed = 11)
         # Measure the number of skipped vertices instead of a distance.
         err(Q, rng) = float(length(rng) - 2)
-        simplify(Q, w) = (idx = collect(1:max(1, floor(Int, w) + 1):length(Q));
+        simplify(Q, w) = (
+            idx = collect(1:max(1, floor(Int, w)+1):length(Q));
             idx[end] == length(Q) || push!(idx, length(Q));
-            (PntSeq([Q[i] for i in idx]), idx))
+            (PntSeq([Q[i] for i in idx]), idx)
+        )
         certify(Q, R, idx) = maximum(diff(idx)) - 1.0
         m = HierarchyMeasure(err, simplify, certify, MidpointSplit())
         h = hierarchy_init(P, m)
@@ -183,7 +193,9 @@ end
         P = walk(400; seed = 5)
         h = hierarchy_init(P)
         hierarchy_build!(h)
-        tasks = [Threads.@spawn(hierarchy_approx(h, w)) for w in repeat([2.0, 0.9, 0.4, 0.15], 8)]
+        tasks = [
+            Threads.@spawn(hierarchy_approx(h, w)) for w in repeat([2.0, 0.9, 0.4, 0.15], 8)
+        ]
         results = fetch.(tasks)
         @test all(r -> r[2] >= 0 && cardin(r[1]) >= 2, results)
         @test issorted(h.widths; rev = true)

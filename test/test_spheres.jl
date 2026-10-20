@@ -107,7 +107,7 @@ end
     # polar(Line, p) & polar_line(p)
     pt = point(2.0, 0.0)
     pl_line = polar(Line, pt)
-    @test pl_line isa Line{2, Float64}
+    @test pl_line isa Line{2,Float64}
     @test polar_line(pt) == pl_line
     @test BasicCompGeometry.distance(point(0.5, 0.0), pl_line) ≈ 0.0 atol = 1e-10
     @test BasicCompGeometry.distance(point(0.5, 3.0), pl_line) ≈ 0.0 atol = 1e-10

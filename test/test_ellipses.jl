@@ -1,7 +1,6 @@
 using Test
 using BasicCompGeometry
-import BasicCompGeometry: cardin, center, end_point, r_major,
-    r_minor, start_point
+import BasicCompGeometry: cardin, center, end_point, r_major, r_minor, start_point
 using BasicCompGeometry: area
 
 @testset "Ellipse and EllipticArc Primitives" begin
@@ -74,8 +73,8 @@ end
     e = Ellipse((1, 2.0), 4, 2, π / 4)
     @test e isa Ellipse2F
     @test BasicCompGeometry.rotation_angle(e) ≈ π / 4
-    @test BBox(e) ≈ BBox(point(1 - sqrt(10), 2 - sqrt(10)),
-                         point(1 + sqrt(10), 2 + sqrt(10)))
+    @test BBox(e) ≈
+          BBox(point(1 - sqrt(10), 2 - sqrt(10)), point(1 + sqrt(10), 2 + sqrt(10)))
     @test occursin("Ellipse(", sprint(show, e))
     arc = EllipticArc(point(1.0, 2.0), 4.0, 2.0, π / 4, 3π / 2, π)
     @test center(arc) == point(1.0, 2.0)

@@ -55,7 +55,7 @@ function run_prune_halfplanes_depth(
         m = multiplier * k
         @printf("\n[1/5] Generating %d random halfplanes (6*k, seed = %d)...\n", m, seed)
         # Ensure initial min depth >= k by retrying if needed
-        for attempt in 1:10
+        for attempt = 1:10
             candidate_hps = [rand_halfplane(rng) for _ = 1:m]
             cand_view = default_view(candidate_hps; factor = 1.1)
             cand_decomp = vertical_decomposition(candidate_hps, cand_view)
@@ -63,11 +63,19 @@ function run_prune_halfplanes_depth(
             cand_min_d = minimum(depth(candidate_hps, c) for c in cand_centers)
             if cand_min_d >= k
                 hps = candidate_hps
-                @printf("      Generated %d halfplanes (initial arrangement min depth = %d >= k).\n", m, cand_min_d)
+                @printf(
+                    "      Generated %d halfplanes (initial arrangement min depth = %d >= k).\n",
+                    m,
+                    cand_min_d
+                )
                 break
             elseif attempt == 10
                 hps = candidate_hps
-                @printf("      Generated %d halfplanes (initial min depth = %d).\n", m, cand_min_d)
+                @printf(
+                    "      Generated %d halfplanes (initial min depth = %d).\n",
+                    m,
+                    cand_min_d
+                )
             end
         end
     end
@@ -82,10 +90,19 @@ function run_prune_halfplanes_depth(
     t_view = @elapsed view = default_view(hps; factor = 1.1)
     view_w = width(view)
     view_h = height(view)
-    @printf("      View box:                 [%.4f, %.4f] × [%.4f, %.4f]\n",
-            view.mini[1], view.maxi[1], view.mini[2], view.maxi[2])
-    @printf("      Dimensions:               width = %.4f, height = %.4f, area = %.4f\n",
-            view_w, view_h, view_w * view_h)
+    @printf(
+        "      View box:                 [%.4f, %.4f] × [%.4f, %.4f]\n",
+        view.mini[1],
+        view.maxi[1],
+        view.mini[2],
+        view.maxi[2]
+    )
+    @printf(
+        "      Dimensions:               width = %.4f, height = %.4f, area = %.4f\n",
+        view_w,
+        view_h,
+        view_w * view_h
+    )
 
     # 3. Compute vertical decomposition inside the view
     println("\n[3/5] Computing vertical decomposition inside view...")
@@ -112,9 +129,10 @@ function run_prune_halfplanes_depth(
             end
         end
         # Map each halfplane to the list of centers it contains
-        halfplane_centers = [findall(j -> inside_matrix[i, j], 1:num_centers) for i = 1:m]
+        halfplane_centers =
+            [findall(j -> inside_matrix[i, j], 1:num_centers) for i = 1:m]
         # Current depth at each center
-        depths = [count(i -> inside_matrix[i, j], 1:m) for j in 1:num_centers]
+        depths = [count(i -> inside_matrix[i, j], 1:m) for j = 1:num_centers]
     end
 
     init_min_depth = minimum(depths)
@@ -126,8 +144,12 @@ function run_prune_halfplanes_depth(
     @printf("      Initial mean depth:       %.2f\n", init_mean_depth)
 
     if init_min_depth < k
-        @warn @sprintf("Initial arrangement has min depth %d < target k=%d. Pruning will maintain depths >= %d.",
-                       init_min_depth, k, init_min_depth)
+        @warn @sprintf(
+            "Initial arrangement has min depth %d < target k=%d. Pruning will maintain depths >= %d.",
+            init_min_depth,
+            k,
+            init_min_depth
+        )
     end
 
     # 5. Greedy pruning loop
@@ -164,8 +186,12 @@ function run_prune_halfplanes_depth(
             end
         end
 
-        @printf("      Pass %d: removed %d halfplanes (%d remaining)\n",
-                pass_num, removed_in_pass, count(active))
+        @printf(
+            "      Pass %d: removed %d halfplanes (%d remaining)\n",
+            pass_num,
+            removed_in_pass,
+            count(active)
+        )
 
         # Stop when a full pass over all currently active halfplanes fails to remove any
         if removed_in_pass == 0
@@ -184,8 +210,11 @@ function run_prune_halfplanes_depth(
     println("="^70)
     @printf("  • Target depth parameter (k):        %d\n", k)
     @printf("  • Initial halfplanes count:           %d\n", m)
-    @printf("  • Halfplanes removed:                 %d (%.1f%%)\n",
-            total_removed, (total_removed / m) * 100)
+    @printf(
+        "  • Halfplanes removed:                 %d (%.1f%%)\n",
+        total_removed,
+        (total_removed / m) * 100
+    )
     @printf("  • Final pruned set size:              %d\n", final_size)
     @printf("  • Final min depth over all centers:   %d (>= k = %d)\n", final_min_d, k)
     @printf("  • Final max depth over all centers:   %d\n", final_max_d)
@@ -194,7 +223,9 @@ function run_prune_halfplanes_depth(
 
     # 6. Save pruned halfplanes to text file
     EXAMPLE_SMOKE && @assert final_min_d >= k
-    out_path = output_file !== nothing ? output_file : example_output("pruned_halfplanes_k$(k).txt")
+    out_path =
+        output_file !== nothing ? output_file :
+        example_output("pruned_halfplanes_k$(k).txt")
     write_halfplanes(out_path, final_hps)
     println("\nSaved pruned set of $(final_size) halfplanes to: ", out_path)
 

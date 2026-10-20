@@ -31,14 +31,25 @@ const Ellipse2F = Ellipse{Float64}
 
 Construct an `Ellipse` with given parameters, promoting numeric types.
 """
-function Ellipse(center::Point{2,T}, r_major::Real, r_minor::Real, angle::Real = 0.0) where {T}
+function Ellipse(
+    center::Point{2,T},
+    r_major::Real,
+    r_minor::Real,
+    angle::Real = 0.0,
+) where {T}
     S = promote_type(T, typeof(r_major), typeof(r_minor), typeof(angle))
     c = Point{2,S}(S(center[1]), S(center[2]))
     return Ellipse{S}(c, S(r_major), S(r_minor), S(angle))
 end
 
 function Ellipse(center::NTuple{2,Real}, r_major::Real, r_minor::Real, angle::Real = 0.0)
-    S = promote_type(typeof(center[1]), typeof(center[2]), typeof(r_major), typeof(r_minor), typeof(angle))
+    S = promote_type(
+        typeof(center[1]),
+        typeof(center[2]),
+        typeof(r_major),
+        typeof(r_minor),
+        typeof(angle),
+    )
     return Ellipse{S}(Point{2,S}(center[1], center[2]), S(r_major), S(r_minor), S(angle))
 end
 
@@ -99,12 +110,23 @@ Sample `n` points along the perimeter of the ellipse, returning a `PntSeq{2, T}`
 """
 function sample_uniformly(e::Ellipse{T}, n::Int) where {T}
     @assert n >= 3 "Sample count must be at least 3"
-    pts = [point_on(e, 2π * i / n) for i in 0:(n-1)]
+    pts = [point_on(e, 2π * i / n) for i = 0:(n-1)]
     return PntSeq(pts)
 end
 
 function Base.show(io::IO, e::Ellipse{T}) where {T}
-    print(io, "Ellipse(", e.center, ", a=", e.r_major, ", b=", e.r_minor, ", θ=", round(e.angle, digits=3), ")")
+    print(
+        io,
+        "Ellipse(",
+        e.center,
+        ", a=",
+        e.r_major,
+        ", b=",
+        e.r_minor,
+        ", θ=",
+        round(e.angle, digits = 3),
+        ")",
+    )
 end
 
 # -----------------------------------------------------------------------------
@@ -138,11 +160,23 @@ Construct an `EllipticArc`.
 """
 function EllipticArc(e::Ellipse{T}, alpha1::Real, alpha2::Real) where {T}
     S = promote_type(T, typeof(alpha1), typeof(alpha2))
-    e_s = Ellipse{S}(Point{2,S}(e.center[1], e.center[2]), S(e.r_major), S(e.r_minor), S(e.angle))
+    e_s = Ellipse{S}(
+        Point{2,S}(e.center[1], e.center[2]),
+        S(e.r_major),
+        S(e.r_minor),
+        S(e.angle),
+    )
     return EllipticArc{S}(e_s, S(alpha1), S(alpha2))
 end
 
-function EllipticArc(center::Point{2}, r_major::Real, r_minor::Real, angle::Real, alpha1::Real, alpha2::Real)
+function EllipticArc(
+    center::Point{2},
+    r_major::Real,
+    r_minor::Real,
+    angle::Real,
+    alpha1::Real,
+    alpha2::Real,
+)
     e = Ellipse(center, r_major, r_minor, angle)
     return EllipticArc(e, alpha1, alpha2)
 end
@@ -160,7 +194,9 @@ alpha2(arc::EllipticArc) = arc.alpha2
 Evaluate point on the arc for parameter `t ∈ [0, 1]`.
 """
 function point_on(arc::EllipticArc{T}, t::Real) where {T}
-    span = arc.alpha2 >= arc.alpha1 ? (arc.alpha2 - arc.alpha1) : (arc.alpha2 - arc.alpha1 + 2π)
+    span =
+        arc.alpha2 >= arc.alpha1 ? (arc.alpha2 - arc.alpha1) :
+        (arc.alpha2 - arc.alpha1 + 2π)
     angle_param = arc.alpha1 + T(t) * span
     return point_on(arc.ellipse, angle_param)
 end
@@ -224,12 +260,21 @@ Sample `n` points along the arc, returning a `PntSeq{2, T}`.
 """
 function sample_uniformly(arc::EllipticArc{T}, n::Int) where {T}
     @assert n >= 2 "Sample count must be at least 2"
-    pts = [point_on(arc, T(i) / (n - 1)) for i in 0:(n-1)]
+    pts = [point_on(arc, T(i) / (n - 1)) for i = 0:(n-1)]
     return PntSeq(pts)
 end
 
 function Base.show(io::IO, arc::EllipticArc{T}) where {T}
-    print(io, "EllipticArc(", arc.ellipse, ", α1=", round(arc.alpha1, digits=3), ", α2=", round(arc.alpha2, digits=3), ")")
+    print(
+        io,
+        "EllipticArc(",
+        arc.ellipse,
+        ", α1=",
+        round(arc.alpha1, digits = 3),
+        ", α2=",
+        round(arc.alpha2, digits = 3),
+        ")",
+    )
 end
 
 BBox(arc::EllipticArc) = bbox(arc)

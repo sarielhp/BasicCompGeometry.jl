@@ -48,7 +48,11 @@ function Halfplane(line::Line{2,T}, z::Point{2,S}; atol::Real = 1e-12) where {T,
     # Distance from point z to the line is |s| / ||u||
     d = abs(s) / u_len
     if d <= atol
-        throw(ArgumentError("Point z lies on the boundary line (distance = $d <= atol = $atol); cannot determine halfplane."))
+        throw(
+            ArgumentError(
+                "Point z lies on the boundary line (distance = $d <= atol = $atol); cannot determine halfplane.",
+            ),
+        )
     elseif s < 0
         # z is to the right of (p -> p+u), so line's right halfplane already contains z
         return Halfplane{T}(line)
@@ -85,7 +89,8 @@ Return the boundary `Line{2, T}` of the halfplane `h`.
 
 Return the opposite (complementary) closed halfplane by reversing the boundary line direction.
 """
-@inline complement(h::Halfplane{T}) where {T} = Halfplane{T}(Line(h.boundary.p, -h.boundary.u))
+@inline complement(h::Halfplane{T}) where {T} =
+    Halfplane{T}(Line(h.boundary.p, -h.boundary.u))
 @inline Base.:-(h::Halfplane) = complement(h)
 
 function Base.show(io::IO, h::Halfplane{T}) where {T}
@@ -107,7 +112,8 @@ a right turn or are collinear (`turn_sign(p, p + u, q) <= atol`).
     return turn_sign(p, p + h.boundary.u, q) <= atol
 end
 
-@inline is_inside(h::Halfplane, q::Point{2}; atol::Real = 0.0) = is_inside(q, h; atol = atol)
+@inline is_inside(h::Halfplane, q::Point{2}; atol::Real = 0.0) =
+    is_inside(q, h; atol = atol)
 
 @inline Base.in(q::Point{2}, h::Halfplane) = is_inside(q, h)
 
@@ -158,7 +164,7 @@ end
 Count how many halfplanes in `halfplanes` contain the query point `q`.
 """
 function depth(
-    halfplanes::Union{AbstractVector{<:Halfplane}, Tuple{Vararg{Halfplane}}},
+    halfplanes::Union{AbstractVector{<:Halfplane},Tuple{Vararg{Halfplane}}},
     q::Point{2,<:Real},
 )
     return count(h -> is_inside(q, h), halfplanes)
@@ -166,7 +172,7 @@ end
 
 @inline function depth(
     q::Point{2,<:Real},
-    halfplanes::Union{AbstractVector{<:Halfplane}, Tuple{Vararg{Halfplane}}},
+    halfplanes::Union{AbstractVector{<:Halfplane},Tuple{Vararg{Halfplane}}},
 )
     return depth(halfplanes, q)
 end
@@ -197,7 +203,8 @@ function rand_halfplane(rng::AbstractRNG = Random.default_rng())
     return Halfplane(Line(p, u))
 end
 
-rand_halfplane(n::Integer; rng::AbstractRNG = Random.default_rng()) = [rand_halfplane(rng) for _ = 1:n]
+rand_halfplane(n::Integer; rng::AbstractRNG = Random.default_rng()) =
+    [rand_halfplane(rng) for _ = 1:n]
 
 """
     random_halfplane([rng=Random.default_rng()])
@@ -212,9 +219,11 @@ Base.rand(::Type{Halfplane}) = rand_halfplane(Random.default_rng())
 Base.rand(rng::AbstractRNG, ::Type{Halfplane2F}) = rand_halfplane(rng)
 Base.rand(::Type{Halfplane2F}) = rand_halfplane(Random.default_rng())
 
-Base.rand(rng::AbstractRNG, ::Type{Halfplane}, n::Integer) = [rand_halfplane(rng) for _ = 1:n]
+Base.rand(rng::AbstractRNG, ::Type{Halfplane}, n::Integer) =
+    [rand_halfplane(rng) for _ = 1:n]
 Base.rand(::Type{Halfplane}, n::Integer) = rand(Random.default_rng(), Halfplane, n)
-Base.rand(rng::AbstractRNG, ::Type{Halfplane2F}, n::Integer) = [rand_halfplane(rng) for _ = 1:n]
+Base.rand(rng::AbstractRNG, ::Type{Halfplane2F}, n::Integer) =
+    [rand_halfplane(rng) for _ = 1:n]
 Base.rand(::Type{Halfplane2F}, n::Integer) = rand(Random.default_rng(), Halfplane2F, n)
 
 # Sutherland-Hodgman polygon clipping by a halfplane

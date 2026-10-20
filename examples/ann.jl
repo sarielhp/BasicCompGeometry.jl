@@ -37,7 +37,7 @@ function (@main)(args)
     c = length(args) >= 4 ? parse(Float64, args[4]) : 1.0
 
     @printf("Generating %d points in %d dimensions...\n", n, d)
-    data_points = [rand_point(d) for _ in 1:n]
+    data_points = [rand_point(d) for _ = 1:n]
     ps = PntSeq(data_points)
 
     @printf("Building BBT tree...\n")
@@ -46,7 +46,7 @@ function (@main)(args)
     @printf("Tree built in %.4f seconds. Depth: %d\n", t_build.time, depth(tree.root))
 
     # Generate query points in advance
-    queries = [rand_point(d) for _ in 1:num_queries]
+    queries = [rand_point(d) for _ = 1:num_queries]
 
     # Warm-up to ensure JIT compilation doesn't skew timing
     @printf("Warming up JIT...\n")
@@ -57,11 +57,11 @@ function (@main)(args)
     hybrid_nn(tree, wp, c)
 
     @printf("\nRunning %d queries (c = %.2f)...\n", num_queries, c)
-    
+
     # 1. Linear Scan
     @printf("Running Linear Scan (Exact)...\n")
     exact_results = Vector{Float64}(undef, num_queries)
-    t_exact = @elapsed for i in 1:num_queries
+    t_exact = @elapsed for i = 1:num_queries
         d_res, _, _ = exact_naive_scan(ps, queries[i])
         exact_results[i] = d_res
     end
@@ -69,7 +69,7 @@ function (@main)(args)
     # 2. approx_nn
     @printf("Running approx_nn (ANN)...\n")
     ann_results = Vector{Float64}(undef, num_queries)
-    t_ann = @elapsed for i in 1:num_queries
+    t_ann = @elapsed for i = 1:num_queries
         d_res, _, _ = approx_nn(tree, queries[i], c)
         ann_results[i] = d_res
     end
@@ -77,7 +77,7 @@ function (@main)(args)
     # 3. silly_nn
     @printf("Running silly_nn (Silly)...\n")
     silly_results = Vector{Float64}(undef, num_queries)
-    t_silly = @elapsed for i in 1:num_queries
+    t_silly = @elapsed for i = 1:num_queries
         d_res, _, _ = silly_nn(tree, queries[i])
         silly_results[i] = d_res
     end
@@ -85,7 +85,7 @@ function (@main)(args)
     # 4. hybrid_nn
     @printf("Running hybrid_nn (Hybrid)...\n")
     hybrid_results = Vector{Float64}(undef, num_queries)
-    t_hybrid = @elapsed for i in 1:num_queries
+    t_hybrid = @elapsed for i = 1:num_queries
         d_res, _, _ = hybrid_nn(tree, queries[i], c)
         hybrid_results[i] = d_res
     end
@@ -94,8 +94,8 @@ function (@main)(args)
     sum_ann_ratio = 0.0
     sum_silly_ratio = 0.0
     sum_hybrid_ratio = 0.0
-    
-    for i in 1:num_queries
+
+    for i = 1:num_queries
         ann_ratio = exact_results[i] > 0 ? ann_results[i] / exact_results[i] : 1.0
         silly_ratio = exact_results[i] > 0 ? silly_results[i] / exact_results[i] : 1.0
         hybrid_ratio = exact_results[i] > 0 ? hybrid_results[i] / exact_results[i] : 1.0
@@ -103,7 +103,7 @@ function (@main)(args)
             @assert 1 - 1e-12 <= ann_ratio <= c + 1e-12
             @assert 1 - 1e-12 <= hybrid_ratio <= c + 1e-12
         end
-        
+
         sum_ann_ratio += ann_ratio
         sum_silly_ratio += silly_ratio
         sum_hybrid_ratio += hybrid_ratio
@@ -116,9 +116,24 @@ function (@main)(args)
 
     @printf("\nPerformance Comparison (Total Time for %d queries):\n", num_queries)
     @printf("%-15s : %10.6f seconds\n", "Linear Scan", t_exact)
-    @printf("%-15s : %10.6f seconds (Speedup: %.2fx)\n", "approx_nn", t_ann, t_exact / t_ann)
-    @printf("%-15s : %10.6f seconds (Speedup: %.2fx)\n", "silly_nn", t_silly, t_exact / t_silly)
-    @printf("%-15s : %10.6f seconds (Speedup: %.2fx)\n", "hybrid_nn", t_hybrid, t_exact / t_hybrid)
+    @printf(
+        "%-15s : %10.6f seconds (Speedup: %.2fx)\n",
+        "approx_nn",
+        t_ann,
+        t_exact / t_ann
+    )
+    @printf(
+        "%-15s : %10.6f seconds (Speedup: %.2fx)\n",
+        "silly_nn",
+        t_silly,
+        t_exact / t_silly
+    )
+    @printf(
+        "%-15s : %10.6f seconds (Speedup: %.2fx)\n",
+        "hybrid_nn",
+        t_hybrid,
+        t_exact / t_hybrid
+    )
 
     return 0
 end

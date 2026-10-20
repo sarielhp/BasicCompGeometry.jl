@@ -157,7 +157,7 @@ Uses numerical sampling.
 """
 function distance(x::Point{2,T}, h::Parabola{T}) where {T}
     best = Inf
-    for t in range(-5.0, 5.0, length=500)
+    for t in range(-5.0, 5.0, length = 500)
         p = at(h, t)
         d = dist(x, p)
         if d < best

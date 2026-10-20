@@ -60,9 +60,9 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
     end
 
     d = BBT.depth(tree.root)
-    open_canvas(filename, cw, ch; title="Bounding Box Tree Visualization") do canvas
+    open_canvas(filename, cw, ch; title = "Bounding Box Tree Visualization") do canvas
         cairo_draw_setup(canvas, bb_root, cw, ch, 40)
-        
+
         # Page 1: Overview
         bbox_draw(canvas, bb_root, Clr.parse(Clr.Colorant, "lightblue"))
         node_draw(canvas, tree.root, 0, 0:d)
