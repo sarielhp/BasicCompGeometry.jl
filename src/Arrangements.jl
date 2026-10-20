@@ -200,6 +200,203 @@ mutable struct _ActiveTrap{T}
     top::Union{Nothing,Line{2,T}}
 end
 
+# Intersection vertices inside the view (clamped to it), deduplicated.
+function _vd_in_view_vertices(
+    lines::Vector{Line{2,R}},
+    x_min,
+    x_max,
+    y_min,
+    y_max,
+    tol,
+) where {R}
+    in_view_verts = Point{2,R}[]
+    for v in vertices(lines; tol = tol)
+        if (x_min - tol <= v[1] <= x_max + tol) && (y_min - tol <= v[2] <= y_max + tol)
+            push!(
+                in_view_verts,
+                Point{2,R}(clamp(v[1], x_min, x_max), clamp(v[2], y_min, y_max)),
+            )
+        end
+    end
+    return _unique_points(in_view_verts; tol = tol)
+end
+
+# Push x-coordinates where `l` crosses the top/bottom view sides, or where it is vertical.
+function _vd_push_line_events!(x_events, l, x_min, x_max, y_min, y_max)
+    if abs(l.u[2]) > 1e-14
+        for y_b in (y_min, y_max)
+            t = (y_b - l.p[2]) / l.u[2]
+            x_b = l.p[1] + t * l.u[1]
+            if x_min < x_b < x_max
+                push!(x_events, x_b)
+            end
+        end
+    end
+    # Vertical lines (u_x == 0)
+    if abs(l.u[1]) <= 1e-14
+        x_v = l.p[1]
+        if x_min < x_v < x_max
+            push!(x_events, x_v)
+        end
+    end
+    return nothing
+end
+
+# Sorted, deduplicated x-coordinates of all slab boundaries; first is `x_min`, last `x_max`.
+function _vd_event_xs(
+    lines::Vector{Line{2,R}},
+    in_view_verts,
+    x_min,
+    x_max,
+    y_min,
+    y_max,
+    tol,
+) where {R}
+    x_events = R[x_min, x_max]
+    for v in in_view_verts
+        push!(x_events, v[1])
+    end
+
+    # Also add x-coordinates where lines cross y = y_min or y = y_max
+    for l in lines
+        _vd_push_line_events!(x_events, l, x_min, x_max, y_min, y_max)
+    end
+    return _vd_dedup_xs(x_events, x_min, x_max, tol)
+end
+
+# Sort and deduplicate slab boundaries, forcing the extremes to `x_min` and `x_max`.
+function _vd_dedup_xs(x_events::Vector{R}, x_min, x_max, tol) where {R}
+    sort!(x_events)
+    unique_x = R[]
+    for x in x_events
+        if isempty(unique_x) || x - unique_x[end] > tol
+            push!(unique_x, x)
+        end
+    end
+    if isempty(unique_x) || unique_x[1] > x_min
+        pushfirst!(unique_x, x_min)
+    else
+        unique_x[1] = x_min
+    end
+    if unique_x[end] < x_max
+        push!(unique_x, x_max)
+    else
+        unique_x[end] = x_max
+    end
+    return unique_x
+end
+
+# Vertical walls at each x-event: through every vertex, and along every vertical line.
+function _vd_walls(
+    lines::Vector{Line{2,R}},
+    in_view_verts,
+    unique_x,
+    y_min,
+    y_max,
+    tol,
+) where {R}
+    walls_at_event = [_VertWall{R}[] for _ = 1:length(unique_x)]
+
+    for v in in_view_verts
+        k_idx = findfirst(x -> abs(x - v[1]) <= tol, unique_x)
+        k_idx === nothing && continue
+        x_val = unique_x[k_idx]
+
+        non_vert = filter(l -> abs(l.u[1]) > 1e-14, lines)
+        y_vals = [_line_y_at_x(l, x_val) for l in non_vert]
+
+        above_y = filter(y -> y > v[2] + tol, y_vals)
+        below_y = filter(y -> y < v[2] - tol, y_vals)
+
+        wall_top = isempty(above_y) ? y_max : min(minimum(above_y), y_max)
+        wall_bot = isempty(below_y) ? y_min : max(maximum(below_y), y_min)
+
+        push!(walls_at_event[k_idx], _VertWall{R}(wall_bot, wall_top))
+    end
+
+    # Vertical lines (u_x == 0) have vertical wall spanning [y_min, y_max]
+    for l in lines
+        abs(l.u[1]) <= 1e-14 || continue
+        k_idx = findfirst(x -> abs(x - l.p[1]) <= tol, unique_x)
+        k_idx === nothing && continue
+        push!(walls_at_event[k_idx], _VertWall{R}(y_min, y_max))
+    end
+    return walls_at_event
+end
+
+# y of `line` at `x` clamped to the view; `default` stands for a missing (view) boundary.
+_vd_clamped_y(line, x, default, y_min, y_max) =
+    line === nothing ? default : clamp(_line_y_at_x(line, x), y_min, y_max)
+
+function _vd_make_trap(at::_ActiveTrap, ::Type{R}, y_min, y_max) where {R}
+    c1_y = _vd_clamped_y(at.bottom, at.x_left, y_min, y_min, y_max)
+    c2_y = _vd_clamped_y(at.bottom, at.x_right, y_min, y_min, y_max)
+    c3_y = _vd_clamped_y(at.top, at.x_right, y_max, y_min, y_max)
+    c4_y = _vd_clamped_y(at.top, at.x_left, y_max, y_min, y_max)
+
+    c1 = Point{2,R}(at.x_left, c1_y)
+    c2 = Point{2,R}(at.x_right, c2_y)
+    c3 = Point{2,R}(at.x_right, c3_y)
+    c4 = Point{2,R}(at.x_left, c4_y)
+    return VerticalTrapezoid{R}(
+        at.x_left,
+        at.x_right,
+        at.bottom,
+        at.top,
+        SVector{4,Point{2,R}}(c1, c2, c3, c4),
+    )
+end
+
+# Non-coincident lines crossing the interior of slab [x_l, x_r], sorted bottom to top.
+function _vd_slab_lines(lines::Vector{Line{2,R}}, x_l, x_r, y_min, y_max, tol) where {R}
+    x_mid = (x_l + x_r) / 2.0
+    slab_lines = Line{2,R}[]
+    for l in lines
+        abs(l.u[1]) <= 1e-14 && continue
+        y_l = _line_y_at_x(l, x_l)
+        y_r = _line_y_at_x(l, x_r)
+        if max(y_l, y_r) > y_min + tol && min(y_l, y_r) < y_max - tol
+            push!(slab_lines, l)
+        end
+    end
+
+    sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid))
+
+    # Deduplicate coincident lines in slab
+    unique_slab = Line{2,R}[]
+    for l in slab_lines
+        if isempty(unique_slab) ||
+           abs(_line_y_at_x(l, x_mid) - _line_y_at_x(unique_slab[end], x_mid)) > tol
+            push!(unique_slab, l)
+        end
+    end
+    return unique_slab
+end
+
+# Can active trapezoid `at` (bounded by `bot_b`, `top_b`) continue across the wall at `x_l`?
+function _vd_can_extend(at, bot_b, top_b, x_l, walls, y_min, y_max, tol)
+    (at.bottom == bot_b && at.top == top_b) || return false
+    y_bot_xl = _vd_clamped_y(bot_b, x_l, y_min, y_min, y_max)
+    y_top_xl = _vd_clamped_y(top_b, x_l, y_max, y_min, y_max)
+    (y_top_xl - y_bot_xl) <= tol && return false
+    for w in walls
+        if max(w.y_bot, y_bot_xl) < min(w.y_top, y_top_xl) - tol
+            return false
+        end
+    end
+    return true
+end
+
+function _vd_find_active(active_traps, k, bot_b, top_b, x_l, walls, y_min, y_max, tol)
+    k > 1 || return nothing
+    for (a_idx, at) in enumerate(active_traps)
+        if _vd_can_extend(at, bot_b, top_b, x_l, walls, y_min, y_max, tol)
+            return a_idx
+        end
+    end
+    return nothing
+end
+
 """
     vertical_decomposition(bundle, view; tol::Real = 1e-11)
     vertical_decomposition(bundle; factor::Real = 1.1, tol::Real = 1e-11)
@@ -228,195 +425,39 @@ function vertical_decomposition(
     lines_typed =
         [Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
 
-    # Step 1: Find all pairwise line intersection vertices inside the view
-    all_verts = vertices(lines_typed; tol = tol)
-    in_view_verts = Point{2,R_type}[]
-    for v in all_verts
-        if (x_min - tol <= v[1] <= x_max + tol) && (y_min - tol <= v[2] <= y_max + tol)
-            clamped_v =
-                Point{2,R_type}(clamp(v[1], x_min, x_max), clamp(v[2], y_min, y_max))
-            push!(in_view_verts, clamped_v)
-        end
-    end
-    in_view_verts = _unique_points(in_view_verts; tol = tol)
+    in_view_verts = _vd_in_view_vertices(lines_typed, x_min, x_max, y_min, y_max, tol)
+    unique_x = _vd_event_xs(lines_typed, in_view_verts, x_min, x_max, y_min, y_max, tol)
+    walls_at_event = _vd_walls(lines_typed, in_view_verts, unique_x, y_min, y_max, tol)
 
-    # Step 2: Collect all event x-coordinates
-    x_events = R_type[x_min, x_max]
-    for v in in_view_verts
-        push!(x_events, v[1])
-    end
-
-    # Also add x-coordinates where lines cross y = y_min or y = y_max
-    for l in lines_typed
-        if abs(l.u[2]) > 1e-14
-            for y_b in (y_min, y_max)
-                t = (y_b - l.p[2]) / l.u[2]
-                x_b = l.p[1] + t * l.u[1]
-                if x_min < x_b < x_max
-                    push!(x_events, x_b)
-                end
-            end
-        end
-        # Vertical lines (u_x == 0)
-        if abs(l.u[1]) <= 1e-14
-            x_v = l.p[1]
-            if x_min < x_v < x_max
-                push!(x_events, x_v)
-            end
-        end
-    end
-
-    # Sort and deduplicate x_events
-    sort!(x_events)
-    unique_x = R_type[]
-    for x in x_events
-        if isempty(unique_x) || x - unique_x[end] > tol
-            push!(unique_x, x)
-        end
-    end
-    if isempty(unique_x) || unique_x[1] > x_min
-        pushfirst!(unique_x, x_min)
-    else
-        unique_x[1] = x_min
-    end
-    if unique_x[end] < x_max
-        push!(unique_x, x_max)
-    else
-        unique_x[end] = x_max
-    end
-
-    m = length(unique_x)
-
-    # Step 3: Identify vertical walls at each internal x-event
-    walls_at_event = [_VertWall{R_type}[] for _ = 1:m]
-
-    for v in in_view_verts
-        k_idx = findfirst(x -> abs(x - v[1]) <= tol, unique_x)
-        k_idx === nothing && continue
-        x_val = unique_x[k_idx]
-
-        non_vert = filter(l -> abs(l.u[1]) > 1e-14, lines_typed)
-        y_vals = [_line_y_at_x(l, x_val) for l in non_vert]
-
-        above_y = filter(y -> y > v[2] + tol, y_vals)
-        below_y = filter(y -> y < v[2] - tol, y_vals)
-
-        wall_top = isempty(above_y) ? y_max : min(minimum(above_y), y_max)
-        wall_bot = isempty(below_y) ? y_min : max(maximum(below_y), y_min)
-
-        push!(walls_at_event[k_idx], _VertWall{R_type}(wall_bot, wall_top))
-    end
-
-    # Vertical lines (u_x == 0) have vertical wall spanning [y_min, y_max]
-    for l in lines_typed
-        if abs(l.u[1]) <= 1e-14
-            k_idx = findfirst(x -> abs(x - l.p[1]) <= tol, unique_x)
-            if k_idx !== nothing
-                push!(walls_at_event[k_idx], _VertWall{R_type}(y_min, y_max))
-            end
-        end
-    end
-
-    # Step 4: Sweep slabs and build/merge trapezoids
+    # Sweep slabs and build/merge trapezoids
     completed = VerticalTrapezoid{R_type}[]
     active_traps = _ActiveTrap{R_type}[]
 
-    function make_trap(at::_ActiveTrap)
-        c1_y =
-            at.bottom === nothing ? y_min :
-            clamp(_line_y_at_x(at.bottom, at.x_left), y_min, y_max)
-        c2_y =
-            at.bottom === nothing ? y_min :
-            clamp(_line_y_at_x(at.bottom, at.x_right), y_min, y_max)
-        c3_y =
-            at.top === nothing ? y_max :
-            clamp(_line_y_at_x(at.top, at.x_right), y_min, y_max)
-        c4_y =
-            at.top === nothing ? y_max :
-            clamp(_line_y_at_x(at.top, at.x_left), y_min, y_max)
-
-        c1 = Point{2,R_type}(at.x_left, c1_y)
-        c2 = Point{2,R_type}(at.x_right, c2_y)
-        c3 = Point{2,R_type}(at.x_right, c3_y)
-        c4 = Point{2,R_type}(at.x_left, c4_y)
-        return VerticalTrapezoid{R_type}(
-            at.x_left,
-            at.x_right,
-            at.bottom,
-            at.top,
-            SVector{4,Point{2,R_type}}(c1, c2, c3, c4),
-        )
-    end
-
-    for k = 1:(m-1)
+    for k = 1:(length(unique_x)-1)
         x_l = unique_x[k]
         x_r = unique_x[k+1]
-        x_mid = (x_l + x_r) / 2.0
-
-        # Lines crossing slab interior
-        slab_lines = Line{2,R_type}[]
-        for l in lines_typed
-            abs(l.u[1]) <= 1e-14 && continue
-            y_l = _line_y_at_x(l, x_l)
-            y_r = _line_y_at_x(l, x_r)
-            if max(y_l, y_r) > y_min + tol && min(y_l, y_r) < y_max - tol
-                push!(slab_lines, l)
-            end
-        end
-
-        sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid))
-
-        # Deduplicate coincident lines in slab
-        unique_slab = Line{2,R_type}[]
-        for l in slab_lines
-            if isempty(unique_slab) ||
-               abs(_line_y_at_x(l, x_mid) - _line_y_at_x(unique_slab[end], x_mid)) > tol
-                push!(unique_slab, l)
-            end
-        end
-        slab_lines = unique_slab
+        slab_lines = _vd_slab_lines(lines_typed, x_l, x_r, y_min, y_max, tol)
 
         bounds = Vector{Union{Nothing,Line{2,R_type}}}()
         push!(bounds, nothing) # bottom of view
         append!(bounds, slab_lines)
         push!(bounds, nothing) # top of view
 
-        num_pairs = length(bounds) - 1
         new_active = _ActiveTrap[]
-
-        for p_idx = 1:num_pairs
+        for p_idx = 1:(length(bounds)-1)
             bot_b = bounds[p_idx]
             top_b = bounds[p_idx+1]
-
-            matched_idx = nothing
-            if k > 1
-                for (a_idx, at) in enumerate(active_traps)
-                    if at.bottom == bot_b && at.top == top_b
-                        y_bot_xl =
-                            bot_b === nothing ? y_min :
-                            clamp(_line_y_at_x(bot_b, x_l), y_min, y_max)
-                        y_top_xl =
-                            top_b === nothing ? y_max :
-                            clamp(_line_y_at_x(top_b, x_l), y_min, y_max)
-
-                        pinched = (y_top_xl - y_bot_xl) <= tol
-
-                        cut_by_wall = false
-                        for w in walls_at_event[k]
-                            if max(w.y_bot, y_bot_xl) < min(w.y_top, y_top_xl) - tol
-                                cut_by_wall = true
-                                break
-                            end
-                        end
-
-                        if !pinched && !cut_by_wall
-                            matched_idx = a_idx
-                            break
-                        end
-                    end
-                end
-            end
-
+            matched_idx = _vd_find_active(
+                active_traps,
+                k,
+                bot_b,
+                top_b,
+                x_l,
+                walls_at_event[k],
+                y_min,
+                y_max,
+                tol,
+            )
             if matched_idx !== nothing
                 at = active_traps[matched_idx]
                 at.x_right = x_r
@@ -428,14 +469,13 @@ function vertical_decomposition(
         end
 
         for at in active_traps
-            push!(completed, make_trap(at))
+            push!(completed, _vd_make_trap(at, R_type, y_min, y_max))
         end
-
         active_traps = new_active
     end
 
     for at in active_traps
-        push!(completed, make_trap(at))
+        push!(completed, _vd_make_trap(at, R_type, y_min, y_max))
     end
 
     return ArrVertDecomp{R_type}(lines_typed, in_view_verts, view, completed)
@@ -469,6 +509,29 @@ ArrVertDecomp(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-11) =
 ###############################################
 ### Face reconstruction from Trapezoidal Map
 
+# Fill `right_neighbor`/`left_neighbor` for trapezoids whose vertical sides touch and
+# overlap, skipping x-coordinates that are input vertical lines.
+function _tc_link_neighbors!(right_neighbor, left_neighbor, traps, vert_line_x, tol)
+    n = length(traps)
+    for i = 1:n, j = 1:n
+        i == j && continue
+        ti, tj = traps[i], traps[j]
+        # ti must be to the left of tj
+        abs(ti.x_right - tj.x_left) <= tol || continue
+        # Make sure this x is not an input vertical line
+        any(xv -> abs(xv - ti.x_right) <= tol, vert_line_x) && continue
+        # Check vertical boundary overlap between ti's right edge [c2.y, c3.y]
+        # and tj's left edge [c1.y, c4.y]
+        y_bot = max(ti.corners[2][2], tj.corners[1][2])
+        y_top = min(ti.corners[3][2], tj.corners[4][2])
+        if y_top - y_bot > tol
+            right_neighbor[i] = j
+            left_neighbor[j] = i
+        end
+    end
+    return nothing
+end
+
 """
     trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
 
@@ -486,32 +549,9 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
     left_neighbor = fill(0, n)
 
     # Detect vertical lines in original input lines if any (to avoid connecting across them)
-    vert_line_x = Float64[]
-    for l in decomp.lines
-        if abs(l.u[1]) <= 1e-12
-            push!(vert_line_x, l.p[1])
-        end
-    end
+    vert_line_x = Float64[l.p[1] for l in decomp.lines if abs(l.u[1]) <= 1e-12]
 
-    for i = 1:n, j = 1:n
-        i == j && continue
-        ti, tj = traps[i], traps[j]
-        # ti must be to the left of tj
-        if abs(ti.x_right - tj.x_left) <= tol
-            # Make sure this x is not an input vertical line
-            if any(xv -> abs(xv - ti.x_right) <= tol, vert_line_x)
-                continue
-            end
-            # Check vertical boundary overlap between ti's right edge [c2.y, c3.y]
-            # and tj's left edge [c1.y, c4.y]
-            y_bot = max(ti.corners[2][2], tj.corners[1][2])
-            y_top = min(ti.corners[3][2], tj.corners[4][2])
-            if y_top - y_bot > tol
-                right_neighbor[i] = j
-                left_neighbor[j] = i
-            end
-        end
-    end
+    _tc_link_neighbors!(right_neighbor, left_neighbor, traps, vert_line_x, tol)
 
     chains = Vector{Vector{Int}}()
     visited = fill(false, n)
