@@ -78,44 +78,37 @@ function find_initial_tetrahedron(pnts::Vector{Point3F})
 
     # 1. Find two distinct points
     i1 = 1
-    i2 = 0
-    for i = 2:n
-        if dist(pnts[i1], pnts[i]) > 1e-9
-            i2 = i
-            break
-        end
-    end
+    i2 = _find_first(i -> dist(pnts[i1], pnts[i]) > 1e-9, 2:n)
     i2 == 0 && return nothing
 
     # 2. Find a third point not collinear with the first two
-    i3 = 0
     line_dir = pnts[i2] - pnts[i1]
-    for i = 1:n
-        (i == i1 || i == i2) && continue
+    i3 = _find_first(1:n) do i
+        (i == i1 || i == i2) && return false
         # Distance from point to line
         v = pnts[i] - pnts[i1]
-        area = norm(cross(line_dir, v))
-        if area > 1e-9
-            i3 = i
-            break
-        end
+        return norm(cross(line_dir, v)) > 1e-9
     end
     i3 == 0 && return nothing
 
     # 3. Find a fourth point not coplanar with the first three
-    i4 = 0
     p1, p2, p3 = pnts[i1], pnts[i2], pnts[i3]
     normal = cross(p2 - p1, p3 - p1)
-    for i = 1:n
-        (i == i1 || i == i2 || i == i3) && continue
-        if abs(dot(normal, pnts[i] - p1)) > 1e-9
-            i4 = i
-            break
-        end
+    i4 = _find_first(1:n) do i
+        (i == i1 || i == i2 || i == i3) && return false
+        return abs(dot(normal, pnts[i] - p1)) > 1e-9
     end
     i4 == 0 && return nothing
 
     return [i1, i2, i3, i4]
+end
+
+# First index in `idxs` satisfying `pred`, or 0 if there is none.
+function _find_first(pred, idxs)
+    for i in idxs
+        pred(i) && return i
+    end
+    return 0
 end
 
 """
@@ -165,23 +158,7 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     orient_tetrahedron!(tetra_idx, pnts_in)
 
     # 2. Setup internal structures
-    faces = Vector{Face}()
-    # Maps oriented edge (u, v) to face index
-    edge_to_face = Dict{Tuple{Int,Int},Int}()
-
-    # Create 4 faces of the tetrahedron
-    i1, i2, i3, i4 = tetra_idx
-    push!(faces, Face(i1, i2, i3, pnts_in))
-    push!(faces, Face(i1, i3, i4, pnts_in))
-    push!(faces, Face(i1, i4, i2, pnts_in))
-    push!(faces, Face(i2, i4, i3, pnts_in))
-
-    for (i, f) in enumerate(faces)
-        v = f.v
-        edge_to_face[(v[1], v[2])] = i
-        edge_to_face[(v[2], v[3])] = i
-        edge_to_face[(v[3], v[1])] = i
-    end
+    faces, edge_to_face = _tetrahedron_faces(tetra_idx, pnts_in)
 
     # Remaining points
     claimed = fill(false, n_in)
@@ -193,7 +170,7 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     shuffle!(unclaimed)
 
     # Initial conflict graph
-    for (f_idx, f) in enumerate(faces)
+    for f in faces
         for p_idx in unclaimed
             if is_visible(f, pnts_in[p_idx])
                 push!(f.visible_points, p_idx)
@@ -203,102 +180,126 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
 
     # 3. Incremental add
     for p_idx in unclaimed
-        # Find faces visible to this point
-        visible_faces_indices = Int[]
-        for (f_idx, f) in enumerate(faces)
-            if f.active && p_idx in f.visible_points
-                push!(visible_faces_indices, f_idx)
-            end
-        end
+        visible = [
+            f_idx for
+            (f_idx, f) in enumerate(faces) if f.active && p_idx in f.visible_points
+        ]
+        isempty(visible) && continue
 
-        if isempty(visible_faces_indices)
-            continue
-        end
-
-        # Find the horizon edges
-        edges_count = Dict{Tuple{Int,Int},Int}()
-        for f_idx in visible_faces_indices
-            f = faces[f_idx]
-            v = f.v
-            e_list = [(v[1], v[2]), (v[2], v[3]), (v[3], v[1])]
-            for e in e_list
-                e_canon = e[1] < e[2] ? (e[1], e[2]) : (e[2], e[1])
-                edges_count[e_canon] = get(edges_count, e_canon, 0) + 1
-            end
-        end
-
-        # New faces to be added
-        new_faces_info = [] # (nf_idx, u, v)
-
-        for f_idx in visible_faces_indices
-            f = faces[f_idx]
-            f.active = false # Mark as inactive
-            v = f.v
-            e_list = [(v[1], v[2]), (v[2], v[3]), (v[3], v[1])]
-            for e in e_list
-                e_canon = e[1] < e[2] ? (e[1], e[2]) : (e[2], e[1])
-                if edges_count[e_canon] == 1
-                    # Horizon edge (u, v_e) from a visible face. 
-                    # The non-visible face sharing this edge has it as (v_e, u).
-                    u, v_e = e
-                    f_nonvis_idx = edge_to_face[(v_e, u)]
-                    f_nonvis = faces[f_nonvis_idx]
-
-                    # Create new face (u, v_e, p_idx)
-                    new_f = Face(u, v_e, p_idx, pnts_in)
-                    if new_f.active
-                        push!(faces, new_f)
-                        nf_idx = length(faces)
-
-                        # Update conflict list: candidates are points from 
-                        # the two faces sharing the horizon edge.
-                        candidates = [f.visible_points; f_nonvis.visible_points]
-                        unique!(candidates)
-                        for pt in candidates
-                            if pt != p_idx && is_visible(new_f, pnts_in[pt])
-                                push!(new_f.visible_points, pt)
-                            end
-                        end
-                        push!(new_faces_info, (nf_idx, u, v_e))
-                    end
-                end
-            end
-        end
-
-        # Update edge_to_face map
-        # 1. Remove entries for deleted faces
-        for f_idx in visible_faces_indices
-            v = faces[f_idx].v
-            delete!(edge_to_face, (v[1], v[2]))
-            delete!(edge_to_face, (v[2], v[3]))
-            delete!(edge_to_face, (v[3], v[1]))
-        end
-        # 2. Add entries for new faces
-        for (nf_idx, u, v) in new_faces_info
-            edge_to_face[(u, v)] = nf_idx
-            edge_to_face[(v, p_idx)] = nf_idx
-            edge_to_face[(p_idx, u)] = nf_idx
-        end
+        edges_count = _edge_counts(faces, visible)
+        new_faces_info = _replace_visible_faces!(
+            faces,
+            edge_to_face,
+            visible,
+            edges_count,
+            p_idx,
+            pnts_in,
+        )
+        _update_edge_to_face!(edge_to_face, faces, visible, new_faces_info, p_idx)
     end
 
-    # 4. Finalize result
+    return _finalize_hull(faces)
+end
+
+# The three oriented edges of a triangle `v`, in cyclic order.
+@inline _face_edges(v) = ((v[1], v[2]), (v[2], v[3]), (v[3], v[1]))
+
+@inline _canonical_edge(e) = e[1] < e[2] ? (e[1], e[2]) : (e[2], e[1])
+
+# The four faces of the oriented initial tetrahedron and the map from each
+# oriented edge (u, v) to the index of the face containing it.
+function _tetrahedron_faces(tetra_idx, pnts)
+    faces = Vector{Face}()
+    edge_to_face = Dict{Tuple{Int,Int},Int}()
+
+    i1, i2, i3, i4 = tetra_idx
+    push!(faces, Face(i1, i2, i3, pnts))
+    push!(faces, Face(i1, i3, i4, pnts))
+    push!(faces, Face(i1, i4, i2, pnts))
+    push!(faces, Face(i2, i4, i3, pnts))
+
+    for (i, f) in enumerate(faces)
+        for e in _face_edges(f.v)
+            edge_to_face[e] = i
+        end
+    end
+    return faces, edge_to_face
+end
+
+# Number of visible faces incident to each (unoriented) edge. Edges with count
+# one form the horizon.
+function _edge_counts(faces, visible)
+    edges_count = Dict{Tuple{Int,Int},Int}()
+    for f_idx in visible
+        for e in _face_edges(faces[f_idx].v)
+            e_canon = _canonical_edge(e)
+            edges_count[e_canon] = get(edges_count, e_canon, 0) + 1
+        end
+    end
+    return edges_count
+end
+
+# Deactivates the visible faces and creates a new face from each horizon edge to
+# the point `p_idx`. Returns the vector of `(face index, u, v)` of the new faces.
+function _replace_visible_faces!(faces, edge_to_face, visible, edges_count, p_idx, pnts)
+    new_faces_info = Tuple{Int,Int,Int}[]
+    for f_idx in visible
+        f = faces[f_idx]
+        f.active = false
+        for e in _face_edges(f.v)
+            edges_count[_canonical_edge(e)] == 1 || continue
+            # Horizon edge (u, v_e) from a visible face. The non-visible face
+            # sharing this edge has it as (v_e, u).
+            u, v_e = e
+            f_nonvis = faces[edge_to_face[(v_e, u)]]
+
+            new_f = Face(u, v_e, p_idx, pnts)
+            new_f.active || continue
+            push!(faces, new_f)
+
+            # Conflict list candidates: points of the two faces sharing the
+            # horizon edge.
+            candidates = [f.visible_points; f_nonvis.visible_points]
+            unique!(candidates)
+            for pt in candidates
+                if pt != p_idx && is_visible(new_f, pnts[pt])
+                    push!(new_f.visible_points, pt)
+                end
+            end
+            push!(new_faces_info, (length(faces), u, v_e))
+        end
+    end
+    return new_faces_info
+end
+
+# Removes the edges of the deleted faces and registers the edges of the new ones.
+function _update_edge_to_face!(edge_to_face, faces, visible, new_faces_info, p_idx)
+    for f_idx in visible
+        for e in _face_edges(faces[f_idx].v)
+            delete!(edge_to_face, e)
+        end
+    end
+    for (nf_idx, u, v) in new_faces_info
+        edge_to_face[(u, v)] = nf_idx
+        edge_to_face[(v, p_idx)] = nf_idx
+        edge_to_face[(p_idx, u)] = nf_idx
+    end
+    return nothing
+end
+
+# Collects the active faces and renumbers their vertices to 1:m.
+function _finalize_hull(faces)
     final_faces = Vector{Vector{Int}}()
     used_verts = Set{Int}()
     for f in faces
-        if f.active
-            push!(final_faces, f.v)
-            for v in f.v
-                push!(used_verts, v)
-            end
-        end
+        f.active || continue
+        push!(final_faces, f.v)
+        union!(used_verts, f.v)
     end
 
-    # Mapping from original indices to 1:m indices
     vert_list = sort(collect(used_verts))
     idx_map = Dict(orig => i for (i, orig) in enumerate(vert_list))
-
     mapped_faces = [[idx_map[v] for v in f] for f in final_faces]
-
     return vert_list, mapped_faces
 end
 
@@ -330,48 +331,62 @@ function verify_convex_hull_3d(
 
     # 2. Convexity Check
     for (i, f) in enumerate(faces)
-        p1, p2, p3 = hull_pnts[f[1]], hull_pnts[f[2]], hull_pnts[f[3]]
-        # Normal pointing outward (CCW)
-        n = cross(p2 - p1, p3 - p1)
-        mag = norm(n)
-        if mag < 1e-12
-            return false, "Face $i is degenerate"
-        end
-        n /= mag
-        offset = dot(n, p1)
-
-        for (j, p) in enumerate(pnts)
-            # Use a slightly relaxed epsilon for float precision
-            if dot(n, p) > offset + 1e-7
-                return false,
-                "Convexity violated: Point $j is outside face $i by $(dot(n, p) - offset)"
-            end
-        end
+        msg = _check_face_convex(pnts, hull_pnts, f, i)
+        msg === nothing || return false, msg
     end
 
     # 3. Topological Check (Manifold & Orientation)
-    # Map from oriented edge (u, v) to the face index that contains it
     edge_map = Dict{Tuple{Int,Int},Int}()
+    msg = _check_edges_unique!(edge_map, faces)
+    msg === nothing || return false, msg
+    msg = _check_edges_paired(edge_map)
+    msg === nothing || return false, msg
+
+    return true, "Hull is valid"
+end
+
+# Error message if face `f` (number `i`) is degenerate or some point lies
+# outside its plane; `nothing` otherwise.
+function _check_face_convex(pnts, hull_pnts, f, i)
+    p1, p2, p3 = hull_pnts[f[1]], hull_pnts[f[2]], hull_pnts[f[3]]
+    # Normal pointing outward (CCW)
+    n = cross(p2 - p1, p3 - p1)
+    mag = norm(n)
+    mag < 1e-12 && return "Face $i is degenerate"
+    n /= mag
+    offset = dot(n, p1)
+
+    for (j, p) in enumerate(pnts)
+        # Use a slightly relaxed epsilon for float precision
+        if dot(n, p) > offset + 1e-7
+            return "Convexity violated: Point $j is outside face $i by $(dot(n, p) - offset)"
+        end
+    end
+    return nothing
+end
+
+# Fills `edge_map` (oriented edge => face index); returns an error message if
+# an oriented edge occurs twice, `nothing` otherwise.
+function _check_edges_unique!(edge_map, faces)
     for (i, f) in enumerate(faces)
-        edges = [(f[1], f[2]), (f[2], f[3]), (f[3], f[1])]
-        for e in edges
+        for e in ((f[1], f[2]), (f[2], f[3]), (f[3], f[1]))
             if haskey(edge_map, e)
-                return false,
-                "Edge $e is duplicated (shared by faces $(edge_map[e]) and $i with same orientation)"
+                return "Edge $e is duplicated (shared by faces $(edge_map[e]) and $i with same orientation)"
             end
             edge_map[e] = i
         end
     end
+    return nothing
+end
 
+# Error message for the first edge of `edge_map` lacking its reverse edge.
+function _check_edges_paired(edge_map)
     for (e, f_idx) in edge_map
-        rev_e = (e[2], e[1])
-        if !haskey(edge_map, rev_e)
-            return false,
-            "Edge $e (face $f_idx) has no matching reverse edge (hole in hull or inconsistent orientation)"
+        if !haskey(edge_map, (e[2], e[1]))
+            return "Edge $e (face $f_idx) has no matching reverse edge (hole in hull or inconsistent orientation)"
         end
     end
-
-    return true, "Hull is valid"
+    return nothing
 end
 
 end # module ConvexHull3D
