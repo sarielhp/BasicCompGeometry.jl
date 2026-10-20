@@ -279,6 +279,66 @@ function _ensure_surface!(c::Canvas)
     return
 end
 
+# Assemble a `Canvas` around a freshly created surface (page 1, no descriptions).
+function _make_canvas(
+    path::String,
+    w::Float64,
+    h::Float64,
+    fmt::Symbol,
+    fps::Int,
+    surf::Cairo.CairoSurfaceBase;
+    tempdir::String = "",
+    htmldir::String = "",
+    index_html_path::String = "",
+    title::String = "",
+)
+    cr = Cairo.CairoContext(surf)
+    return Canvas(
+        path,
+        w,
+        h,
+        fmt,
+        1,
+        fps,
+        tempdir,
+        htmldir,
+        index_html_path,
+        title,
+        Dict{Int,String}(),
+        false,
+        surf,
+        cr,
+    )
+end
+
+# Resolve the output directory, index file and title of an HTML canvas, then
+# clear stale slides from the directory.
+function _prepare_html_dir(path::String, title::Union{String,Nothing})
+    title_str = isnothing(title) ? "" : title
+    if basename(lowercase(path)) in ("index.html", "index.htm")
+        htmldir = dirname(abspath(path))
+        index_html_path = abspath(path)
+        if isempty(title_str)
+            title_str = basename(htmldir)
+        end
+    else
+        base = splitext(path)[1]
+        htmldir = abspath(base)
+        index_html_path = joinpath(htmldir, "index.html")
+        if isempty(title_str)
+            title_str = basename(base)
+        end
+    end
+
+    mkpath(htmldir)
+    for f in readdir(htmldir)
+        if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
+            rm(joinpath(htmldir, f), force = true)
+        end
+    end
+    return htmldir, index_html_path, title_str
+end
+
 function BasicCompGeometry.Canvas(
     path::String,
     cw::Real,
@@ -289,127 +349,34 @@ function BasicCompGeometry.Canvas(
     ext = lowercase(splitext(path)[2])
     w = Float64(cw)
     h = Float64(ch)
+    iw = Int(round(w))
+    ih = Int(round(h))
 
     if ext == ".pdf"
-        surf = Cairo.CairoPDFSurface(path, w, h)
-        cr = Cairo.CairoContext(surf)
-        return Canvas(
-            path,
-            w,
-            h,
-            :pdf,
-            1,
-            fps,
-            "",
-            "",
-            "",
-            "",
-            Dict{Int,String}(),
-            false,
-            surf,
-            cr,
-        )
+        return _make_canvas(path, w, h, :pdf, fps, Cairo.CairoPDFSurface(path, w, h))
     elseif ext == ".svg"
-        fmt_path = _svg_page_filename(path, 1)
-        surf = Cairo.CairoSVGSurface(fmt_path, w, h)
-        cr = Cairo.CairoContext(surf)
-        return Canvas(
-            path,
-            w,
-            h,
-            :svg,
-            1,
-            fps,
-            "",
-            "",
-            "",
-            "",
-            Dict{Int,String}(),
-            false,
-            surf,
-            cr,
-        )
+        surf = Cairo.CairoSVGSurface(_svg_page_filename(path, 1), w, h)
+        return _make_canvas(path, w, h, :svg, fps, surf)
     elseif ext == ".png"
-        surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
-        cr = Cairo.CairoContext(surf)
-        return Canvas(
-            path,
-            w,
-            h,
-            :png,
-            1,
-            fps,
-            "",
-            "",
-            "",
-            "",
-            Dict{Int,String}(),
-            false,
-            surf,
-            cr,
-        )
+        surf = Cairo.CairoImageSurface(iw, ih, Cairo.FORMAT_ARGB32)
+        return _make_canvas(path, w, h, :png, fps, surf)
     elseif ext == ".gif"
         tmp = mktempdir()
-        surf = Cairo.CairoImageSurface(Int(round(w)), Int(round(h)), Cairo.FORMAT_ARGB32)
-        cr = Cairo.CairoContext(surf)
-        return Canvas(
-            path,
-            w,
-            h,
-            :gif,
-            1,
-            fps,
-            tmp,
-            "",
-            "",
-            "",
-            Dict{Int,String}(),
-            false,
-            surf,
-            cr,
-        )
+        surf = Cairo.CairoImageSurface(iw, ih, Cairo.FORMAT_ARGB32)
+        return _make_canvas(path, w, h, :gif, fps, surf; tempdir = tmp)
     elseif ext in (".html", ".htm")
-        title_str = isnothing(title) ? "" : title
-        if basename(lowercase(path)) in ("index.html", "index.htm")
-            htmldir = dirname(abspath(path))
-            index_html_path = abspath(path)
-            if isempty(title_str)
-                title_str = basename(htmldir)
-            end
-        else
-            base = splitext(path)[1]
-            htmldir = abspath(base)
-            index_html_path = joinpath(htmldir, "index.html")
-            if isempty(title_str)
-                title_str = basename(base)
-            end
-        end
-
-        mkpath(htmldir)
-        for f in readdir(htmldir)
-            if endswith(lowercase(f), ".svg") || f == "index.html" || f == "page"
-                rm(joinpath(htmldir, f), force = true)
-            end
-        end
-
-        first_svg = joinpath(htmldir, "page_001.svg")
-        surf = Cairo.CairoSVGSurface(first_svg, w, h)
-        cr = Cairo.CairoContext(surf)
-        return Canvas(
+        htmldir, index_html_path, title_str = _prepare_html_dir(path, title)
+        surf = Cairo.CairoSVGSurface(joinpath(htmldir, "page_001.svg"), w, h)
+        return _make_canvas(
             path,
             w,
             h,
             :html,
-            1,
             fps,
-            "",
-            htmldir,
-            index_html_path,
-            title_str,
-            Dict{Int,String}(),
-            false,
-            surf,
-            cr,
+            surf;
+            htmldir = htmldir,
+            index_html_path = index_html_path,
+            title = title_str,
         )
     else
         error(
@@ -471,28 +438,9 @@ function Cairo.show_page(c::Canvas)
     return c
 end
 
-function _write_html_presentation(c::Canvas)
-    svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(c.htmldir))
-    sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
-
-    if isempty(svg_files)
-        @warn "No SVG files found in $(c.htmldir) to generate HTML presentation"
-        return
-    end
-
-    slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
-    desc_array = [get(c.descriptions, i, "") for i = 1:length(svg_files)]
-    desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
-
-    page_title = isempty(c.title) ? "Presentation" : c.title
-
-    html_content = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$(page_title)</title>
+# The HTML presentation page is assembled from static-template pieces.
+function _html_style()
+    return """
   <style>
     :root {
       --bg: #0f172a;
@@ -606,6 +554,22 @@ function _write_html_presentation(c::Canvas)
     }
   </style>
 </head>
+"""
+end
+
+function _html_head(page_title)
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$(page_title)</title>
+""" * _html_style()
+end
+
+function _html_body(page_title, n_slides)
+    return """
 <body>
   <header>
     <h1>$(page_title)</h1>
@@ -625,10 +589,15 @@ function _write_html_presentation(c::Canvas)
   </main>
 
   <footer>
-    <span id="pageStatus">Slide 1 of $(length(svg_files))</span>
+    <span id="pageStatus">Slide 1 of $(n_slides)</span>
     <span>Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> to navigate</span>
   </footer>
 
+"""
+end
+
+function _html_script(slides_json, desc_json)
+    return """
   <script>
     const slides = $slides_json;
     const descriptions = $desc_json;
@@ -698,69 +667,108 @@ function _write_html_presentation(c::Canvas)
 </body>
 </html>
 """
+end
+
+function _write_html_presentation(c::Canvas)
+    svg_files = filter(f -> occursin(r"^page_\d+\.svg$", f), readdir(c.htmldir))
+    sort!(svg_files, by = f -> parse(Int, match(r"page_(\d+)\.svg", f).captures[1]))
+
+    if isempty(svg_files)
+        @warn "No SVG files found in $(c.htmldir) to generate HTML presentation"
+        return
+    end
+
+    slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
+    desc_array = [get(c.descriptions, i, "") for i = 1:length(svg_files)]
+    desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
+
+    page_title = isempty(c.title) ? "Presentation" : c.title
+
+    html_content =
+        _html_head(page_title) *
+        _html_body(page_title, length(svg_files)) *
+        _html_script(slides_json, desc_json)
     write(c.index_html_path, html_content)
+end
+
+# Number of pages written once the last surface has been flushed.
+_total_pages(c::Canvas) = c.needs_new_surface ? c.page - 1 : c.page
+
+# Move the single generated page `orig_page1` to the user's exact `c.path`.
+function _rename_single_page!(c::Canvas, orig_page1::String)
+    if isfile(orig_page1) && orig_page1 != c.path
+        mv(orig_page1, c.path, force = true)
+    end
+end
+
+function _finish_svg!(c::Canvas)
+    if !c.needs_new_surface
+        Cairo.finish(c.surface)
+    end
+    total_pages = _total_pages(c)
+    if !c.needs_new_surface && haskey(c.descriptions, total_pages)
+        cur_file = _svg_page_filename(c.path, total_pages)
+        _embed_svg_description(cur_file, c.descriptions[total_pages])
+    end
+    if total_pages == 1 && !occursin("%", c.path)
+        _rename_single_page!(c, _svg_page_filename(c.path, 1))
+        if haskey(c.descriptions, 1)
+            _embed_svg_description(c.path, c.descriptions[1])
+        end
+    end
+end
+
+function _finish_html!(c::Canvas)
+    if !c.needs_new_surface
+        Cairo.finish(c.surface)
+    end
+    for (p, desc) in c.descriptions
+        f = joinpath(c.htmldir, @sprintf("page_%03d.svg", p))
+        _embed_svg_description(f, desc)
+    end
+    _write_html_presentation(c)
+end
+
+function _finish_png!(c::Canvas)
+    if !c.needs_new_surface
+        cur_file = _png_page_filename(c.path, c.page)
+        Cairo.write_to_png(c.surface, cur_file)
+        Cairo.finish(c.surface)
+    end
+    if _total_pages(c) == 1 && !occursin("%", c.path)
+        _rename_single_page!(c, _png_page_filename(c.path, 1))
+    end
+end
+
+function _finish_gif!(c::Canvas)
+    if !c.needs_new_surface
+        frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
+        Cairo.write_to_png(c.surface, frame_file)
+        Cairo.finish(c.surface)
+    end
+    try
+        if Sys.which("ffmpeg") !== nothing
+            cmd = `ffmpeg -y -loglevel error -framerate $(c.fps) -i $(joinpath(c.tempdir, "frame_%05d.png")) -filter_complex "split[a][b];[a]palettegen[p];[b][p]paletteuse" $(c.path)`
+            run(cmd)
+        else
+            @warn "ffmpeg not found in PATH; GIF was not generated at $(c.path)"
+        end
+    finally
+        rm(c.tempdir, recursive = true, force = true)
+    end
 end
 
 function Cairo.finish(c::Canvas)
     if c.fmt == :pdf
         Cairo.finish(c.surface)
     elseif c.fmt == :svg
-        if !c.needs_new_surface
-            Cairo.finish(c.surface)
-        end
-        total_pages = c.needs_new_surface ? c.page - 1 : c.page
-        if !c.needs_new_surface && haskey(c.descriptions, total_pages)
-            cur_file = _svg_page_filename(c.path, total_pages)
-            _embed_svg_description(cur_file, c.descriptions[total_pages])
-        end
-        if total_pages == 1 && !occursin("%", c.path)
-            orig_page1 = _svg_page_filename(c.path, 1)
-            if isfile(orig_page1) && orig_page1 != c.path
-                mv(orig_page1, c.path, force = true)
-            end
-            if haskey(c.descriptions, 1)
-                _embed_svg_description(c.path, c.descriptions[1])
-            end
-        end
+        _finish_svg!(c)
     elseif c.fmt == :html
-        if !c.needs_new_surface
-            Cairo.finish(c.surface)
-        end
-        total_pages = c.needs_new_surface ? c.page - 1 : c.page
-        for (p, desc) in c.descriptions
-            f = joinpath(c.htmldir, @sprintf("page_%03d.svg", p))
-            _embed_svg_description(f, desc)
-        end
-        _write_html_presentation(c)
+        _finish_html!(c)
     elseif c.fmt == :png
-        if !c.needs_new_surface
-            cur_file = _png_page_filename(c.path, c.page)
-            Cairo.write_to_png(c.surface, cur_file)
-            Cairo.finish(c.surface)
-        end
-        total_pages = c.needs_new_surface ? c.page - 1 : c.page
-        if total_pages == 1 && !occursin("%", c.path)
-            orig_page1 = _png_page_filename(c.path, 1)
-            if isfile(orig_page1) && orig_page1 != c.path
-                mv(orig_page1, c.path, force = true)
-            end
-        end
+        _finish_png!(c)
     elseif c.fmt == :gif
-        if !c.needs_new_surface
-            frame_file = joinpath(c.tempdir, @sprintf("frame_%05d.png", c.page))
-            Cairo.write_to_png(c.surface, frame_file)
-            Cairo.finish(c.surface)
-        end
-        try
-            if Sys.which("ffmpeg") !== nothing
-                cmd = `ffmpeg -y -loglevel error -framerate $(c.fps) -i $(joinpath(c.tempdir, "frame_%05d.png")) -filter_complex "split[a][b];[a]palettegen[p];[b][p]paletteuse" $(c.path)`
-                run(cmd)
-            else
-                @warn "ffmpeg not found in PATH; GIF was not generated at $(c.path)"
-            end
-        finally
-            rm(c.tempdir, recursive = true, force = true)
-        end
+        _finish_gif!(c)
     end
     return
 end
