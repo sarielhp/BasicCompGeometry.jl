@@ -287,6 +287,31 @@ function clip(poly::PntSeq{2,T}, h::Halfplane; eps::Real = 1e-11) where {T}
     return PntSeq(clip(poly.pnts, h; eps = eps))
 end
 
+# Push parameters t where the line (origin `p`, direction `u` along this axis; `po`, `uo`
+# along the other axis) hits each wall in `walls` within the other axis range [lo, hi].
+function _clip_wall_params!(t_vals, walls, p, u, po, uo, lo, hi, tol)
+    for wall in walls
+        t = (wall - p) / u
+        o = po + t * uo
+        if lo - tol <= o <= hi + tol
+            push!(t_vals, t)
+        end
+    end
+    return nothing
+end
+
+# Sort `t_vals` and drop entries within `tol` of the previously kept one.
+function _unique_params!(t_vals::Vector{R}, tol) where {R}
+    sort!(t_vals)
+    unique_t = R[]
+    for t in t_vals
+        if isempty(unique_t) || abs(t - unique_t[end]) > tol
+            push!(unique_t, t)
+        end
+    end
+    return unique_t
+end
+
 """
     clip(line::Line{2, T}, bb::BBox{2, S}; tol::Real = 1e-11)
 
@@ -302,32 +327,14 @@ function clip(line::Line{2,T}, bb::BBox{2,S}; tol::Real = 1e-11) where {T,S}
 
     t_vals = R[]
     if abs(ux) > 1e-14
-        for x_wall in (xmin, xmax)
-            t = (x_wall - px) / ux
-            y = py + t * uy
-            if ymin - tol <= y <= ymax + tol
-                push!(t_vals, t)
-            end
-        end
+        _clip_wall_params!(t_vals, (xmin, xmax), px, ux, py, uy, ymin, ymax, tol)
     end
     if abs(uy) > 1e-14
-        for y_wall in (ymin, ymax)
-            t = (y_wall - py) / uy
-            x = px + t * ux
-            if xmin - tol <= x <= xmax + tol
-                push!(t_vals, t)
-            end
-        end
+        _clip_wall_params!(t_vals, (ymin, ymax), py, uy, px, ux, xmin, xmax, tol)
     end
 
     isempty(t_vals) && return nothing
-    sort!(t_vals)
-    unique_t = R[]
-    for t in t_vals
-        if isempty(unique_t) || abs(t - unique_t[end]) > tol
-            push!(unique_t, t)
-        end
-    end
+    unique_t = _unique_params!(t_vals, tol)
     length(unique_t) < 2 && return nothing
 
     p1 = Point{2,R}(px + unique_t[1] * ux, py + unique_t[1] * uy)
