@@ -7,14 +7,20 @@
 Axis parallel bounding box in D dimensions. 
 The fields `mini` and `maxi` store the lower and upper bounds of the box for each dimension.
 """
-Base.@kwdef mutable struct BBox{D,T}
+mutable struct BBox{D,T}
     """Whether the box has been initialized with at least one point."""
-    f_init::Bool = false
+    f_init::Bool
     """Lower bounds vector."""
-    mini::MVector{D,T} = zeros(MVector{D,T})
+    mini::MVector{D,T}
     """Upper bounds vector."""
-    maxi::MVector{D,T} = zeros(MVector{D,T})
+    maxi::MVector{D,T}
 end
+
+BBox{D,T}(;
+    f_init::Bool = false,
+    mini::MVector{D,T} = zeros(MVector{D,T}),
+    maxi::MVector{D,T} = zeros(MVector{D,T}),
+) where {D,T} = BBox{D,T}(f_init, mini, maxi)
 
 # Constructors
 """

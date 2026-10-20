@@ -12,7 +12,7 @@ module LongestConvexSubset
 using ..BasicCompGeometry
 using Printf
 
-import ..BasicCompGeometry: dist, is_left_turn, is_right_turn, Points
+import ..BasicCompGeometry: is_left_turn, is_right_turn
 
 export longest_convex_chain, longest_concave_chain, compute_largest_convex_subset
 

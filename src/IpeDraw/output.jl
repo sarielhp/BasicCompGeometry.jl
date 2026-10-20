@@ -98,16 +98,16 @@ h
 Generate the complete, self-contained Ipe 7 XML document string.
 """
 function to_xml(canvas::IpeCanvas)
-    template =
-        if canvas.stylesheet_template !== nothing && isfile(canvas.stylesheet_template)
-            read(canvas.stylesheet_template, String)
-        elseif isfile(DEFAULT_STYLE_FILE)
-            read(DEFAULT_STYLE_FILE, String)
-        else
-            "<?xml version=\"1.0\"?>\n<!DOCTYPE ipe SYSTEM \"ipe.dtd\">\n<ipe version=\"70218\">\n<info tex=\"pdflatex\"/>\n" *
-            DEFAULT_FALLBACK_IPESTYLE *
-            "\n<page/>\n</ipe>"
-        end
+    stylesheet = canvas.stylesheet_template
+    template = if stylesheet !== nothing && isfile(stylesheet)
+        read(stylesheet, String)
+    elseif isfile(DEFAULT_STYLE_FILE)
+        read(DEFAULT_STYLE_FILE, String)
+    else
+        "<?xml version=\"1.0\"?>\n<!DOCTYPE ipe SYSTEM \"ipe.dtd\">\n<ipe version=\"70218\">\n<info tex=\"pdflatex\"/>\n" *
+        DEFAULT_FALLBACK_IPESTYLE *
+        "\n<page/>\n</ipe>"
+    end
 
     # 1. Ensure bbox="cropbox" in info tag
     if occursin(r"<info\b", template)
@@ -305,8 +305,9 @@ function open_ipe(
     lbl = isempty(label) ? replace(basename(clean_base), "_" => ":") : label
     artifacts =
         export_figure(canvas, clean_base; caption = caption, label = lbl, outputs = outputs)
-    if preview
-        edit_ipe(artifacts.ipe)
+    ipe_file = artifacts.ipe
+    if preview && ipe_file !== nothing
+        edit_ipe(ipe_file)
     end
     return artifacts
 end
