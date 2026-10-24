@@ -32,6 +32,13 @@ struct Segment{D,T} <: AbsCurve2D{T}
     q::Point{D,T}
 end
 
+Base.iterate(s::Segment) = (s.p, 1)
+Base.iterate(s::Segment, state) = state == 1 ? (s.q, 2) : nothing
+Base.length(::Segment) = 2
+Base.firstindex(::Segment) = 1
+Base.lastindex(::Segment) = 2
+@inline Base.getindex(s::Segment, i::Int) = i == 1 ? s.p : (i == 2 ? s.q : throw(BoundsError(s, i)))
+
 """
     Segment{D, T}()
 
@@ -48,7 +55,21 @@ Return the point on the segment at parameter `t`.
 `t=0` returns the start point `p`, and `t=1` returns the end point `q`.
 The function uses a convex combination of the endpoints.
 """
-@inline at(seg::Segment{D,T}, t::Real) where {D,T} = convex_comb(seg.p, seg.q, Float64(t))
+@inline at(seg::Segment{D,T}, t::Real) where {D,T} = convex_comb(seg.p, seg.q, t)
+
+"""
+    midpoint(seg::Segment)
+
+Return the exact midpoint of segment `seg`.
+"""
+@inline midpoint(seg::Segment) = midpoint(seg.p, seg.q)
+
+"""
+    affine_interpolate(seg::Segment{D}, t::Real)
+
+Compute the affine interpolation on `seg` at parameter `t`.
+"""
+@inline affine_interpolate(seg::Segment{D}, t::Real) where {D} = convex_comb(seg.p, seg.q, t)
 
 function Base.show(io::IO, s::Segment{D,T}) where {D,T}
     print(io, "[[", s.p, " .. ", s.q, "]]")
@@ -204,6 +225,102 @@ function bisection_point(seg::Segment{D,T}, p::Point{D,T}, q::Point{D,T}) where 
 end
 
 """
+    segment_at_x(a::Point{2}, b::Point{2}, x::Real)
+    segment_at_x(seg::Segment{2}, x::Real)
+
+Compute the exact intersection point of the nonvertical segment `[a, b]` (or `seg`)
+with the vertical line at coordinate `x`.
+Returns `Point(x, y)` if `x` lies within the closed projection `[min(a.x, b.x), max(a.x, b.x)]`,
+or `nothing` if `x` is strictly outside.
+
+# Preconditions
+- The segment must be nonvertical (`a.x != b.x`). Throws `ArgumentError` if `a.x == b.x`.
+"""
+function segment_at_x(a::Point{2}, b::Point{2}, x::Real)
+    a.x == b.x && throw(ArgumentError("segment is vertical: cannot evaluate nonvertical segment at x = $x"))
+    min_x, max_x = min(a.x, b.x), max(a.x, b.x)
+    (x < min_x || x > max_x) && return nothing
+    x == a.x && return a
+    x == b.x && return b
+    dx = b.x - a.x
+    dy = b.y - a.y
+    y = a.y + (x - a.x) * dy / dx
+    return Point(x, y)
+end
+
+@inline segment_at_x(seg::Segment{2}, x::Real) = segment_at_x(seg.p, seg.q, x)
+
+@inline on_segment(
+    p::Point{2},
+    seg::Segment{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = on_segment(kernel, p, seg.p, seg.q)
+
+@inline on_segment(
+    kernel::AbstractKernel,
+    p::Point{2},
+    seg::Segment{2},
+) = on_segment(kernel, p, seg.p, seg.q)
+
+@inline proper_crossing(
+    seg1::Segment{2},
+    seg2::Segment{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = proper_crossing(kernel, seg1.p, seg1.q, seg2.p, seg2.q)
+
+@inline proper_crossing(
+    kernel::AbstractKernel,
+    seg1::Segment{2},
+    seg2::Segment{2},
+) = proper_crossing(kernel, seg1.p, seg1.q, seg2.p, seg2.q)
+
+"""
+    segment_key(a, b; kernel=FloatingKernel())
+    segment_key(seg; kernel=FloatingKernel())
+
+Return the canonical undirected segment key with endpoints ordered lexicographically
+(first by x-coordinate, then by y-coordinate).
+"""
+@inline segment_key(
+    a::Point{2},
+    b::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = segment_key(kernel, a, b)
+
+@inline segment_key(
+    seg::Segment{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = segment_key(kernel, seg.p, seg.q)
+
+@inline segment_key(kernel::AbstractKernel, seg::Segment{2}) =
+    segment_key(kernel, seg.p, seg.q)
+
+@inline function segment_key(
+    kernel::AbstractKernel,
+    a::Point{2},
+    b::Point{2},
+)
+    return compare_xy(kernel, a, b) <= 0 ? Segment(a, b) : Segment(b, a)
+end
+
+@inline function segment_key(
+    seg::Tuple{Point{2},Point{2}};
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    return compare_xy(kernel, seg[1], seg[2]) <= 0 ? (seg[1], seg[2]) : (seg[2], seg[1])
+end
+
+"""
+    polygon_segments(vertices)
+
+Return the sequence of directed segments `[Segment(v[i], v[i+1])]` connecting successive vertices in cyclic order.
+"""
+function polygon_segments(vertices)
+    n = length(vertices)
+    return [Segment(vertices[i], vertices[mod1(i + 1, n)]) for i in 1:n]
+end
+
+"""
     Segment2F
 
 A 2-dimensional directed segment with `Float64` coordinates.
@@ -211,4 +328,5 @@ A 2-dimensional directed segment with `Float64` coordinates.
 const Segment2F = Segment{2,Float64}
 
 export Line, Segment, Segment2F
-export nn_point, geom_length
+export nn_point, geom_length, midpoint, affine_interpolate, segment_at_x
+export on_segment, proper_crossing, segment_key, polygon_segments

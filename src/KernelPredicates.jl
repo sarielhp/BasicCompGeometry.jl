@@ -153,4 +153,181 @@ function compare_right_arc_to_point(
     return _radical_sign(kernel, d, a, zero(a))
 end
 
+"""
+    orient(a, b, c; kernel=FloatingKernel())
+    orient(kernel, a, b, c)
+
+Calculate the exact orientation determinant of the sequence of 2D points `a -> b -> c`:
+`(b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)`.
+Returns the signed determinant value (not normalized to sign). Under `ExactKernel()`,
+this evaluates without rounding using exact rational/integer arithmetic.
+"""
+@inline orient(
+    a::Point{2},
+    b::Point{2},
+    c::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = orient(kernel, a, b, c)
+
+@inline orient(kernel::AbstractKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+    turn_sign(kernel, a, b, c)
+
+"""
+    orient_sign(a, b, c; kernel=FloatingKernel())
+    orient_sign(kernel, a, b, c)
+
+Return the normalized orientation sign of the sequence of 2D points `a -> b -> c`:
+`1` for a counterclockwise (left) turn, `-1` for a clockwise (right) turn, and `0` for collinear.
+Preserves exact zero under `ExactKernel()`.
+"""
+@inline orient_sign(
+    a::Point{2},
+    b::Point{2},
+    c::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = orient_sign(kernel, a, b, c)
+
+@inline orient_sign(kernel::AbstractKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+    _predicate_sign(turn_sign(kernel, a, b, c))
+
+"""
+    on_segment(p, a, b; kernel=FloatingKernel())
+
+Determine whether point `p` lies on the closed segment `[a, b]`, including endpoints.
+Collinearity and coordinate bounds are evaluated under `kernel`.
+"""
+@inline on_segment(
+    p::Point{2},
+    a::Point{2},
+    b::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = on_segment(kernel, p, a, b)
+
+@inline function on_segment(
+    kernel::AbstractKernel,
+    p::Point{2},
+    a::Point{2},
+    b::Point{2},
+)
+    turn_sign(kernel, a, b, p) == 0 || return false
+    kp, ka, kb = _kernel_point(kernel, p), _kernel_point(kernel, a), _kernel_point(kernel, b)
+    return min(ka.x, kb.x) <= kp.x <= max(ka.x, kb.x) &&
+           min(ka.y, kb.y) <= kp.y <= max(ka.y, kb.y)
+end
+
+"""
+    proper_crossing(a, b, c, d; kernel=FloatingKernel())
+
+Return `true` if and only if segment `[a, b]` and segment `[c, d]` intersect at a single point
+interior to both segments (excluding endpoints and collinear overlaps).
+"""
+@inline proper_crossing(
+    a::Point{2},
+    b::Point{2},
+    c::Point{2},
+    d::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = proper_crossing(kernel, a, b, c, d)
+
+@inline function proper_crossing(
+    kernel::AbstractKernel,
+    a::Point{2},
+    b::Point{2},
+    c::Point{2},
+    d::Point{2},
+)
+    s_abc = orient_sign(kernel, a, b, c)
+    s_abd = orient_sign(kernel, a, b, d)
+    s_abc * s_abd < 0 || return false
+    s_cda = orient_sign(kernel, c, d, a)
+    s_cdb = orient_sign(kernel, c, d, b)
+    return s_cda * s_cdb < 0
+end
+
+"""
+    compare_angle(a, b; kernel=FloatingKernel())
+    compare_angle(kernel, a, b)
+
+Compare two nonzero 2D direction vectors `a` and `b` in counterclockwise angular order
+starting from the positive x-axis ([0, 2π)).
+Returns `-1` if `a` strictly precedes `b`, `1` if `b` strictly precedes `a`, and `0` if `a` and `b`
+point in the exact same direction.
+
+# Preconditions
+- Vectors `a` and `b` must both be nonzero. Throws `ArgumentError` if either is zero.
+"""
+@inline compare_angle(
+    a::Point{2},
+    b::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = compare_angle(kernel, a, b)
+
+@inline function compare_angle(
+    kernel::AbstractKernel,
+    a::Point{2},
+    b::Point{2},
+)
+    (iszero(a.x) && iszero(a.y)) &&
+        throw(ArgumentError("angular comparison requires nonzero vectors; got a = $a"))
+    (iszero(b.x) && iszero(b.y)) &&
+        throw(ArgumentError("angular comparison requires nonzero vectors; got b = $b"))
+    ka, kb = _kernel_point(kernel, a), _kernel_point(kernel, b)
+    ha = (ka.y > 0 || (ka.y == 0 && ka.x > 0)) ? 0 : 1
+    hb = (kb.y > 0 || (kb.y == 0 && kb.x > 0)) ? 0 : 1
+    if ha != hb
+        return ha < hb ? -1 : 1
+    end
+    cp = turn_sign(kernel, point(0, 0), a, b)
+    cs = _predicate_sign(cp)
+    return cs > 0 ? -1 : (cs < 0 ? 1 : 0)
+end
+
+"""
+    angle_less(a, b; kernel=FloatingKernel())
+    angle_less(kernel, a, b)
+
+Return `true` if nonzero vector `a` strictly precedes nonzero vector `b` in counterclockwise
+angular order starting from the positive x-axis ([0, 2π)). Vectors pointing in the same direction
+are equivalent and return `false`.
+
+# Preconditions
+- Vectors `a` and `b` must both be nonzero. Throws `ArgumentError` if either is zero.
+"""
+@inline angle_less(
+    a::Point{2},
+    b::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+) = angle_less(kernel, a, b)
+
+@inline angle_less(kernel::AbstractKernel, a::Point{2}, b::Point{2}) =
+    compare_angle(kernel, a, b) < 0
+
+"""
+    id_pair(a::Integer, b::Integer)
+
+Return the sorted pair `(min(a, b), max(a, b))` as a canonical key for an undirected edge by vertex indices.
+"""
+@inline id_pair(a::Integer, b::Integer) = a < b ? (a, b) : (b, a)
+
+"""
+    twice_area(vertices; kernel=FloatingKernel())
+
+Compute twice the signed area of the polygon formed by `vertices`.
+For `ExactKernel()`, returns the exact signed area without floating-point rounding.
+"""
+function twice_area(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    n = length(vertices)
+    n < 3 && return zero(_kernel_scalar(kernel, 0))
+    s = orient(kernel, point(0, 0), vertices[1], vertices[2])
+    for i in 2:n
+        s += orient(kernel, point(0, 0), vertices[i], vertices[mod1(i + 1, n)])
+    end
+    return s
+end
+
 export compare_xy, compare_squared_distance, compare_distance
+export orient, orient_sign, on_segment, proper_crossing
+export compare_angle, angle_less, id_pair, twice_area

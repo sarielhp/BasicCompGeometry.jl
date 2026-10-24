@@ -255,6 +255,8 @@ Aqua.test_all(BasicCompGeometry)
             :VerticalTrapezoid,
             :VerticalTrapezoid2F,
             :WSPD,
+            :affine_interpolate,
+            :angle_less,
             :apply_transform,
             :approx_diameter,
             :approx_diameter_subspace,
@@ -263,6 +265,7 @@ Aqua.test_all(BasicCompGeometry)
             :bottom_left,
             :boundary_line,
             :centroid,
+            :compare_angle,
             :compare_distance,
             :compare_squared_distance,
             :compare_xy,
@@ -279,6 +282,7 @@ Aqua.test_all(BasicCompGeometry)
             :flatten,
             :geom_length,
             :hausdorff_simplify,
+            :id_pair,
             :in_interior,
             :interpolate_catmull_rom,
             :interpolate_natural_spline,
@@ -294,8 +298,12 @@ Aqua.test_all(BasicCompGeometry)
             :is_right_eq_turn,
             :is_right_turn,
             :max_dist,
+            :midpoint,
             :nn_point,
             :on_boundary,
+            :on_segment,
+            :orient,
+            :orient_sign,
             :pairwise_intersections,
             :point,
             :point_max,
@@ -304,6 +312,8 @@ Aqua.test_all(BasicCompGeometry)
             :polar,
             :polar_line,
             :polygon,
+            :polygon_segments,
+            :proper_crossing,
             :rand_gaussian,
             :rand_halfplane,
             :rand_pnt_seq,
@@ -311,6 +321,8 @@ Aqua.test_all(BasicCompGeometry)
             :rotation,
             :sample_uniformly,
             :scale!,
+            :segment_at_x,
+            :segment_key,
             :simplify,
             :subdivide,
             :tangent_line,
@@ -319,6 +331,7 @@ Aqua.test_all(BasicCompGeometry)
             :translation,
             :trapezoid_chains,
             :trapezoids,
+            :twice_area,
             :turn_sign,
             :union_bbox,
             :vertical_decomposition,
@@ -696,6 +709,7 @@ Aqua.test_all(BasicCompGeometry)
     end
 
     include("test_kernels.jl")
+    include("test_exact_geometry.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")

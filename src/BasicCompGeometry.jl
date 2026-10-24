@@ -202,6 +202,19 @@ export turn_sign,
 export dist, dist_sq
 export exact_diameter, approx_diameter, approx_diameter_subspace, exact_diameter_subspace
 export centroid, convex_comb, convex_hull
+export orient,
+    orient_sign,
+    on_segment,
+    proper_crossing,
+    midpoint,
+    affine_interpolate,
+    segment_at_x,
+    compare_angle,
+    angle_less,
+    segment_key,
+    id_pair,
+    twice_area,
+    polygon_segments
 export polar, polar_line
 export bottom_left, corner, top_right, diam, max_dist, is_inside
 export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw

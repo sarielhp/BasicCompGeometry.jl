@@ -72,6 +72,28 @@ When `t=0`, returns `p`. When `t=1`, returns `q`.
 end
 
 """
+    midpoint(p::Point{D}, q::Point{D})
+
+Compute the exact midpoint `(p + q) / 2`. Preserves exact rational coordinates
+for integer and rational inputs without floating-point fallback.
+"""
+@inline midpoint(p::Point{D,T}, q::Point{D,T}) where {D,T<:Rational} = (p + q) / 2
+@inline midpoint(p::Point{D,T}, q::Point{D,T}) where {D,T<:Integer} = (p .+ q) .// 2
+@inline midpoint(p::Point{D,T}, q::Point{D,T}) where {D,T<:AbstractFloat} = (p + q) / 2
+@inline function midpoint(p::Point{D,T1}, q::Point{D,T2}) where {D,T1,T2}
+    T = promote_type(T1, T2)
+    return midpoint(Point{D,T}(p), Point{D,T}(q))
+end
+
+"""
+    affine_interpolate(p::Point{D}, q::Point{D}, t::Real)
+
+Compute the affine interpolation `(1 - t) * p + t * q = p + (q - p) * t`.
+Preserves exact rational coordinates when points and `t` are rational or integer.
+"""
+@inline affine_interpolate(p::Point{D}, q::Point{D}, t::Real) where {D} = convex_comb(p, q, t)
+
+"""
     turn_sign(p, q, r; kernel=FloatingKernel())
 
 Return the sign of the turn formed by the sequence of 2D points `p -> q -> r`.
@@ -202,7 +224,7 @@ Return a point where each coordinate is the minimum of the corresponding coordin
 export Point, Point2F, Point2I, Point3F
 export dist, dist_sq
 export rand_point, rand_gaussian
-export convex_comb
+export convex_comb, midpoint, affine_interpolate
 export point_min, point_max
 export turn_sign,
     is_left_turn, is_right_turn, is_left_eq_turn, is_right_eq_turn, is_collinear
