@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-10-24
+
+### Added
+- Exact geometric primitives and predicates for rational and exact kernels:
+  - `orient` returning the exact orientation determinant and `orient_sign` returning the normalized sign preserving zero.
+  - `on_segment` testing closed segment membership including endpoints and vertical segments.
+  - `proper_crossing` testing strict interior segment-segment crossing.
+  - `midpoint` and `affine_interpolate` for exact constructed points without floating-point fallback.
+  - `segment_at_x` for exact nonvertical segment evaluation at a given x-coordinate (enforcing nonvertical precondition).
+  - `compare_angle` and `angle_less` for counterclockwise angular order of direction vectors starting from the positive x-axis in $[0, 2\pi)$ with same-direction equivalence and nonzero vector precondition enforcement.
+  - `segment_key` returning canonical undirected segments with endpoints ordered lexicographically; `Segment` now supports iteration, tuple unpacking `(p, q) = seg`, and integer indexing.
+  - `id_pair` returning canonical sorted index pairs.
+  - `twice_area` computing signed double area using the shoelace formula and `polygon_segments` extracting cyclic directed boundary segments.
+- Linear-time monotone polygon triangulation:
+  - `triangulate_monotone` decomposes a simple counterclockwise x-monotone polygon into $k - 3$ distinct internal diagonals and $k - 2$ counterclockwise triangles in deterministic $O(k)$ time and $O(k)$ space without comparison sorting or coordinate dictionaries.
+  - `MonotoneTriangulation` container type supporting property access (`res.diagonals`, `res.triangles`) and destructuring `(diagonals, triangles) = res`.
+  - `monotone_chains`, `monotone_chain_indices`, `merge_chains`, and `stack_diagonals` helpers.
+
 ## [0.5.2] - 2026-10-20
 
 ### Changed

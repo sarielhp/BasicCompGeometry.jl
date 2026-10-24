@@ -20,9 +20,18 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
+
+## Monotone polygon triangulation
+
+| Call | Result |
+|:-----|:-------|
+| `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
+| `monotone_chains(vertices; kernel=FloatingKernel())` | Upper and lower chains strictly increasing in x |
+| `merge_chains(upper, lower)` | Linear-time merge of two chains sorted by x |
+| `stack_diagonals(vertices; kernel=FloatingKernel())` | List of `k-3` internal diagonals |
 
 ## 3D convex hull
 

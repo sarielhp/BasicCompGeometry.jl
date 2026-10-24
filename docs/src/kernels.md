@@ -31,11 +31,15 @@ exactness matters.
 
 Kernel-aware operations currently include:
 
-- 2D turn predicates and lexicographic point comparison.
-- Distance and squared-distance threshold comparisons.
-- Sphere containment.
-- Right-circle-boundary comparisons.
-- The 2D convex hull.
+- 2D turn predicates (`turn_sign`, `orient`, `orient_sign`) and lexicographic point comparison (`compare_xy`).
+- Closed segment membership (`on_segment`) and proper interior segment crossing (`proper_crossing`).
+- Counterclockwise angular order of direction vectors (`compare_angle`, `angle_less`).
+- Canonical undirected segment keys (`segment_key`).
+- Exact point constructions: `midpoint`, `affine_interpolate`, and nonvertical segment evaluation at `x` (`segment_at_x`).
+- Polygon signed double area (`twice_area`) and linear-time monotone polygon triangulation (`triangulate_monotone`).
+- Distance and squared-distance threshold comparisons (`compare_distance`, `compare_squared_distance`).
+- Sphere containment and right-circle-boundary comparisons (`compare_right_arcs`, `compare_right_arc_to_point`).
+- The 2D convex hull (`convex_hull`).
 
 Other algorithms and coordinate constructions have not been converted. An exact
 predicate cannot repair an already rounded intersection. `BigFloat` alone is

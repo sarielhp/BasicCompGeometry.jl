@@ -93,3 +93,25 @@ h = H.hierarchy_init(curve)
 H.hierarchy_build!(h)
 simplified, width = H.hierarchy_approx(h, 0.3)
 ```
+
+## Monotone polygon triangulation
+
+`triangulate_monotone` decomposes a simple counterclockwise x-monotone polygon into
+triangles in deterministic linear time `O(k)` using the monotone stack algorithm.
+It returns a `MonotoneTriangulation` with `k - 3` internal diagonals and `k - 2`
+counterclockwise triangles:
+
+```@example algorithms
+poly = [
+    point(0.0, 0.0),
+    point(1.0, -1.0),
+    point(3.0, -1.0),
+    point(4.0, 0.0),
+    point(2.0, 2.0)
+]
+res = triangulate_monotone(poly)
+(diagonals = res.diagonals, triangles = res.triangles)
+```
+
+`monotone_chains` and `merge_chains` separate and order the upper and lower boundary
+chains in `O(k)` time. See [the algorithm reference](reference/algorithms.md).
