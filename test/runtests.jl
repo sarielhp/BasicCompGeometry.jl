@@ -229,6 +229,7 @@ Aqua.test_all(BasicCompGeometry)
             :LongestConvexSubset,
             :MVBB,
             :MatPntSeq,
+            :MonotoneTriangulation,
             :MetricSpace,
             :Parabola,
             :ParabolaArc,
@@ -298,7 +299,10 @@ Aqua.test_all(BasicCompGeometry)
             :is_right_eq_turn,
             :is_right_turn,
             :max_dist,
+            :merge_chains,
             :midpoint,
+            :monotone_chain_indices,
+            :monotone_chains,
             :nn_point,
             :on_boundary,
             :on_segment,
@@ -324,6 +328,7 @@ Aqua.test_all(BasicCompGeometry)
             :segment_at_x,
             :segment_key,
             :simplify,
+            :stack_diagonals,
             :subdivide,
             :tangent_line,
             :top_right,
@@ -331,6 +336,7 @@ Aqua.test_all(BasicCompGeometry)
             :translation,
             :trapezoid_chains,
             :trapezoids,
+            :triangulate_monotone,
             :twice_area,
             :turn_sign,
             :union_bbox,
@@ -710,6 +716,7 @@ Aqua.test_all(BasicCompGeometry)
 
     include("test_kernels.jl")
     include("test_exact_geometry.jl")
+    include("test_monotone_triangulation.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")

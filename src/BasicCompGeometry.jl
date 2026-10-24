@@ -161,6 +161,7 @@ include("IpeDraw.jl")
 include("Halfplanes.jl")
 include("Bundles.jl")
 include("Arrangements.jl")
+include("MonotoneTriangulation.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
 # remain available through qualified calls, explicit imports, or the opt-in
@@ -218,6 +219,12 @@ export orient,
 export polar, polar_line
 export bottom_left, corner, top_right, diam, max_dist, is_inside
 export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
+export MonotoneTriangulation,
+    triangulate_monotone,
+    monotone_chains,
+    monotone_chain_indices,
+    merge_chains,
+    stack_diagonals
 
 """
     BasicCompGeometry.Extras
