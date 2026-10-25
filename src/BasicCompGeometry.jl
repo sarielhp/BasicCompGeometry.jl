@@ -232,7 +232,9 @@ export PolygonTriangulation,
     merge_chains,
     stack_diagonals,
     polygon_diagonals,
-    visibility_polygon
+    visibility_polygon,
+    polygon_kernel,
+    is_star_shaped
 
 """
     BasicCompGeometry.Extras

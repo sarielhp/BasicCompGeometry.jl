@@ -165,3 +165,17 @@ vis = visibility_polygon(p_u, point(2.0, 0.5))
 
 Under `kernel = ExactKernel()`, exact rational coordinates are used and preserved throughout.
 Point containment for polygons is verified via `is_inside(q, poly)`.
+
+## Polygon kernel and star-shaped polygons
+
+`polygon_kernel` computes the kernel of a simple polygon $\mathrm{Ker}(P) = \{ q \in P \mid \forall p \in P, \overline{qp} \subset P \}$, which is the convex region of points that can see the entire polygon. If the kernel is non-empty, the polygon is star-shaped, tested by `is_star_shaped(poly)`.
+
+```@example algorithms
+# L-shaped polygon: kernel is the corner square [0, 1] x [0, 1]
+p_l = [
+    point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
+    point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0)
+]
+ker = polygon_kernel(p_l)
+(star_shaped = is_star_shaped(p_l), kernel_area = twice_area(ker) / 2)
+```

@@ -24,11 +24,13 @@ Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "Visibility
 Filter = obj -> obj in Main.documented_api
 ```
 
-## Visibility polygons
+## Visibility polygons and kernels
 
 | Call | Result |
 |:-----|:-------|
 | `visibility_polygon(poly, q; kernel=FloatingKernel())` | Compute the star-shaped visibility polygon from vantage point `q` inside or on the boundary of simple polygon `poly` |
+| `polygon_kernel(poly; kernel=FloatingKernel())` | Compute the convex polygon forming the kernel $\mathrm{Ker}(P)$ of points that see the entire polygon |
+| `is_star_shaped(poly; kernel=FloatingKernel())` | Test whether simple polygon `poly` has a non-empty kernel |
 | `is_inside(q, poly; kernel=FloatingKernel())` | Test whether query point `q` lies in the interior or on the boundary of `poly` |
 
 ## Polygon triangulation

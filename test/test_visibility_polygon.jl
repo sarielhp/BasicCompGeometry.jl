@@ -206,4 +206,86 @@ using BasicCompGeometry
         # 3D query point vector
         @test_throws ArgumentError visibility_polygon(tri, [1.0, 1.0, 1.0])
     end
+
+    # 10. Polygon Kernel and Star-Shapedness
+    @testset "Polygon Kernel & is_star_shaped" begin
+        # Convex polygons (kernel is the polygon itself)
+        tri = [point(0.0, 0.0), point(4.0, 0.0), point(1.0, 3.0)]
+        k_tri = polygon_kernel(tri)
+        @test length(k_tri) == 3
+        @test twice_area(k_tri) ≈ twice_area(tri)
+        @test is_star_shaped(tri)
+
+        sq = [point(0.0, 0.0), point(2.0, 0.0), point(2.0, 2.0), point(0.0, 2.0)]
+        k_sq = polygon_kernel(sq)
+        @test length(k_sq) == 4
+        @test twice_area(k_sq) ≈ 8.0
+        @test is_star_shaped(sq)
+
+        # L-shaped polygon (kernel is corner rectangle [0, 1] x [0, 1])
+        p_l = [
+            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
+            point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0),
+        ]
+        k_l = polygon_kernel(p_l)
+        @test length(k_l) == 4
+        @test twice_area(k_l) ≈ 2.0
+        @test is_star_shaped(p_l)
+
+        # A point inside the kernel sees the entire polygon
+        q_ker = point(0.5, 0.5)
+        @test is_inside(q_ker, k_l)
+        v_from_ker = visibility_polygon(p_l, q_ker)
+        @test twice_area(v_from_ker) ≈ twice_area(p_l)
+
+        # A point outside the kernel sees strictly less than the full polygon
+        q_out = point(2.5, 0.5)
+        @test !is_inside(q_out, k_l)
+        v_from_out = visibility_polygon(p_l, q_out)
+        @test twice_area(v_from_out) < twice_area(p_l)
+
+        # Non-star-shaped polygons (kernel is empty)
+        p_u = [
+            point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
+            point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
+        ]
+        @test isempty(polygon_kernel(p_u))
+        @test !is_star_shaped(p_u)
+
+        p_comb = [
+            point(0.0, 0.0), point(6.0, 0.0), point(6.0, 4.0), point(4.5, 4.0),
+            point(4.5, 1.0), point(3.5, 1.0), point(3.5, 4.0), point(2.5, 4.0),
+            point(2.5, 1.0), point(1.5, 1.0), point(1.5, 4.0), point(0.0, 4.0),
+        ]
+        @test isempty(polygon_kernel(p_comb))
+        @test !is_star_shaped(p_comb)
+
+        # 4-pointed star (kernel is an 8-gon)
+        p_star = [
+            point(2.0, 0.0), point(0.5, 0.5), point(0.0, 2.0), point(-0.5, 0.5),
+            point(-2.0, 0.0), point(-0.5, -0.5), point(0.0, -2.0), point(0.5, -0.5),
+        ]
+        k_star = polygon_kernel(p_star)
+        @test length(k_star) == 8
+        @test twice_area(k_star) ≈ 8.0 / 3.0
+        @test is_star_shaped(p_star)
+
+        # ExactKernel support
+        exact = ExactKernel()
+        p_l_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in p_l]
+        k_l_ex = polygon_kernel(p_l_ex; kernel = exact)
+        @test length(k_l_ex) == 4
+        @test twice_area(k_l_ex; kernel = exact) == 2//1
+        @test is_star_shaped(p_l_ex; kernel = exact)
+        @test eltype(eltype(k_l_ex)) <: Rational
+
+        # PntSeq wrapper
+        @test is_star_shaped(PntSeq(p_star))
+        @test length(polygon_kernel(PntSeq(p_l))) == 4
+
+        # Error cases
+        cw_poly = [point(0.0, 0.0), point(1.0, 3.0), point(4.0, 0.0)]
+        @test_throws ArgumentError polygon_kernel(cw_poly)
+        @test_throws ArgumentError polygon_kernel([point(0.0, 0.0), point(1.0, 1.0)])
+    end
 end

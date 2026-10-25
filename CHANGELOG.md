@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-10-25
+
+### Added
+- Polygon kernel and star-shapedness:
+  - `polygon_kernel` computes the convex kernel $\mathrm{Ker}(P) = \{ q \in P \mid \forall p \in P, \overline{qp} \subset P \}$ of points that see the entire simple polygon $P$.
+  - `is_star_shaped` tests whether a simple polygon has a non-empty kernel.
+  - Supports both `FloatingKernel()` and `ExactKernel()` (preserving exact rational coordinates).
+  - Fixed comprehension type inference in `Arrangements.jl` for compatibility across Julia 1.9, 1.10, and 1.11+.
+
 ## [0.5.7] - 2026-10-25
 
 ### Added

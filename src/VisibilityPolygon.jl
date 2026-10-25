@@ -267,6 +267,188 @@ function is_inside(
     return is_inside(q, Points(poly); kernel = kernel)
 end
 
+"""
+    polygon_kernel(poly; kernel=FloatingKernel())
+
+Compute the kernel of a simple counterclockwise polygon ``P``, denoted ``\\mathrm{Ker}(P)``.
+
+The kernel is the set of all points in ``P`` from which the entire polygon is visible:
+``\\mathrm{Ker}(P) = \\{ q \\in P \\mid \\forall p \\in P, \\overline{qp} \\subset P \\}``.
+It is the intersection of all closed inward halfplanes supported by the directed edges of ``P``.
+
+# Arguments
+- `poly`: vertices of a counterclockwise simple polygon, supplied as an `AbstractVector{<:Point{2}}`
+  or an [`AbsPntSeq{2}`](@ref).
+- `kernel`: computational geometry kernel ([`FloatingKernel()`](@ref) or [`ExactKernel()`](@ref)).
+  Default is `FloatingKernel()`.
+
+# Returns
+- `Vector{Point{2, R}}`: vertices of the convex polygon forming the kernel in counterclockwise order,
+  or an empty vector if the polygon has an empty kernel (i.e. is not star-shaped).
+
+# Preconditions
+- `poly` must have at least 3 vertices and be oriented counterclockwise with positive area.
+"""
+function polygon_kernel(
+    poly::AbstractVector{<:Point{2}};
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    n = length(poly)
+    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
+    area2 = twice_area(poly; kernel = kernel)
+    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
+
+    T = eltype(eltype(poly))
+    R = T
+    if kernel isa ExactKernel && !(R <: Rational)
+        R = Rational{BigInt}
+    end
+    poly_conv = [point(R(p.x), R(p.y)) for p in poly]
+
+    min_x = minimum(p.x for p in poly_conv)
+    max_x = maximum(p.x for p in poly_conv)
+    min_y = minimum(p.y for p in poly_conv)
+    max_y = maximum(p.y for p in poly_conv)
+
+    curr_poly = Point{2, R}[
+        point(min_x, min_y),
+        point(max_x, min_y),
+        point(max_x, max_y),
+        point(min_x, max_y),
+    ]
+
+    tol = 1e-11
+
+    for i in 1:n
+        a = poly_conv[i]
+        b = poly_conv[mod1(i + 1, n)]
+
+        isempty(curr_poly) && break
+        next_poly = Point{2, R}[]
+        m = length(curr_poly)
+
+        ab = b - a
+        ab_len = kernel isa ExactKernel ? one(R) : max(hypot(ab.x, ab.y), 1.0)
+
+        for j in 1:m
+            p_prev = curr_poly[mod1(j - 1, m)]
+            p_curr = curr_poly[j]
+
+            ts_prev = turn_sign(kernel, a, b, p_prev)
+            ts_curr = turn_sign(kernel, a, b, p_curr)
+
+            if kernel isa ExactKernel
+                prev_in = ts_prev >= 0
+                curr_in = ts_curr >= 0
+            else
+                prev_in = ts_prev >= -tol * ab_len
+                curr_in = ts_curr >= -tol * ab_len
+            end
+
+            if curr_in
+                if !prev_in
+                    d = p_curr - p_prev
+                    denom = d.x * ab.y - d.y * ab.x
+                    if !iszero(denom)
+                        ap = a - p_prev
+                        num = ap.x * ab.y - ap.y * ab.x
+                        t = kernel isa ExactKernel ? (num // denom) : (num / denom)
+                        t_clamped = clamp(t, zero(R), one(R))
+                        pt = point(p_prev.x + t_clamped * d.x, p_prev.y + t_clamped * d.y)
+                        push!(next_poly, pt)
+                    end
+                end
+                push!(next_poly, p_curr)
+            elseif prev_in
+                d = p_curr - p_prev
+                denom = d.x * ab.y - d.y * ab.x
+                if !iszero(denom)
+                    ap = a - p_prev
+                    num = ap.x * ab.y - ap.y * ab.x
+                    t = kernel isa ExactKernel ? (num // denom) : (num / denom)
+                    t_clamped = clamp(t, zero(R), one(R))
+                    pt = point(p_prev.x + t_clamped * d.x, p_prev.y + t_clamped * d.y)
+                    push!(next_poly, pt)
+                end
+            end
+        end
+
+        # Deduplicate consecutive points
+        deduped = Point{2, R}[]
+        for p in next_poly
+            if isempty(deduped)
+                push!(deduped, p)
+            else
+                is_dup = kernel isa ExactKernel ? (p == last(deduped)) : (dist(p, last(deduped)) < tol)
+                if !is_dup
+                    push!(deduped, p)
+                end
+            end
+        end
+        if length(deduped) > 1
+            is_dup = kernel isa ExactKernel ? (first(deduped) == last(deduped)) : (dist(first(deduped), last(deduped)) < tol)
+            if is_dup
+                pop!(deduped)
+            end
+        end
+        curr_poly = deduped
+    end
+
+    k = length(curr_poly)
+    if k < 3
+        return curr_poly
+    end
+
+    # Remove collinear intermediate vertices
+    final_poly = Point{2, R}[]
+    for i in 1:k
+        pr = curr_poly[mod1(i - 1, k)]
+        cu = curr_poly[i]
+        nx = curr_poly[mod1(i + 1, k)]
+        if kernel isa ExactKernel
+            if orient_sign(kernel, pr, cu, nx) != 0
+                push!(final_poly, cu)
+            end
+        else
+            cross = (cu.x - pr.x) * (nx.y - pr.y) - (cu.y - pr.y) * (nx.x - pr.x)
+            d1 = dist(pr, cu)
+            d2 = dist(cu, nx)
+            if abs(cross) > tol * max(d1 * d2, 1.0)
+                push!(final_poly, cu)
+            end
+        end
+    end
+
+    return final_poly
+end
+
+function polygon_kernel(
+    poly::AbsPntSeq{2};
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    return polygon_kernel(Points(poly); kernel = kernel)
+end
+
+function polygon_kernel(
+    poly;
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    return polygon_kernel(collect(poly); kernel = kernel)
+end
+
+"""
+    is_star_shaped(poly; kernel=FloatingKernel())
+
+Return `true` if simple polygon `poly` is star-shaped (i.e. has a non-empty kernel).
+"""
+function is_star_shaped(
+    poly;
+    kernel::AbstractKernel = FloatingKernel(),
+)
+    k = polygon_kernel(poly; kernel = kernel)
+    return !isempty(k) && (length(k) < 3 || twice_area(k; kernel = kernel) > 0)
+end
+
 # Internal helpers
 
 @inline function _ray_edge_intersect(kernel::AbstractKernel, q::Point{2, R}, u::Point{2, R}, a::Point{2, R}, b::Point{2, R}, ::Type{R}) where {R}
