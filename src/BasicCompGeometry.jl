@@ -162,6 +162,7 @@ include("Halfplanes.jl")
 include("Bundles.jl")
 include("Arrangements.jl")
 include("MonotoneTriangulation.jl")
+include("VisibilityPolygon.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
 # remain available through qualified calls, explicit imports, or the opt-in
@@ -230,7 +231,8 @@ export PolygonTriangulation,
     monotone_chain_indices,
     merge_chains,
     stack_diagonals,
-    polygon_diagonals
+    polygon_diagonals,
+    visibility_polygon
 
 """
     BasicCompGeometry.Extras

@@ -348,6 +348,7 @@ Aqua.test_all(BasicCompGeometry)
             :union_bbox,
             :vertical_decomposition,
             :view_box,
+            :visibility_polygon,
         )
         extras = BasicCompGeometry.Extras
         @test Set(names(extras)) == Set((:Extras, extra_names...))
@@ -723,6 +724,7 @@ Aqua.test_all(BasicCompGeometry)
     include("test_kernels.jl")
     include("test_exact_geometry.jl")
     include("test_monotone_triangulation.jl")
+    include("test_visibility_polygon.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-10-25
+
+### Added
+- Visibility polygon from a vantage point:
+  - `visibility_polygon` computes the star-shaped visibility polygon $\mathrm{Vis}(q, P)$ consisting of all points inside counterclockwise simple polygon $P$ visible from vantage point $q \in P$.
+  - Handles vantage points strictly in the interior, along boundary edges, and at convex or reflex vertices.
+  - Supports both `FloatingKernel()` (Float64) and `ExactKernel()` (preserving exact rational coordinates without floating-point approximations).
+  - Extended `is_inside(q, poly)` predicate for testing point containment in simple polygons.
+
 ## [0.5.6] - 2026-10-24
 
 ### Added

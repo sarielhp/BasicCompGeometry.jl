@@ -142,3 +142,26 @@ res = triangulate_monotone(poly)
 
 `monotone_chains` and `merge_chains` separate and order the upper and lower boundary
 chains in `O(k)` time. See [the algorithm reference](reference/algorithms.md).
+
+## Visibility polygons
+
+`visibility_polygon` computes the star-shaped visibility polygon ``\mathrm{Vis}(q, P)`` consisting of all points inside a counterclockwise simple polygon ``P`` visible from a vantage point ``q \in P``.
+
+```@example algorithms
+p_u = [
+    point(0.0, 0.0),
+    point(4.0, 0.0),
+    point(4.0, 4.0),
+    point(3.0, 4.0),
+    point(3.0, 1.0),
+    point(1.0, 1.0),
+    point(1.0, 4.0),
+    point(0.0, 4.0)
+]
+
+vis = visibility_polygon(p_u, point(2.0, 0.5))
+(vertices_count = length(vis), twice_area = twice_area(vis))
+```
+
+Under `kernel = ExactKernel()`, exact rational coordinates are used and preserved throughout.
+Point containment for polygons is verified via `is_inside(q, poly)`.

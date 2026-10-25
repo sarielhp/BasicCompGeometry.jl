@@ -20,9 +20,16 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "VisibilityPolygon.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
+
+## Visibility polygons
+
+| Call | Result |
+|:-----|:-------|
+| `visibility_polygon(poly, q; kernel=FloatingKernel())` | Compute the star-shaped visibility polygon from vantage point `q` inside or on the boundary of simple polygon `poly` |
+| `is_inside(q, poly; kernel=FloatingKernel())` | Test whether query point `q` lies in the interior or on the boundary of `poly` |
 
 ## Polygon triangulation
 
