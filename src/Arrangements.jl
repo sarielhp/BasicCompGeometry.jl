@@ -202,7 +202,7 @@ end
 
 # Intersection vertices inside the view (clamped to it), deduplicated.
 function _vd_in_view_vertices(
-    lines::Vector{Line{2,R}},
+    lines::AbstractVector{Line{2,R}},
     x_min,
     x_max,
     y_min,
@@ -244,7 +244,7 @@ end
 
 # Sorted, deduplicated x-coordinates of all slab boundaries; first is `x_min`, last `x_max`.
 function _vd_event_xs(
-    lines::Vector{Line{2,R}},
+    lines::AbstractVector{Line{2,R}},
     in_view_verts,
     x_min,
     x_max,
@@ -288,7 +288,7 @@ end
 
 # Vertical walls at each x-event: through every vertex, and along every vertical line.
 function _vd_walls(
-    lines::Vector{Line{2,R}},
+    lines::AbstractVector{Line{2,R}},
     in_view_verts,
     unique_x,
     y_min,
@@ -348,7 +348,7 @@ function _vd_make_trap(at::_ActiveTrap, ::Type{R}, y_min, y_max) where {R}
 end
 
 # Non-coincident lines crossing the interior of slab [x_l, x_r], sorted bottom to top.
-function _vd_slab_lines(lines::Vector{Line{2,R}}, x_l, x_r, y_min, y_max, tol) where {R}
+function _vd_slab_lines(lines::AbstractVector{Line{2,R}}, x_l, x_r, y_min, y_max, tol) where {R}
     x_mid = (x_l + x_r) / 2.0
     slab_lines = Line{2,R}[]
     for l in lines
@@ -423,7 +423,7 @@ function vertical_decomposition(
     end
 
     lines_typed =
-        [Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
+        Line{2,R_type}[Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
 
     in_view_verts = _vd_in_view_vertices(lines_typed, x_min, x_max, y_min, y_max, tol)
     unique_x = _vd_event_xs(lines_typed, in_view_verts, x_min, x_max, y_min, y_max, tol)
