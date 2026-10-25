@@ -100,9 +100,12 @@ simplified, width = H.hierarchy_approx(h, 0.3)
 It returns a `PolygonTriangulation` (`MonotoneTriangulation` is a compatibility alias) containing
 `n - 3` internal diagonals and `n - 2` counterclockwise triangles.
 
+Supported algorithm options via keyword `algorithm`:
+- `:ear_clipping` (default): Fast ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices.
+- `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected $O(n \log^* n)$ time, also available via `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())`.
+
 For strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`),
-triangulation executes in linear time `O(n)`. For general simple non-monotone polygons,
-it uses ear clipping with reflex acceleration running in `O(n r)` time where $r$ is the count of reflex vertices:
+triangulation executes in linear time `O(n)`.
 
 ```@example algorithms
 # Non-monotone U-shaped polygon
@@ -116,7 +119,7 @@ u_poly = [
     point(1.0, 4.0),
     point(0.0, 4.0)
 ]
-res = triangulate_polygon(u_poly)
+res = triangulate_polygon(u_poly; algorithm = :seidel)
 (diagonals = res.diagonals, triangles = res.triangles)
 ```
 

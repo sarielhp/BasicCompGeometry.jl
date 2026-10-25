@@ -28,7 +28,8 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel())` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:ear_clipping` or `:seidel`) |
+| `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
 | `is_x_monotone(vertices)` | Return `true` if polygon is strictly x-monotone |
 | `is_y_monotone(vertices)` | Return `true` if polygon is strictly y-monotone |

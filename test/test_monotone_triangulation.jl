@@ -406,5 +406,173 @@ using BasicCompGeometry
         poly_area100 = twice_area(star100)
         tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100.triangles)
         @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
+
+        # Invalid algorithm argument throws ArgumentError
+        @test_throws ArgumentError triangulate_polygon(star100; algorithm = :bogus)
+    end
+
+    @testset "Seidel's Randomized Polygon Triangulation (triangulate_seidel)" begin
+        @testset "Preconditions and error handling" begin
+            @test_throws ArgumentError triangulate_seidel([point(0, 0), point(1, 0)])
+            @test_throws ArgumentError triangulate_seidel(Point2F[])
+
+            cw_pts = [
+                point(big(0) // 1, big(0) // 1),
+                point(big(1) // 1, big(1) // 1),
+                point(big(2) // 1, -big(1) // 1),
+            ]
+            @test_throws ArgumentError triangulate_seidel(cw_pts; kernel = exact)
+
+            ccw_pts = [
+                point(big(0) // 1, big(0) // 1),
+                point(big(2) // 1, -big(1) // 1),
+                point(big(1) // 1, big(1) // 1),
+            ]
+            res3 = triangulate_seidel(ccw_pts; kernel = exact)
+            @test isempty(res3.diagonals)
+            @test length(res3.triangles) == 1
+            @test res3.triangles[1] == (1, 2, 3)
+            @test res3 isa PolygonTriangulation
+        end
+
+        test_seidel_shapes = [
+            (
+                "U-shape",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(4) // 1),
+                    point(big(3) // 1, big(4) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(1) // 1, big(4) // 1),
+                    point(big(0) // 1, big(4) // 1),
+                ],
+            ),
+            (
+                "L-shape",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(3) // 1, big(0) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(1) // 1, big(3) // 1),
+                    point(big(0) // 1, big(3) // 1),
+                ],
+            ),
+            (
+                "Zigzag",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(6) // 1, big(0) // 1),
+                    point(big(6) // 1, big(2) // 1),
+                    point(big(2) // 1, big(2) // 1),
+                    point(big(2) // 1, big(4) // 1),
+                    point(big(6) // 1, big(4) // 1),
+                    point(big(6) // 1, big(6) // 1),
+                    point(big(0) // 1, big(6) // 1),
+                    point(big(0) // 1, big(3) // 1),
+                ],
+            ),
+            (
+                "Comb",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(3) // 1),
+                    point(big(3) // 1, big(3) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(2) // 1, big(1) // 1),
+                    point(big(2) // 1, big(3) // 1),
+                    point(big(1) // 1, big(3) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(0) // 1, big(1) // 1),
+                ],
+            ),
+            (
+                "Star10",
+                reverse([
+                    point(big(0) // 1, big(10) // 1),
+                    point(big(3) // 1, big(3) // 1),
+                    point(big(10) // 1, big(3) // 1),
+                    point(big(5) // 1, -big(2) // 1),
+                    point(big(7) // 1, -big(9) // 1),
+                    point(big(0) // 1, -big(5) // 1),
+                    point(-big(7) // 1, -big(9) // 1),
+                    point(-big(5) // 1, -big(2) // 1),
+                    point(-big(10) // 1, big(3) // 1),
+                    point(-big(3) // 1, big(3) // 1),
+                ]),
+            ),
+            (
+                "CollinearEdge",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(2) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(4) // 1),
+                    point(big(0) // 1, big(4) // 1),
+                ],
+            ),
+        ]
+
+        for (name, poly) in test_seidel_shapes
+            k = length(poly)
+            # Direct triangulate_seidel with seeded RNG
+            rng = Xoshiro(0x12345678)
+            res = triangulate_seidel(poly; kernel = exact, rng = rng)
+
+            @test length(res.diagonals) == k - 3
+            @test length(res.triangles) == k - 2
+
+            # All diagonals are internal and non-crossing
+            @test length(unique(res.diagonals)) == k - 3
+            for (u, v) in res.diagonals
+                @test u < v
+                @test 1 <= u <= k
+                @test 1 <= v <= k
+                d = abs(u - v)
+                @test d > 1 && d < k - 1
+            end
+
+            diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
+            for i in 1:length(diag_segs)-1
+                for j in i+1:length(diag_segs)
+                    @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = exact)
+                end
+            end
+
+            # All triangles are CCW
+            for (i1, i2, i3) in res.triangles
+                @test orient_sign(exact, poly[i1], poly[i2], poly[i3]) > 0
+            end
+
+            # Area conservation
+            poly_area = twice_area(poly; kernel = exact)
+            tri_area_sum = sum(
+                twice_area([poly[t[1]], poly[t[2]], poly[t[3]]]; kernel = exact) for
+                t in res.triangles
+            )
+            @test poly_area == tri_area_sum
+
+            # Via triangulate_polygon(algorithm=:seidel)
+            res_opt = triangulate_polygon(poly; algorithm = :seidel, kernel = exact)
+            @test length(res_opt.diagonals) == k - 3
+            @test length(res_opt.triangles) == k - 2
+        end
+
+        # Test floating point kernel on 100-gon star
+        n = 100
+        star100 = [
+            point(cos(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
+                  sin(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0))
+            for i in 0:n-1
+        ]
+        res_seidel100 = triangulate_seidel(star100)
+        @test length(res_seidel100.diagonals) == n - 3
+        @test length(res_seidel100.triangles) == n - 2
+        poly_area100 = twice_area(star100)
+        tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res_seidel100.triangles)
+        @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
     end
 end

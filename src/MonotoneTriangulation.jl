@@ -397,17 +397,203 @@ function _ear_clipping_triangulate(
     return PolygonTriangulation(diagonals, triangles)
 end
 
+function _find_visible_vertex_left(poly, v_idx::Int, kernel::AbstractKernel)
+    v = poly[v_idx]
+    n = length(poly)
+    pr = mod1(v_idx - 1, n)
+    nx = mod1(v_idx + 1, n)
+
+    best_u = 0
+    for u_idx in 1:n
+        (u_idx == v_idx || u_idx == pr || u_idx == nx) && continue
+        u = poly[u_idx]
+        u.x >= v.x && continue
+
+        # Check if u is inside exterior wedge at reflex vertex v
+        in_exterior_wedge = (orient_sign(kernel, poly[nx], v, u) >= 0 && orient_sign(kernel, v, poly[pr], u) >= 0)
+        in_exterior_wedge && continue
+
+        uv_seg = Segment(u, v)
+        crosses = false
+        for e in 1:n
+            e_pr = e
+            e_nx = mod1(e + 1, n)
+            (e_pr == u_idx || e_nx == u_idx || e_pr == v_idx || e_nx == v_idx) && continue
+            edge_seg = Segment(poly[e_pr], poly[e_nx])
+            if proper_crossing(uv_seg, edge_seg; kernel = kernel)
+                crosses = true
+                break
+            end
+        end
+        crosses && continue
+
+        if best_u == 0 || (v.x - u.x < v.x - poly[best_u].x)
+            best_u = u_idx
+        end
+    end
+    return best_u
+end
+
+function _find_visible_vertex_right(poly, v_idx::Int, kernel::AbstractKernel)
+    v = poly[v_idx]
+    n = length(poly)
+    pr = mod1(v_idx - 1, n)
+    nx = mod1(v_idx + 1, n)
+
+    best_u = 0
+    for u_idx in 1:n
+        (u_idx == v_idx || u_idx == pr || u_idx == nx) && continue
+        u = poly[u_idx]
+        u.x <= v.x && continue
+
+        in_exterior_wedge = (orient_sign(kernel, poly[nx], v, u) >= 0 && orient_sign(kernel, v, poly[pr], u) >= 0)
+        in_exterior_wedge && continue
+
+        uv_seg = Segment(v, u)
+        crosses = false
+        for e in 1:n
+            e_pr = e
+            e_nx = mod1(e + 1, n)
+            (e_pr == u_idx || e_nx == u_idx || e_pr == v_idx || e_nx == v_idx) && continue
+            edge_seg = Segment(poly[e_pr], poly[e_nx])
+            if proper_crossing(uv_seg, edge_seg; kernel = kernel)
+                crosses = true
+                break
+            end
+        end
+        crosses && continue
+
+        if best_u == 0 || (u.x - v.x < poly[best_u].x - v.x)
+            best_u = u_idx
+        end
+    end
+    return best_u
+end
+
+function _split_polygon_by_diagonals(n::Int, diags::Vector{Tuple{Int,Int}})
+    pieces = [collect(1:n)]
+    for (u, v) in diags
+        for (p_idx, piece) in enumerate(pieces)
+            iu = findfirst(==(u), piece)
+            iv = findfirst(==(v), piece)
+            if iu !== nothing && iv !== nothing
+                k = length(piece)
+                d = abs(iu - iv)
+                if d > 1 && d < k - 1
+                    i_min, i_max = iu < iv ? (iu, iv) : (iv, iu)
+                    p1 = piece[i_min:i_max]
+                    p2 = vcat(piece[i_max:end], piece[1:i_min])
+                    deleteat!(pieces, p_idx)
+                    push!(pieces, p1, p2)
+                    break
+                end
+            end
+        end
+    end
+    return pieces
+end
+
 """
-    triangulate_polygon(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
+    triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon using Seidel's randomized incremental algorithm
+in expected `O(n log* n)` time.
+
+Decomposes the polygon into monotone sub-polygons by resolving reflex cusps (split and merge
+vertices) with non-crossing diagonals, and triangulates each monotone piece in linear time `O(k)`.
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
+function triangulate_seidel(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+    rng::AbstractRNG = Random.default_rng(),
+)
+    n = length(vertices)
+    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
+
+    area2 = twice_area(vertices; kernel = kernel)
+    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
+
+    if n == 3
+        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
+    end
+
+    if is_x_monotone(vertices)
+        return triangulate_monotone(vertices; kernel = kernel)
+    elseif is_y_monotone(vertices)
+        rotated = [point(p.y, -p.x) for p in vertices]
+        res = triangulate_monotone(rotated; kernel = kernel)
+        return PolygonTriangulation(res.diagonals, res.triangles)
+    end
+
+    cusp_diagonals = Tuple{Int,Int}[]
+    perm = randperm(rng, n)
+    for i in perm
+        pr = mod1(i - 1, n)
+        nx = mod1(i + 1, n)
+        turn = orient_sign(kernel, vertices[pr], vertices[i], vertices[nx])
+        if turn <= 0
+            if vertices[pr].x >= vertices[i].x && vertices[nx].x >= vertices[i].x
+                u = _find_visible_vertex_left(vertices, i, kernel)
+                if u > 0
+                    d = u < i ? (u, i) : (i, u)
+                    d ∉ cusp_diagonals && push!(cusp_diagonals, d)
+                end
+            elseif vertices[pr].x <= vertices[i].x && vertices[nx].x <= vertices[i].x
+                u = _find_visible_vertex_right(vertices, i, kernel)
+                if u > 0
+                    d = u < i ? (u, i) : (i, u)
+                    d ∉ cusp_diagonals && push!(cusp_diagonals, d)
+                end
+            end
+        end
+    end
+
+    pieces = _split_polygon_by_diagonals(n, cusp_diagonals)
+
+    all_triangles = NTuple{3,Int}[]
+    sizehint!(all_triangles, n - 2)
+    all_diagonals = copy(cusp_diagonals)
+    sizehint!(all_diagonals, n - 3)
+
+    for pc in pieces
+        k_pc = length(pc)
+        k_pc < 3 && continue
+        if k_pc == 3
+            push!(all_triangles, (pc[1], pc[2], pc[3]))
+            continue
+        end
+        subpoly = [vertices[idx] for idx in pc]
+        res = triangulate_polygon(subpoly; kernel = kernel, algorithm = :ear_clipping)
+        for (i1, i2, i3) in res.triangles
+            push!(all_triangles, (pc[i1], pc[i2], pc[i3]))
+        end
+        for (u, v) in res.diagonals
+            orig_u = pc[u]
+            orig_v = pc[v]
+            d = orig_u < orig_v ? (orig_u, orig_v) : (orig_v, orig_u)
+            push!(all_diagonals, d)
+        end
+    end
+
+    return PolygonTriangulation(unique(all_diagonals), all_triangles)
+end
+
+"""
+    triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping, rng=Random.default_rng()) -> PolygonTriangulation
 
 Triangulate a simple counterclockwise polygon with `n >= 3` vertices.
 Returns a `PolygonTriangulation` with:
 - `result.diagonals`: `n - 3` distinct internal diagonals as index pairs `(i, j)` with `i < j`.
 - `result.triangles`: `n - 2` counterclockwise triangles as index triples `(i, j, m)`.
 
+Supported `algorithm` options:
+- `:ear_clipping` (default): Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time.
+- `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
+
 For x-monotone or y-monotone polygons, triangulates in linear time `O(n)`.
-For general simple polygons, employs ear clipping with reflex acceleration running in `O(n r)` time
-where `r` is the number of reflex vertices.
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
@@ -415,7 +601,15 @@ where `r` is the number of reflex vertices.
 function triangulate_polygon(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
+    algorithm::Symbol = :ear_clipping,
+    rng::AbstractRNG = Random.default_rng(),
 )
+    if algorithm == :seidel
+        return triangulate_seidel(vertices; kernel = kernel, rng = rng)
+    elseif algorithm != :ear_clipping
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :ear_clipping, :seidel)"))
+    end
+
     n = length(vertices)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
 
@@ -438,16 +632,21 @@ function triangulate_polygon(
 end
 
 """
-    polygon_diagonals(vertices; kernel=FloatingKernel())
+    polygon_diagonals(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping, rng=Random.default_rng())
 
 Return the internal diagonals of a counterclockwise simple polygon as index pairs `(i, j)` with `i < j`.
 """
-@inline function polygon_diagonals(vertices; kernel::AbstractKernel = FloatingKernel())
-    return triangulate_polygon(vertices; kernel = kernel).diagonals
+@inline function polygon_diagonals(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+    algorithm::Symbol = :ear_clipping,
+    rng::AbstractRNG = Random.default_rng(),
+)
+    return triangulate_polygon(vertices; kernel = kernel, algorithm = algorithm, rng = rng).diagonals
 end
 
 export PolygonTriangulation, MonotoneTriangulation
-export triangulate_polygon, triangulate_monotone
+export triangulate_polygon, triangulate_monotone, triangulate_seidel
 export is_x_monotone, is_y_monotone
 export monotone_chains, monotone_chain_indices, merge_chains
 export stack_diagonals, polygon_diagonals
