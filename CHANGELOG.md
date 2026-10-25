@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] - 2026-10-25
+
+### Added
+- Minkowski sum of 2D polygons and shapes:
+  - `minkowski_sum` computes the exact Minkowski sum $P \oplus Q = \{ p + q \mid p \in P, q \in Q \}$ in optimal $O(n + m)$ time for convex polygons by merging directed edges cyclically ordered by polar angle.
+  - Overloaded for `Point{2}`, `Segment{2}`, `AbsPntSeq{2}`, and `AbstractVector{<:Point{2}}` (producing translations, segments, stadium swept polygons, and parallelograms).
+  - Optional `hull=true` computes the convex hull $\mathrm{CH}(P \oplus Q) = \mathrm{CH}(P) \oplus \mathrm{CH}(Q)$ in $O(n \log n + m \log m)$ time for arbitrary input polygons.
+  - `minkowski_sum_decomposition` decomposes non-convex polygons into convex pieces (triangles) and computes convex Minkowski sums for each pair.
+  - `is_convex` predicate verifies polygon convexity (supporting collinear edge vertices, orientation-agnostic, and ruling out self-intersecting star shapes).
+  - Supports both `FloatingKernel()` and `ExactKernel()` (preserving exact rational coordinates).
+  - Added `Base.eltype` implementation for `AbsPntSeq` preserving element type across collections.
+
 ## [0.5.8] - 2026-10-25
 
 ### Added

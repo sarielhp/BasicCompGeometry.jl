@@ -179,3 +179,21 @@ p_l = [
 ker = polygon_kernel(p_l)
 (star_shaped = is_star_shaped(p_l), kernel_area = twice_area(ker) / 2)
 ```
+
+## Minkowski sum of polygons
+
+The Minkowski sum of two sets $P$ and $Q$ is defined as $P \oplus Q = \{ p + q \mid p \in P, q \in Q \}$.
+
+For two convex polygons with $n$ and $m$ vertices, `minkowski_sum(poly1, poly2)` computes the exact convex Minkowski sum in optimal $O(n + m)$ time by merging their directed edges in cyclic polar angle order. It supports both `FloatingKernel()` and `ExactKernel()`, as well as points and segments (producing translations, stadium shapes, and swept polygons).
+
+Convexity is verified by `is_convex(poly)`. For non-convex polygons:
+- `minkowski_sum(poly1, poly2; hull=true)` computes the convex hull $\mathrm{CH}(P \oplus Q) = \mathrm{CH}(P) \oplus \mathrm{CH}(Q)$ in $O(n \log n + m \log m)$ time.
+- `minkowski_sum_decomposition(poly1, poly2)` decomposes non-convex polygons into convex pieces (triangles) via triangulation, returning a vector of convex polygons whose union is $P \oplus Q$.
+
+```@example algorithms
+# Minkowski sum of a square and a triangle:
+sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+tri = [point(0.0, 0.0), point(1.0, 0.0), point(0.0, 1.0)]
+m_sum = minkowski_sum(sq, tri)
+(vertices = length(m_sum), area = twice_area(m_sum) / 2)
+```

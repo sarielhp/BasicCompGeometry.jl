@@ -20,9 +20,17 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "VisibilityPolygon.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
+
+## Minkowski sums and convexity
+
+| Call | Result |
+|:-----|:-------|
+| `minkowski_sum(poly1, poly2; kernel=FloatingKernel(), hull=false)` | Compute the Minkowski sum $P \oplus Q$ in optimal $O(n + m)$ time for convex polygons, or its convex hull with `hull=true` |
+| `minkowski_sum_decomposition(poly1, poly2; kernel=FloatingKernel())` | Compute convex pieces whose union forms the Minkowski sum of simple polygons via triangulation |
+| `is_convex(poly; kernel=FloatingKernel())` | Test whether polygon `poly` is convex |
 
 ## Visibility polygons and kernels
 

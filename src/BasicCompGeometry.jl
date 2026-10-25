@@ -163,6 +163,7 @@ include("Bundles.jl")
 include("Arrangements.jl")
 include("MonotoneTriangulation.jl")
 include("VisibilityPolygon.jl")
+include("MinkowskiSum.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
 # remain available through qualified calls, explicit imports, or the opt-in
@@ -234,7 +235,10 @@ export PolygonTriangulation,
     polygon_diagonals,
     visibility_polygon,
     polygon_kernel,
-    is_star_shaped
+    is_star_shaped,
+    is_convex,
+    minkowski_sum,
+    minkowski_sum_decomposition
 
 """
     BasicCompGeometry.Extras

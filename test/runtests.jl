@@ -294,6 +294,7 @@ Aqua.test_all(BasicCompGeometry)
             :intersections,
             :invert,
             :is_collinear,
+            :is_convex,
             :is_inside,
             :is_left_eq_turn,
             :is_left_turn,
@@ -305,6 +306,8 @@ Aqua.test_all(BasicCompGeometry)
             :max_dist,
             :merge_chains,
             :midpoint,
+            :minkowski_sum,
+            :minkowski_sum_decomposition,
             :monotone_chain_indices,
             :monotone_chains,
             :nn_point,
@@ -727,6 +730,7 @@ Aqua.test_all(BasicCompGeometry)
     include("test_exact_geometry.jl")
     include("test_monotone_triangulation.jl")
     include("test_visibility_polygon.jl")
+    include("test_minkowski_sum.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")
