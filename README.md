@@ -8,7 +8,7 @@
 Computational-geometry primitives, spatial data structures, algorithms, and
 vector figures for Julia. The package provides points, segments, and bounding
 boxes in arbitrary dimensions; matrix-backed point sequences; convex hulls,
-diameter algorithms, monotone polygon triangulation, bounding box trees, WSPD,
+diameter algorithms, polygon triangulation, bounding box trees, WSPD,
 and metric space algorithms.
 The core keeps a small dependency set, with optional Cairo and LaTeX extensions.
 

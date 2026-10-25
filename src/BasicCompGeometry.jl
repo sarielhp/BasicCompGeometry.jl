@@ -219,12 +219,17 @@ export orient,
 export polar, polar_line
 export bottom_left, corner, top_right, diam, max_dist, is_inside
 export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
-export MonotoneTriangulation,
+export PolygonTriangulation,
+    MonotoneTriangulation,
+    triangulate_polygon,
     triangulate_monotone,
+    is_x_monotone,
+    is_y_monotone,
     monotone_chains,
     monotone_chain_indices,
     merge_chains,
-    stack_diagonals
+    stack_diagonals,
+    polygon_diagonals
 
 """
     BasicCompGeometry.Extras

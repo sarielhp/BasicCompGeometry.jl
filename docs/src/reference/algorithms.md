@@ -24,14 +24,18 @@ Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
 
-## Monotone polygon triangulation
+## Polygon triangulation
 
 | Call | Result |
 |:-----|:-------|
+| `triangulate_polygon(vertices; kernel=FloatingKernel())` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
+| `is_x_monotone(vertices)` | Return `true` if polygon is strictly x-monotone |
+| `is_y_monotone(vertices)` | Return `true` if polygon is strictly y-monotone |
 | `monotone_chains(vertices; kernel=FloatingKernel())` | Upper and lower chains strictly increasing in x |
 | `merge_chains(upper, lower)` | Linear-time merge of two chains sorted by x |
-| `stack_diagonals(vertices; kernel=FloatingKernel())` | List of `k-3` internal diagonals |
+| `stack_diagonals(vertices; kernel=FloatingKernel())` | List of `k-3` internal diagonals for x-monotone polygon |
+| `polygon_diagonals(vertices; kernel=FloatingKernel())` | List of `n-3` internal diagonals for any simple polygon |
 
 ## 3D convex hull
 

@@ -162,4 +162,249 @@ using BasicCompGeometry
             end
         end
     end
+
+    @testset "Monotonicity predicates (is_x_monotone, is_y_monotone)" begin
+        p_x = [
+            point(big(0) // 1, big(0) // 1),
+            point(big(3) // 1, -big(1) // 1),
+            point(big(5) // 1, big(0) // 1),
+            point(big(4) // 1, big(2) // 1),
+            point(big(2) // 1, big(1) // 1),
+            point(big(1) // 1, big(3) // 1),
+        ]
+        @test is_x_monotone(p_x)
+        @test !is_y_monotone(p_x)
+
+        p_y = [point(-p.y, p.x) for p in p_x]
+        @test !is_x_monotone(p_y)
+        @test is_y_monotone(p_y)
+
+        # Convex quad is both x-monotone and y-monotone
+        p_convex = [
+            point(big(0) // 1, big(0) // 1),
+            point(big(2) // 1, -big(1) // 1),
+            point(big(4) // 1, big(0) // 1),
+            point(big(2) // 1, big(1) // 1),
+        ]
+        @test is_x_monotone(p_convex)
+        @test is_y_monotone(p_convex)
+
+        # U-shape is neither
+        p_u = [
+            point(big(0) // 1, big(0) // 1),
+            point(big(4) // 1, big(0) // 1),
+            point(big(4) // 1, big(4) // 1),
+            point(big(3) // 1, big(4) // 1),
+            point(big(3) // 1, big(1) // 1),
+            point(big(1) // 1, big(1) // 1),
+            point(big(1) // 1, big(4) // 1),
+            point(big(0) // 1, big(4) // 1),
+        ]
+        @test !is_x_monotone(p_u)
+        @test !is_y_monotone(p_u)
+
+        @test !is_x_monotone(Point2F[])
+        @test !is_y_monotone(Point2F[])
+        @test !is_x_monotone([point(0, 0), point(1, 0)])
+    end
+
+    @testset "General Polygon Triangulation (triangulate_polygon)" begin
+        @testset "Preconditions and error handling" begin
+            @test_throws ArgumentError triangulate_polygon([point(0, 0), point(1, 0)])
+            @test_throws ArgumentError triangulate_polygon(Point2F[])
+
+            # Clockwise polygon throws ArgumentError
+            cw_pts = [
+                point(big(0) // 1, big(0) // 1),
+                point(big(1) // 1, big(1) // 1),
+                point(big(2) // 1, -big(1) // 1),
+            ]
+            @test_throws ArgumentError triangulate_polygon(cw_pts; kernel = exact)
+
+            # k = 3
+            ccw_pts = [
+                point(big(0) // 1, big(0) // 1),
+                point(big(2) // 1, -big(1) // 1),
+                point(big(1) // 1, big(1) // 1),
+            ]
+            res3 = triangulate_polygon(ccw_pts; kernel = exact)
+            @test isempty(res3.diagonals)
+            @test length(res3.triangles) == 1
+            @test res3.triangles[1] == (1, 2, 3)
+            @test res3 isa PolygonTriangulation
+            @test res3 isa MonotoneTriangulation
+        end
+
+        test_general_polygons = [
+            # 1. U-shaped polygon (8 vertices, neither x- nor y-monotone)
+            (
+                "U-shape",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(4) // 1),
+                    point(big(3) // 1, big(4) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(1) // 1, big(4) // 1),
+                    point(big(0) // 1, big(4) // 1),
+                ],
+            ),
+            # 2. L-shaped polygon (6 vertices)
+            (
+                "L-shape",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(3) // 1, big(0) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(1) // 1, big(3) // 1),
+                    point(big(0) // 1, big(3) // 1),
+                ],
+            ),
+            # 3. Zigzag polygon (9 vertices)
+            (
+                "Zigzag",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(6) // 1, big(0) // 1),
+                    point(big(6) // 1, big(2) // 1),
+                    point(big(2) // 1, big(2) // 1),
+                    point(big(2) // 1, big(4) // 1),
+                    point(big(6) // 1, big(4) // 1),
+                    point(big(6) // 1, big(6) // 1),
+                    point(big(0) // 1, big(6) // 1),
+                    point(big(0) // 1, big(3) // 1),
+                ],
+            ),
+            # 4. Comb polygon (10 vertices)
+            (
+                "Comb",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(3) // 1),
+                    point(big(3) // 1, big(3) // 1),
+                    point(big(3) // 1, big(1) // 1),
+                    point(big(2) // 1, big(1) // 1),
+                    point(big(2) // 1, big(3) // 1),
+                    point(big(1) // 1, big(3) // 1),
+                    point(big(1) // 1, big(1) // 1),
+                    point(big(0) // 1, big(1) // 1),
+                ],
+            ),
+            # 5. Star polygon (10 vertices)
+            (
+                "Star10",
+                reverse([
+                    point(big(0) // 1, big(10) // 1),
+                    point(big(3) // 1, big(3) // 1),
+                    point(big(10) // 1, big(3) // 1),
+                    point(big(5) // 1, -big(2) // 1),
+                    point(big(7) // 1, -big(9) // 1),
+                    point(big(0) // 1, -big(5) // 1),
+                    point(-big(7) // 1, -big(9) // 1),
+                    point(-big(5) // 1, -big(2) // 1),
+                    point(-big(10) // 1, big(3) // 1),
+                    point(-big(3) // 1, big(3) // 1),
+                ]),
+            ),
+            # 6. Y-monotone polygon (delegation check)
+            (
+                "Y-monotone",
+                [point(-p.y, p.x) for p in [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(3) // 1, -big(1) // 1),
+                    point(big(5) // 1, big(0) // 1),
+                    point(big(4) // 1, big(2) // 1),
+                    point(big(2) // 1, big(1) // 1),
+                    point(big(1) // 1, big(3) // 1),
+                ]],
+            ),
+            # 7. Polygon with collinear vertex
+            (
+                "CollinearEdge",
+                [
+                    point(big(0) // 1, big(0) // 1),
+                    point(big(2) // 1, big(0) // 1),
+                    point(big(4) // 1, big(0) // 1),
+                    point(big(4) // 1, big(4) // 1),
+                    point(big(0) // 1, big(4) // 1),
+                ],
+            ),
+        ]
+
+        for (name, poly) in test_general_polygons
+            k = length(poly)
+            res = triangulate_polygon(poly; kernel = exact)
+
+            # 1. Counts: k - 3 diagonals, k - 2 triangles
+            @test length(res.diagonals) == k - 3
+            @test length(res.triangles) == k - 2
+
+            # 2. Distinct diagonals and sorted endpoint order (i < j)
+            @test length(unique(res.diagonals)) == k - 3
+            for (u, v) in res.diagonals
+                @test u < v
+                @test 1 <= u <= k
+                @test 1 <= v <= k
+                d = abs(u - v)
+                @test d > 1 && d < k - 1
+            end
+
+            # 3. polygon_diagonals helper matches
+            @test polygon_diagonals(poly; kernel = exact) == res.diagonals
+
+            # 4. No proper crossings among diagonals
+            diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
+            for i in 1:length(diag_segs)-1
+                for j in i+1:length(diag_segs)
+                    @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = exact)
+                end
+            end
+
+            # 5. Triangles are all counterclockwise
+            for (i1, i2, i3) in res.triangles
+                @test orient_sign(exact, poly[i1], poly[i2], poly[i3]) > 0
+            end
+
+            # 6. Exact area coverage: sum of triangle areas equals polygon area
+            poly_area = twice_area(poly; kernel = exact)
+            tri_area_sum = sum(
+                twice_area([poly[t[1]], poly[t[2]], poly[t[3]]]; kernel = exact) for
+                t in res.triangles
+            )
+            @test poly_area == tri_area_sum
+
+            # 7. Triangle edges: internal triangle edges must match the returned diagonals
+            edge_counts = Dict{Tuple{Int,Int},Int}()
+            for (i1, i2, i3) in res.triangles
+                for (a, b) in ((i1, i2), (i2, i3), (i3, i1))
+                    edge = a < b ? (a, b) : (b, a)
+                    edge_counts[edge] = get(edge_counts, edge, 0) + 1
+                end
+            end
+            for i in 1:k
+                b_edge = i < mod1(i + 1, k) ? (i, mod1(i + 1, k)) : (mod1(i + 1, k), i)
+                @test get(edge_counts, b_edge, 0) == 1
+            end
+            for d in res.diagonals
+                @test get(edge_counts, d, 0) == 2
+            end
+        end
+
+        # Test floating point kernel on larger star polygon (100 vertices)
+        n = 100
+        star100 = [
+            point(cos(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
+                  sin(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0))
+            for i in 0:n-1
+        ]
+        res100 = triangulate_polygon(star100)
+        @test length(res100.diagonals) == n - 3
+        @test length(res100.triangles) == n - 2
+        poly_area100 = twice_area(star100)
+        tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100.triangles)
+        @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
+    end
 end

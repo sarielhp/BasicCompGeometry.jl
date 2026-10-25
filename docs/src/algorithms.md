@@ -94,11 +94,35 @@ H.hierarchy_build!(h)
 simplified, width = H.hierarchy_approx(h, 0.3)
 ```
 
-## Monotone polygon triangulation
+## Polygon triangulation
+
+`triangulate_polygon` triangulates an arbitrary simple counterclockwise polygon with $n \ge 3$ vertices.
+It returns a `PolygonTriangulation` (`MonotoneTriangulation` is a compatibility alias) containing
+`n - 3` internal diagonals and `n - 2` counterclockwise triangles.
+
+For strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`),
+triangulation executes in linear time `O(n)`. For general simple non-monotone polygons,
+it uses ear clipping with reflex acceleration running in `O(n r)` time where $r$ is the count of reflex vertices:
+
+```@example algorithms
+# Non-monotone U-shaped polygon
+u_poly = [
+    point(0.0, 0.0),
+    point(4.0, 0.0),
+    point(4.0, 4.0),
+    point(3.0, 4.0),
+    point(3.0, 1.0),
+    point(1.0, 1.0),
+    point(1.0, 4.0),
+    point(0.0, 4.0)
+]
+res = triangulate_polygon(u_poly)
+(diagonals = res.diagonals, triangles = res.triangles)
+```
 
 `triangulate_monotone` decomposes a simple counterclockwise x-monotone polygon into
 triangles in deterministic linear time `O(k)` using the monotone stack algorithm.
-It returns a `MonotoneTriangulation` with `k - 3` internal diagonals and `k - 2`
+It returns a `PolygonTriangulation` with `k - 3` internal diagonals and `k - 2`
 counterclockwise triangles:
 
 ```@example algorithms
