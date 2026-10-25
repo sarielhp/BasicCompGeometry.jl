@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2026-10-24
+
+### Added
+- Seidel's randomized incremental polygon triangulation algorithm:
+  - `triangulate_seidel` implements Raimund Seidel's randomized incremental polygon triangulation algorithm in expected $O(n \log^* n)$ time, decomposing the polygon into monotone sub-polygons via reflex cusp resolution and triangulating each piece in linear time.
+  - `triangulate_polygon` now supports an `algorithm` keyword argument accepting `:ear_clipping` (default) or `:seidel`, as well as a reproducible `rng` keyword.
+
 ## [0.5.5] - 2026-10-24
 
 ### Added
 - General simple polygon triangulation:
-  - `triangulate_polygon` triangulates an arbitrary simple counterclockwise polygon with $n \ge 3$ vertices, returning $n - 3$ internal diagonals and $n - 2$ counterclockwise triangles. Supports both `:ear_clipping` (default, $O(n r)$) and `:seidel` (expected $O(n \log^* n)$).
-  - `triangulate_seidel` implements Raimund Seidel's randomized incremental polygon triangulation algorithm in expected $O(n \log^* n)$ time, decomposing the polygon into monotone pieces via cusp resolution and triangulating each piece in linear time.
+  - `triangulate_polygon` triangulates an arbitrary simple counterclockwise polygon with $n \ge 3$ vertices, returning $n - 3$ internal diagonals and $n - 2$ counterclockwise triangles.
   - Automatically detects $x$-monotone or $y$-monotone polygons via `is_x_monotone` and `is_y_monotone` and triangulates them in linear time $O(n)$; general simple polygons are triangulated via ear clipping with reflex acceleration in $O(n r)$ time where $r$ is the count of reflex vertices.
   - `PolygonTriangulation` result container supporting property access (`res.diagonals`, `res.triangles`) and destructuring `(diagonals, triangles) = res`.
   - `is_x_monotone` and `is_y_monotone` predicates for checking strict polygon monotonicity.
