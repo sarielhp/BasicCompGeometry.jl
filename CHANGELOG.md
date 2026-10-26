@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `build_rmq` / `range_argmin`: static linear-space, linear-preprocessing, O(1)-query range-minimum index (rightmost minimum on ties; `:sparse` reference backend).
+- `build_chain_index` / `chain_window` (+ `nedges`, qualified `vertex`, `edge`, `bounds`, `leftmost`, `point_at`): shared cyclic-chain geometry with distinct closing occurrence, O(1) windows and exact interpolation.
+- `vertical_ray_segment` (`NoHit`, `PointHit`, `OverlapHit`) and `first_positive_vertical_contact`: exact closed vertical-ray contacts.
+- `open_sector_contains` and `incoming_sector_contains`: exact angular-sector predicates, including slit tips and the symbolic incoming direction.
+- All constructions are exact (widened to `BigInt`/`Rational{BigInt}`); floating-point coordinates are rejected.
+
 ## [0.5.9] - 2026-10-25
 
 ### Added

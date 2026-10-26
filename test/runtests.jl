@@ -308,6 +308,18 @@ Aqua.test_all(BasicCompGeometry)
             :midpoint,
             :minkowski_sum,
             :minkowski_sum_decomposition,
+            :NoHit,
+            :OverlapHit,
+            :PointHit,
+            :build_chain_index,
+            :build_rmq,
+            :chain_window,
+            :first_positive_vertical_contact,
+            :incoming_sector_contains,
+            :nedges,
+            :open_sector_contains,
+            :range_argmin,
+            :vertical_ray_segment,
             :monotone_chain_indices,
             :monotone_chains,
             :nn_point,
@@ -731,6 +743,7 @@ Aqua.test_all(BasicCompGeometry)
     include("test_monotone_triangulation.jl")
     include("test_visibility_polygon.jl")
     include("test_minkowski_sum.jl")
+    include("test_chain_incidence.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")

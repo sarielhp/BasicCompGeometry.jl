@@ -164,6 +164,9 @@ include("Arrangements.jl")
 include("MonotoneTriangulation.jl")
 include("VisibilityPolygon.jl")
 include("MinkowskiSum.jl")
+include("RMQ.jl")
+include("ChainIndex.jl")
+include("LocalIncidence.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
 # remain available through qualified calls, explicit imports, or the opt-in
@@ -238,7 +241,19 @@ export PolygonTriangulation,
     is_star_shaped,
     is_convex,
     minkowski_sum,
-    minkowski_sum_decomposition
+    minkowski_sum_decomposition,
+    build_rmq,
+    range_argmin,
+    build_chain_index,
+    chain_window,
+    nedges,
+    vertical_ray_segment,
+    first_positive_vertical_contact,
+    NoHit,
+    PointHit,
+    OverlapHit,
+    open_sector_contains,
+    incoming_sector_contains
 
 """
     BasicCompGeometry.Extras
