@@ -12,6 +12,20 @@ def git(*args)
   stdout.strip
 end
 
+HELP = <<~TEXT
+  Usage: tools/push [--dry-run]
+
+  Push the current branch to origin and check that the remote branch is
+  the pushed commit.
+
+  Options:
+    --dry-run   Print what would be pushed; change nothing.
+    -h, --help  Show this help; nothing is run.
+TEXT
+if ARGV.intersect?(%w[-h --help])
+  puts HELP
+  exit
+end
 abort 'Usage: tools/push [--dry-run]' unless (ARGV - ['--dry-run']).empty?
 branch = git('branch', '--show-current')
 abort 'Cannot push a detached HEAD; check out a branch first.' if branch.empty?

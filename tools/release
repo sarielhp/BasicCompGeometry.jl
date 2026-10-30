@@ -11,10 +11,21 @@ Dir.chdir(REPO)
 bump_args = []
 dry_run = false
 OptionParser.new do |o|
-  o.banner = 'Usage: tools/release [--minor | --major] [--dry-run]'
-  o.on('--minor') { bump_args << '--minor' }
-  o.on('--major') { bump_args << '--major' }
-  o.on('--dry-run') { dry_run = true }
+  o.banner = <<~TEXT
+    Usage: tools/release [--minor | --major] [--dry-run]
+
+    Release from a clean main that matches GitHub: run the test suite
+    (Pkg.test), then bump the version in Project.toml (patch by default),
+    commit "Bump version to X.Y.Z" and push main, verified (tools/bump).
+
+    This pushes to GitHub but does not register the package; registration
+    is tools/publish, run rarely and only on request.
+
+  TEXT
+  o.summary_width = 14
+  o.on('--minor', 'Raise the minor version instead of the patch.') { bump_args << '--minor' }
+  o.on('--major', 'Raise the major version instead of the patch.') { bump_args << '--major' }
+  o.on('--dry-run', 'Print the next version; change nothing.') { dry_run = true }
 end.parse!
 
 if dry_run

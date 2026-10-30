@@ -29,8 +29,22 @@ end
 
 dry_run = false
 parser = OptionParser.new do |o|
-  o.banner = 'Usage: tools/publish [--dry-run] [release notes]'
-  o.on('--dry-run') { dry_run = true }
+  o.banner = <<~TEXT
+    Usage: tools/publish [--dry-run] [release notes]
+
+    Register the pushed HEAD of main in Julia's General registry: wait for
+    the Documentation.yml CI run on that commit to pass, then comment
+    "@JuliaRegistrator register" on the commit with the release notes
+    (default "See CHANGELOG.md."). TagBot tags the version once the
+    registration merges.
+
+    Registration is public and cannot be withdrawn: run it rarely, after
+    major or breaking changes, and only when explicitly asked. Run
+    tools/release first.
+
+  TEXT
+  o.summary_width = 14
+  o.on('--dry-run', 'Print the version and commit to register; change nothing.') { dry_run = true }
 end
 parser.parse!
 notes = ARGV.join(' ').strip

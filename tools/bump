@@ -29,10 +29,20 @@ end
 level = :patch
 dry_run = false
 OptionParser.new do |o|
-  o.banner = 'Usage: tools/bump [--minor | --major] [--dry-run]'
-  o.on('--minor') { level = :minor }
-  o.on('--major') { level = :major }
-  o.on('--dry-run') { dry_run = true }
+  o.banner = <<~TEXT
+    Usage: tools/bump [--minor | --major] [--dry-run]
+
+    Bump the version in Project.toml (patch by default), commit "Bump
+    version to X.Y.Z", push main through tools/push, and check that GitHub's
+    main is the new commit. Requires a clean main that matches GitHub. It
+    runs no tests (tools/release does) and does not register (tools/publish
+    does).
+
+  TEXT
+  o.summary_width = 14
+  o.on('--minor', 'Raise the minor version instead of the patch.') { level = :minor }
+  o.on('--major', 'Raise the major version instead of the patch.') { level = :major }
+  o.on('--dry-run', 'Print the next version; change nothing.') { dry_run = true }
 end.parse!
 
 content = File.read(PROJECT_FILE)
