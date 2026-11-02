@@ -24,6 +24,37 @@ Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "Visibility
 Filter = obj -> obj in Main.documented_api
 ```
 
+## Discrete hulls of convex bodies
+
+The discrete hull of a planar convex body $C$ is $\mathrm{CH}(C \cap \mathbb{Z}^2)$.
+`discrete_hull` implements the output-sensitive algorithm of Har-Peled
+(*An Output Sensitive Algorithm for Discrete Convex Hulls*, CGTA 10, 1998).
+It reads $C$ only through `chord_range` and makes $O(|C'| \log \mathrm{diam}(C))$
+calls, where $|C'|$ is the number of hull vertices. For a disk of radius $r$
+this is $O(r^{2/3} \log r)$.
+
+| Call | Result |
+|:-----|:-------|
+| `discrete_hull(C; seed=nothing, start=nothing)` | Hull vertices as `Point2I`, counterclockwise from the lowest-leftmost vertex, with no collinear vertices; empty if $C \cap \mathbb{Z}^2 = \emptyset$ |
+| `chord_range(C, o, d)` | `nothing` if the line `o + t*d` misses `C`, else `(⌈t_lo⌉, ⌊t_hi⌋)` |
+| `LatticeDisk(center, radius)` | Disk with exact rational center and radius; floats are rounded to multiples of `1/den` (default `2^16`) |
+| `ConvexPolygonBody(vertices)` | Convex polygon with exact rational vertices in counterclockwise order |
+| `FloatChordBody(f)` | Body given by a floating-point chord function `f(o, d)`; exact only up to the rounding of `f` |
+| `find_edge_direction(C, p, L, U)` | Continued-fraction search for the next edge direction from `p` in the lattice cone spanned by `(L, U)` |
+| `discrete_hull_start(C, seed)` | Lowest-leftmost lattice point of `C` by unbounded and binary search; needs lattice-connected `C ∩ Z²` |
+| `discrete_hull_columns(C[, xs])` | Naive $O(r)$ hull of the lowest and highest lattice points on each column |
+| `lattice_convex_hull(points)` | Exact convex hull of integer points |
+
+For other bodies, subtype `AbsLatticeBody`, implement `chord_range`, and pass
+either `seed` (a lattice point of `C`) or `start` (a vertex of the hull). The
+`chord_range` results determine the hull, so the hull is exact when they are.
+
+```@autodocs
+Modules = [BasicCompGeometry]
+Pages = ["DiscreteHull.jl"]
+Filter = obj -> obj in Main.documented_api
+```
+
 ## Minkowski sums and convexity
 
 | Call | Result |

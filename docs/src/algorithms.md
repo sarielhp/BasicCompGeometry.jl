@@ -180,6 +180,23 @@ ker = polygon_kernel(p_l)
 (star_shaped = is_star_shaped(p_l), kernel_area = twice_area(ker) / 2)
 ```
 
+## Discrete hulls
+
+`discrete_hull(C)` computes the convex hull of the lattice points of a convex
+body `C` without enumerating them, by Har-Peled's output-sensitive algorithm.
+For a disk of radius $r$ it takes $O(r^{2/3} \log r)$ time, against $O(r)$ for
+the naive column scan `discrete_hull_columns`. A disk of radius $10^7$ takes
+under 0.1 s. Disks and rational polygons are handled exactly; see
+[the algorithm reference](reference/algorithms.md#Discrete-hulls-of-convex-bodies)
+for other bodies, and `examples/discrete_hull_disk.jl` for a full example.
+
+```@example algorithms
+D = LatticeDisk((0.3, 0.7), 1000)
+H = discrete_hull(D)
+(vertices = length(H), ratio = length(H) / 1000^(2/3),
+ matches_naive = H == discrete_hull_columns(D))
+```
+
 ## Minkowski sum of polygons
 
 The Minkowski sum of two sets $P$ and $Q$ is defined as $P \oplus Q = \{ p + q \mid p \in P, q \in Q \}$.
