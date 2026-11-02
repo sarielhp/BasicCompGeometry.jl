@@ -25,7 +25,7 @@ intersect the exterior of ``P`` or any boundary edge of ``P``.
 # Preconditions
 - `poly` must have at least 3 vertices and be oriented counterclockwise with positive area
   (as verified by [`twice_area`](@ref)).
-- `q` must lie strictly in the interior or on the boundary of `poly`. An [`ArgumentError`](@ref)
+- `q` must lie strictly in the interior or on the boundary of `poly`. An `ArgumentError`
   is thrown if `q` is outside `poly`.
 
 # Examples

@@ -86,6 +86,29 @@ Filter = obj -> obj in Main.documented_api
 | `stack_diagonals(vertices; kernel=FloatingKernel())` | List of `k-3` internal diagonals for x-monotone polygon |
 | `polygon_diagonals(vertices; kernel=FloatingKernel())` | List of `n-3` internal diagonals for any simple polygon |
 
+## Range minima, chain indexes, and exact incidence predicates
+
+| Call | Result |
+|:-----|:-------|
+| `build_rmq(keys; less=isless, backend=:blocked)` | Static range-minimum index: $O(n)$ preprocessing and space, $O(1)$ queries (`:sparse` is the $O(n \log n)$ reference) |
+| `range_argmin(index, lo, hi)` | Index of the minimum key in `lo:hi`, rightmost on ties |
+| `build_chain_index(points)` | Static index over a cyclic chain of exact planar points |
+| `chain_window(index, lo, hi)` | $O(1)$ window of chain occurrences `lo:hi`; `nedges(w)` counts its edges |
+| `vertical_ray_segment(p, direction, a, b)` | Exact contact of a closed vertical ray with a closed segment: `NoHit()`, `PointHit(point, t)`, or `OverlapHit(t_lo, t_hi)` |
+| `first_positive_vertical_contact(segments, p, direction)` | First contact at positive parameter along a vertical ray among nonvertical segments |
+| `open_sector_contains(v, u, d; coincident=:full)` | Whether direction `d` lies in the open counterclockwise sector from `v` to `u` |
+| `incoming_sector_contains(v, u, direction; coincident=:full)` | The same test for the symbolic incoming vertical direction |
+
+Chain-window accessors (`vertex`, `edge`, `bounds`, `leftmost`, `point_at`) use
+qualified names. All constructions are exact; floating-point coordinates are
+rejected.
+
+```@autodocs
+Modules = [BasicCompGeometry]
+Pages = ["RMQ.jl", "ChainIndex.jl", "LocalIncidence.jl"]
+Filter = obj -> obj in Main.documented_api
+```
+
 ## 3D convex hull
 
 ```@autodocs
