@@ -316,6 +316,25 @@ result to a PDF.
 
 ---
 
+## `discrete_hull_disk.jl` — Discrete Hull of a Large Disk
+
+Computes the discrete hull $\mathcal{CH}(D \cap \mathbb{Z}^2)$ of a disk of
+radius $10^7$ with a random center in the unit square, using `discrete_hull`
+(Har-Peled, *An Output Sensitive Algorithm for Discrete Convex Hulls*, CGTA
+1998; $O(r^{2/3} \log r)$ time). It checks the result against the naive $O(r)$
+hull of the column extremes (`discrete_hull_columns`), confirms that all
+vertices lie in $D$ and the polygon is strictly convex, and prints both
+timings. It then prints the average hull size over random centers for
+$r = 10, \dots, 10^7$; the ratio $|DH|/r^{2/3}$ approaches the value $\approx 3.45$
+measured in the paper. Finally, it draws a disk of radius 7.3, its lattice
+points, and its discrete hull.
+
+**Usage:** `julia --project=examples examples/discrete_hull_disk.jl`
+
+**Output:** `output/discrete_hull_disk.pdf`, `output/discrete_hull_disk.ipe`
+
+---
+
 ## `ann.jl` — Nearest Neighbor Search Comparison
 
 Compares four nearest neighbor search strategies on random point sets:

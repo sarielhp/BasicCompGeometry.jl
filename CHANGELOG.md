@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Discrete (lattice) convex hulls, `ConvexHull(C ∩ Z²)`, by the output-sensitive algorithm of Har-Peled (CGTA 1998): `discrete_hull` makes O(|hull| log diam(C)) chord queries, e.g. O(r^(2/3) log r) for a disk of radius r.
+  - Bodies are accessed only through `chord_range` (exact `(⌈t_lo⌉, ⌊t_hi⌋)` of a line chord). Exact bodies: `LatticeDisk` (rational center and radius) and `ConvexPolygonBody` (rational vertices); `FloatChordBody` wraps any floating-point chord oracle.
+  - `find_edge_direction` (continued-fraction edge search in a lattice cone), `discrete_hull_start` (Lemma 3.10 start vertex), `discrete_hull_columns` (naive O(r) baseline), and `lattice_convex_hull` (exact integer monotone chain).
+  - Example `examples/discrete_hull_disk.jl`: a disk of radius 10^7 in under 0.1 s, verified against the naive hull.
 - `build_rmq` / `range_argmin`: static linear-space, linear-preprocessing, O(1)-query range-minimum index (rightmost minimum on ties; `:sparse` reference backend).
 - `build_chain_index` / `chain_window` (+ `nedges`, qualified `vertex`, `edge`, `bounds`, `leftmost`, `point_at`): shared cyclic-chain geometry with distinct closing occurrence, O(1) windows and exact interpolation.
 - `vertical_ray_segment` (`NoHit`, `PointHit`, `OverlapHit`) and `first_positive_vertical_contact`: exact closed vertical-ray contacts.

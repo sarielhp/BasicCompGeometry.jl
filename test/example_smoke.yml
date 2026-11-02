@@ -107,3 +107,8 @@
   program: dev/verify_subspace_diam.jl
   purpose: Check WSPD and FST subspace diameter ratios against their theoretical bounds.
   stdout: ['Verifying approx_diam_subspace', 'Max % Error']
+- name: discrete_hull_disk
+  program: discrete_hull_disk.jl
+  purpose: Compute the discrete hull of a large disk output-sensitively, verify it against the naive hull, and draw a small one.
+  files: {discrete_hull_disk.pdf: 1, discrete_hull_disk.ipe: null}
+  stdout: ['Verified: identical to the naive hull']

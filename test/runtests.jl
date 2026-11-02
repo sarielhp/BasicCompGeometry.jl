@@ -320,6 +320,16 @@ Aqua.test_all(BasicCompGeometry)
             :open_sector_contains,
             :range_argmin,
             :vertical_ray_segment,
+            :AbsLatticeBody,
+            :ConvexPolygonBody,
+            :FloatChordBody,
+            :LatticeDisk,
+            :chord_range,
+            :discrete_hull,
+            :discrete_hull_columns,
+            :discrete_hull_start,
+            :find_edge_direction,
+            :lattice_convex_hull,
             :monotone_chain_indices,
             :monotone_chains,
             :nn_point,
@@ -743,6 +753,7 @@ Aqua.test_all(BasicCompGeometry)
     include("test_monotone_triangulation.jl")
     include("test_visibility_polygon.jl")
     include("test_minkowski_sum.jl")
+    include("test_discrete_hull.jl")
     include("test_chain_incidence.jl")
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")

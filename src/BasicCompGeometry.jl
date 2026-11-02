@@ -167,6 +167,7 @@ include("MinkowskiSum.jl")
 include("RMQ.jl")
 include("ChainIndex.jl")
 include("LocalIncidence.jl")
+include("DiscreteHull.jl")
 
 # Core types and distinctive operations are exported. Generic geometry helpers
 # remain available through qualified calls, explicit imports, or the opt-in
@@ -253,7 +254,17 @@ export PolygonTriangulation,
     PointHit,
     OverlapHit,
     open_sector_contains,
-    incoming_sector_contains
+    incoming_sector_contains,
+    AbsLatticeBody,
+    LatticeDisk,
+    ConvexPolygonBody,
+    FloatChordBody,
+    chord_range,
+    find_edge_direction,
+    discrete_hull,
+    discrete_hull_start,
+    discrete_hull_columns,
+    lattice_convex_hull
 
 """
     BasicCompGeometry.Extras

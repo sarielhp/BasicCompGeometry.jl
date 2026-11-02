@@ -20,6 +20,7 @@ Instructions, architecture guide, and workflow conventions for AI agents and dev
   - Metric Spaces & Embeddings ([`src/MetricSpace.jl`](src/MetricSpace.jl))
   - Longest Convex Subset ([`src/LongestConvexSubset.jl`](src/LongestConvexSubset.jl))
   - Curve simplification hierarchies and palettes ([`src/PntSeqHierarchy.jl`](src/PntSeqHierarchy.jl))
+  - Output-sensitive discrete (lattice) convex hulls of convex bodies ([`src/DiscreteHull.jl`](src/DiscreteHull.jl))
 
 ---
 
