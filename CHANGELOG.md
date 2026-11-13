@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BBT.Node` / `BBT.Tree` have compact `show` methods; the new `parent` field made printing any node dump the entire tree.
 
 ### Changed
+- `triangulate_seidel` is about 2.5x faster and allocates about 2.6x less memory (isbits `Int32` trapezoid/DAG records, flat piece storage, reused scratch buffers); output is unchanged for a given `rng`. Inputs above `typemax(Int32) ÷ 16` vertices now throw `ArgumentError` (use `:sweep`).
 - `triangulate_polygon(...; algorithm = :ear_clipping)` is accepted again as an alias of `:ear_cut`.
 - Corrected complexity claims for `:ear_cut_z_order` (degrades toward quadratic on long thin ears and far outliers) and the Kd-tree ear cutters (subquadratic in practice, `O(n r)` worst case).
 
