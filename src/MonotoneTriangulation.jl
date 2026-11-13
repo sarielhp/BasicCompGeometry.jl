@@ -504,52 +504,20 @@ function _ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = Floatin
     return _ear_clip_run!(st)
 end
 
-function _ear_clipping_triangulate(
-    poly;
-    kernel::AbstractKernel = FloatingKernel(),
-)
-    n = length(poly)
-    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
-
-    area2 = twice_area(poly; kernel = kernel)
-    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
-
-    return _ear_clipping_from_valid(poly, n; kernel = kernel)
-end
-
 """
-    triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep, rng=Random.default_rng()) -> PolygonTriangulation
+    triangulate_ear_cut(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
 
-Triangulate a simple counterclockwise polygon with `n >= 3` vertices.
-Returns a `PolygonTriangulation` with:
-- `result.diagonals`: `n - 3` distinct internal diagonals as index pairs `(i, j)` with `i < j`.
-- `result.triangles`: `n - 2` counterclockwise triangles as index triples `(i, j, m)`.
-
-Supported `algorithm` options:
-- `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
-- `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
-- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
-- `:ear_clipping`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices using reflex-vertex
+ear clipping in `O(n r)` time, where `r` is the number of reflex vertices (`O(n)` fast path
+on strictly x-monotone or y-monotone polygons).
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-function triangulate_polygon(
+function triangulate_ear_cut(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
-    algorithm::Symbol = :sweep,
-    rng::AbstractRNG = Random.default_rng(),
 )
-    if algorithm == :sweep
-        return triangulate_sweep(vertices; kernel = kernel)
-    elseif algorithm == :seidel
-        return triangulate_seidel(vertices; kernel = kernel, rng = rng)
-    elseif algorithm == :ear_cut_z_order
-        return triangulate_ear_cut_z_order(vertices; kernel = kernel)
-    elseif algorithm != :ear_clipping
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_clipping)"))
-    end
-
     n = length(vertices)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
 
@@ -572,6 +540,42 @@ function triangulate_polygon(
 end
 
 """
+    triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep, rng=Random.default_rng()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices.
+Returns a `PolygonTriangulation` with:
+- `result.diagonals`: `n - 3` distinct internal diagonals as index pairs `(i, j)` with `i < j`.
+- `result.triangles`: `n - 2` counterclockwise triangles as index triples `(i, j, m)`.
+
+Supported `algorithm` options:
+- `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
+- `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
+- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
+- `:ear_cut`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
+function triangulate_polygon(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+    algorithm::Symbol = :sweep,
+    rng::AbstractRNG = Random.default_rng(),
+)
+    if algorithm == :sweep
+        return triangulate_sweep(vertices; kernel = kernel)
+    elseif algorithm == :seidel
+        return triangulate_seidel(vertices; kernel = kernel, rng = rng)
+    elseif algorithm == :ear_cut_z_order
+        return triangulate_ear_cut_z_order(vertices; kernel = kernel)
+    elseif algorithm == :ear_cut
+        return triangulate_ear_cut(vertices; kernel = kernel)
+    else
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut)"))
+    end
+end
+
+"""
     polygon_diagonals(vertices; kernel=FloatingKernel(), algorithm=:sweep, rng=Random.default_rng())
 
 Return the internal diagonals of a counterclockwise simple polygon as index pairs `(i, j)` with `i < j`.
@@ -586,7 +590,7 @@ Return the internal diagonals of a counterclockwise simple polygon as index pair
 end
 
 export PolygonTriangulation, MonotoneTriangulation
-export triangulate_polygon, triangulate_monotone
+export triangulate_polygon, triangulate_monotone, triangulate_ear_cut
 export is_x_monotone, is_y_monotone
 export monotone_chains, monotone_chain_indices, merge_chains
 export stack_diagonals, polygon_diagonals

@@ -409,7 +409,11 @@ using BasicCompGeometry
         tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100.triangles)
         @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
 
-        res100_ear = triangulate_polygon(star100; algorithm = :ear_clipping)
+        res100_ear = triangulate_polygon(star100; algorithm = :ear_cut)
+        @test triangulate_ear_cut(star100).diagonals == res100_ear.diagonals
+        @test_throws ArgumentError triangulate_ear_cut([point(0.0, 0.0), point(1.0, 0.0)])
+        @test_throws ArgumentError triangulate_ear_cut([point(0.0, 0.0), point(0.0, 1.0), point(1.0, 0.0)])
+        @test triangulate_ear_cut([point(0.0, 0.0), point(1.0, 0.0), point(0.0, 1.0)]).triangles == [(1, 2, 3)]
         @test length(res100_ear.diagonals) == n - 3
         @test length(res100_ear.triangles) == n - 2
         tri_sum100_ear = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100_ear.triangles)
@@ -757,7 +761,7 @@ using BasicCompGeometry
                 poly_ear = _non_monotone_few_reflex(n_ear)
                 @test !is_x_monotone(poly_ear) && !is_y_monotone(poly_ear)
                 ke = _SeidelCountKernel(0, 0)
-                res_ear = triangulate_polygon(poly_ear; kernel = ke, algorithm = :ear_clipping)
+                res_ear = triangulate_polygon(poly_ear; kernel = ke, algorithm = :ear_cut)
                 @test length(res_ear.triangles) == n_ear - 2
                 @test ke.turns / n_ear < 15.0
             end
@@ -768,7 +772,7 @@ using BasicCompGeometry
                 push!(poly_vert_conv, point(cos(th), sin(th)))
             end
             kvc = _SeidelCountKernel(0, 0)
-            res_vc = triangulate_polygon(poly_vert_conv; kernel = kvc, algorithm = :ear_clipping)
+            res_vc = triangulate_polygon(poly_vert_conv; kernel = kvc, algorithm = :ear_cut)
             @test length(res_vc.triangles) == length(poly_vert_conv) - 2
             @test kvc.turns / length(poly_vert_conv) < 5.0
         end
@@ -1270,7 +1274,7 @@ using BasicCompGeometry
             end
         end
 
-        @testset "Near-linear practical performance vs ear_clipping" begin
+        @testset "Near-linear practical performance vs ear_cut" begin
             # 1. r = 0 convex polygon stays O(n)
             poly_conv = Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
             kc = _EarCutZOrderCountKernel(FloatingKernel(), 0)
@@ -1309,7 +1313,7 @@ using BasicCompGeometry
 
             r_ec1 = triangulate_polygon(comb_1k; kernel = kec1, algorithm = :ear_cut_z_order)
             r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = :ear_cut_z_order)
-            triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_clipping)
+            triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
 
             _verify_ear_cut_z_order_result(comb_1k, r_ec1)
             @test length(r_ec5.triangles) == length(comb_5k) - 2

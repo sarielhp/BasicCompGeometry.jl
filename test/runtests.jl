@@ -367,6 +367,7 @@ Aqua.test_all(BasicCompGeometry)
             :translation,
             :trapezoid_chains,
             :trapezoids,
+            :triangulate_ear_cut,
             :triangulate_ear_cut_z_order,
             :triangulate_monotone,
             :triangulate_polygon,
