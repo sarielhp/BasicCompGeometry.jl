@@ -1,12 +1,17 @@
 # Diagonal-split triangulation (prototype): recursively split the polygon by diagonals
-# between reflex vertices, found by a halving search, and fan the resulting pieces that have
-# at most one reflex vertex. Diagonals are validated by a cone test at both endpoints and a
-# static Kd-tree over the original edges. See `plans/diagonal_split.md`.
+# between reflex vertices and fan the resulting pieces that have at most one reflex vertex.
+# A random pair of reflex vertices (half the piece's reflex count apart) is tried first;
+# when it fails, a reflex endpoint is resolved by ray shooting (first boundary hit, then the
+# angularly first reflex vertex in the swept triangle). Every diagonal is validated by a cone
+# test at both endpoints and a Kd-tree over the original edges.
+# See `plans/diagonal_split.md`.
 
 # ---------------------------------------------------------------------------------------
-# Static edge Kd-tree. Built over edge midpoints; node and edge boxes are outward-rounded
-# Float64 boxes covering the true edge extents, so box pruning is conservative for any
-# coordinate type. Edge `e` joins vertices `e` and `mod1(e + 1, n)`.
+# Edge Kd-tree. Built over edge midpoints; node and edge boxes are outward-rounded Float64
+# boxes covering the true edge extents, so box pruning is conservative for any coordinate
+# type. Edge `e` joins vertices `e` and `mod1(e + 1, n)`. The tree holds only the original
+# edges: a candidate diagonal of a piece that crosses an earlier diagonal must also cross an
+# original edge to get back into the piece, so diagonals never need to be indexed.
 # ---------------------------------------------------------------------------------------
 
 struct _EdgeTree
@@ -122,6 +127,17 @@ end
     return o3 * o4 <= 0
 end
 
+# Does segment (s1, s2) block the candidate diagonal (a, b)? Segments sharing an endpoint
+# with it block only if their other endpoint lies on it.
+@inline function _seg_blocks(kernel, poly, A, B, a::Int, b::Int, s1::Int, s2::Int)::Bool
+    if s1 == a || s1 == b || s2 == a || s2 == b
+        far = (s1 == a || s1 == b) ? s2 : s1
+        (far == a || far == b) && return false
+        return _cons_on_seg(kernel, poly[far], A, B)
+    end
+    return _closed_segs_meet(kernel, A, B, poly[s1], poly[s2])
+end
+
 # Does some original edge meet the closed segment between vertices `a` and `b` other than at
 # `a` or `b` themselves? Edges incident to `a` or `b` count only if their other endpoint lies
 # on the segment.
@@ -134,8 +150,6 @@ function _edge_blocked(et::_EdgeTree, poly, kernel, n::Int, a::Int, b::Int, stat
     dx = bxf - axf
     dy = byf - ayf
     tol = et.tol
-    a_prev = a == 1 ? n : a - 1
-    b_prev = b == 1 ? n : b - 1
     stack = et.stack
     empty!(stack)
     push!(stack, Int32(1))
@@ -158,14 +172,7 @@ function _edge_blocked(et::_EdgeTree, poly, kernel, n::Int, a::Int, b::Int, stat
                 e = Int(et.eid[k])
                 e2 = e == n ? 1 : e + 1
                 stats[4] += 1
-                if e == a || e == a_prev || e == b || e == b_prev
-                    # Incident edge: blocked only if its far endpoint lies on the segment.
-                    far = (e == a || e == b) ? e2 : e
-                    (far == a || far == b) && continue
-                    _cons_on_seg(kernel, poly[far], A, B) && return true
-                else
-                    _closed_segs_meet(kernel, A, B, poly[e], poly[e2]) && return true
-                end
+                _seg_blocks(kernel, poly, A, B, a, b, e, e2) && return true
             end
         else
             push!(stack, l)
@@ -173,6 +180,122 @@ function _edge_blocked(et::_EdgeTree, poly, kernel, n::Int, a::Int, b::Int, stat
         end
     end
     return false
+end
+
+# ---------------------------------------------------------------------------------------
+# Ray shooting and the angular sweep (plain Float64 heuristics; every diagonal they propose
+# is validated exactly by `_diag_ok`).
+# ---------------------------------------------------------------------------------------
+
+# Parameter interval of the ray A + t D (t >= 0) inside box [x0,x1] x [y0,y1]: entry t, or
+# Inf if the ray misses the box.
+@inline function _ray_box_entry(ax, ay, dx, dy, x0, x1, y0, y1)::Float64
+    tlo = 0.0
+    thi = Inf
+    if dx == 0.0
+        (ax < x0 || ax > x1) && return Inf
+    else
+        t1 = (x0 - ax) / dx; t2 = (x1 - ax) / dx
+        tlo = max(tlo, min(t1, t2)); thi = min(thi, max(t1, t2))
+    end
+    if dy == 0.0
+        (ay < y0 || ay > y1) && return Inf
+    else
+        t1 = (y0 - ay) / dy; t2 = (y1 - ay) / dy
+        tlo = max(tlo, min(t1, t2)); thi = min(thi, max(t1, t2))
+    end
+    return tlo <= thi ? tlo : Inf
+end
+
+# Ray parameter at which A + t D meets segment [P, Q], or Inf.
+@inline function _ray_seg_t(ax, ay, dx, dy, px, py, qx, qy)::Float64
+    ex = qx - px; ey = qy - py
+    den = dx * ey - dy * ex
+    den == 0.0 && return Inf
+    wx = px - ax; wy = py - ay
+    t = (wx * ey - wy * ex) / den
+    u = (wx * dy - wy * dx) / den
+    (t > 0.0 && -1.0e-12 <= u <= 1.0 + 1.0e-12) || return Inf
+    return t
+end
+
+# First original edge hit by the ray from vertex `a` in direction D, ignoring edges incident
+# to `a` and only accepting hits before `best_t`. Returns (s1, s2, t); s1 == 0 if none.
+function _ray_first_hit(et::_EdgeTree, poly, n::Int, a::Int, ax, ay, dx, dy, stats,
+                        best_t::Float64 = Inf, b1::Int = 0, b2::Int = 0)
+    stack = et.stack
+    empty!(stack)
+    push!(stack, Int32(1))
+    @inbounds while !isempty(stack)
+        id = Int(pop!(stack))
+        stats[3] += 1
+        _ray_box_entry(ax, ay, dx, dy, et.x0[id], et.x1[id], et.y0[id], et.y1[id]) < best_t ||
+            continue
+        l = et.left[id]
+        if l == 0
+            for k in et.rs[id]:et.re[id]
+                _ray_box_entry(ax, ay, dx, dy, et.ex0[k], et.ex1[k], et.ey0[k], et.ey1[k]) <
+                    best_t || continue
+                e = Int(et.eid[k])
+                e2 = e == n ? 1 : e + 1
+                (e == a || e2 == a) && continue
+                P = poly[e]; Q = poly[e2]
+                t = _ray_seg_t(ax, ay, dx, dy, Float64(P.x), Float64(P.y), Float64(Q.x), Float64(Q.y))
+                t < best_t && (best_t = t; b1 = e; b2 = e2)
+            end
+        else
+            push!(stack, l)
+            push!(stack, et.right[id])
+        end
+    end
+    return b1, b2, best_t
+end
+
+@inline _o2(ax, ay, bx, by, cx, cy) = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+
+# All four corners of the node box have sg * orient(P, Q, corner) < 0.
+@inline _box_all_neg(sg, px, py, qx, qy, nd) =
+    sg * _o2(px, py, qx, qy, nd.x0, nd.y0) < 0.0 && sg * _o2(px, py, qx, qy, nd.x1, nd.y0) < 0.0 &&
+    sg * _o2(px, py, qx, qy, nd.x0, nd.y1) < 0.0 && sg * _o2(px, py, qx, qy, nd.x1, nd.y1) < 0.0
+
+# Among the reflex vertices (and `xid`) in the closed triangle (A, H, X), the one reached
+# first when rotating the ray A->H towards X (ties: nearest to A). If the ray's first hit
+# was on segment (.., X), that vertex is visible from `a`.
+function _first_swept_reflex(rt, rstack::Vector{Int32}, a::Int, ax, ay, hx, hy, xx, xy, xid::Int)
+    sg = _o2(ax, ay, hx, hy, xx, xy)
+    sg == 0.0 && return xid
+    sg = sign(sg)
+    best = xid; bx = xx; by = xy
+    isempty(rt.nodes) && return best
+    tx0 = min(ax, hx, xx); tx1 = max(ax, hx, xx); ty0 = min(ay, hy, xy); ty1 = max(ay, hy, xy)
+    nodes = rt.nodes
+    empty!(rstack)
+    push!(rstack, Int32(1))
+    @inbounds while !isempty(rstack)
+        nd = nodes[Int(pop!(rstack))]
+        (nd.x1 < tx0 || nd.x0 > tx1 || nd.y1 < ty0 || nd.y0 > ty1) && continue
+        # prune: whole box strictly outside one triangle side, or strictly beyond the best ray
+        (_box_all_neg(sg, ax, ay, hx, hy, nd) || _box_all_neg(sg, hx, hy, xx, xy, nd) ||
+         _box_all_neg(sg, xx, xy, ax, ay, nd) || _box_all_neg(-sg, ax, ay, bx, by, nd)) && continue
+        if nd.is_leaf
+            for k in nd.r_start:nd.r_end
+                v = Int(rt.perm[k])
+                v == a && continue
+                yx = rt.px[k]; yy = rt.py[k]
+                (sg * _o2(ax, ay, hx, hy, yx, yy) >= 0.0 && sg * _o2(hx, hy, xx, xy, yx, yy) >= 0.0 &&
+                 sg * _o2(xx, xy, ax, ay, yx, yy) >= 0.0) || continue
+                o = sg * _o2(ax, ay, bx, by, yx, yy)
+                if o < 0.0 ||
+                   (o == 0.0 && (yx - ax)^2 + (yy - ay)^2 < (bx - ax)^2 + (by - ay)^2)
+                    best = v; bx = yx; by = yy
+                end
+            end
+        else
+            push!(rstack, nd.left)
+            push!(rstack, nd.right)
+        end
+    end
+    return best
 end
 
 # ---------------------------------------------------------------------------------------
@@ -184,11 +307,15 @@ mutable struct _DiagSplitState{P,K,R}
     kernel::K
     n::Int
     et::_EdgeTree
+    rt::Kd_tree.FlatTree2D{Float64}   # static tree over the input's reflex vertices
+    rstack::Vector{Int32}
     rng::R
     diagonals::Vector{Tuple{Int,Int}}
     triangles::Vector{NTuple{3,Int}}
     # stats: 1 diagonal tests, 2 failed tests, 3 edge-tree nodes, 4 exact edge tests,
-    #        5 splits, 6 fallback pieces, 7 fanned pieces, 8 tests made by galloping
+    #        5 splits, 6 fallback pieces, 7 fanned pieces, 8 tests made by galloping,
+    #        9 ray resolutions tried, 10 ray resolutions that gave a diagonal,
+    #        11 total size of the pieces that were split
     stats::Vector{Int}
 end
 
@@ -286,6 +413,57 @@ function _try_chain(st::_DiagSplitState, verts::Vector{Int32}, refl::Vector{Int3
     return _try_chain(st, verts, refl, mid, q)
 end
 
+# Resolve the reflex vertex at position `p` of the piece: shoot a ray along the interior
+# bisector, take the first boundary segment hit, and propose the angularly first reflex
+# vertex of the swept triangle (trying both endpoints of the hit segment). Returns the
+# validated diagonal as positions, or (0, 0).
+function _ray_resolve(st::_DiagSplitState, verts::Vector{Int32}, p::Int)
+    m = length(verts)
+    poly = st.poly
+    st.stats[9] += 1
+    a = Int(verts[p])
+    U = poly[Int(verts[p == 1 ? m : p - 1])]; A = poly[a]; W = poly[Int(verts[p == m ? 1 : p + 1])]
+    ax = Float64(A.x); ay = Float64(A.y)
+    ux = Float64(U.x) - ax; uy = Float64(U.y) - ay
+    wx = Float64(W.x) - ax; wy = Float64(W.y) - ay
+    lu = hypot(ux, uy); lw = hypot(wx, wy)
+    dx = -(ux / lu + wx / lw); dy = -(uy / lu + wy / lw)
+    if hypot(dx, dy) < 1.0e-9   # straight angle: left normal of U -> W
+        dx = -(wy - uy); dy = wx - ux
+    end
+    # The piece's own diagonals (consecutive piece vertices that are not consecutive in the
+    # input) bound it too: scan them, then let the edge tree look only for nearer hits.
+    n = st.n
+    best_t = Inf; s1 = 0; s2 = 0
+    @inbounds for t in 1:m
+        v1 = Int(verts[t]); v2 = Int(verts[t == m ? 1 : t + 1])
+        (v2 == v1 + 1 || (v1 == n && v2 == 1)) && continue
+        (v1 == a || v2 == a) && continue
+        P = poly[v1]; Q = poly[v2]
+        tt = _ray_seg_t(ax, ay, dx, dy, Float64(P.x), Float64(P.y), Float64(Q.x), Float64(Q.y))
+        tt < best_t && (best_t = tt; s1 = v1; s2 = v2)
+    end
+    s1, s2, t = _ray_first_hit(st.et, poly, n, a, ax, ay, dx, dy, st.stats, best_t, s1, s2)
+    s1 == 0 && return (0, 0)
+    hx = ax + t * dx; hy = ay + t * dy
+    P1 = poly[s1]; P2 = poly[s2]
+    d1 = (Float64(P1.x) - hx)^2 + (Float64(P1.y) - hy)^2
+    d2 = (Float64(P2.x) - hx)^2 + (Float64(P2.y) - hy)^2
+    for x in (d1 <= d2 ? (s1, s2) : (s2, s1))
+        X = poly[x]
+        z = _first_swept_reflex(st.rt, st.rstack, a, ax, ay, hx, hy, Float64(X.x), Float64(X.y), x)
+        q = findfirst(==(Int32(z)), verts)
+        q === nothing && continue
+        d = mod(q - p, m)
+        (d <= 1 || d == m - 1) && continue
+        if _diag_ok(st, verts, p, q)
+            st.stats[10] += 1
+            return (p, q)
+        end
+    end
+    return (0, 0)
+end
+
 function _fan_piece!(st::_DiagSplitState, verts::Vector{Int32}, s::Int)
     m = length(verts)
     v = Int(verts[s])
@@ -368,13 +546,18 @@ function _process_pieces!(st::_DiagSplitState, verts0::Vector{Int32}, refl0::Vec
         ia = rand(st.rng, 1:k)
         ib = mod1(ia + k ÷ 2, k)
         p = Int(refl[ia]); q = Int(refl[ib])
-        r = _try_chain(st, verts, refl, p, q)
+        d = mod(q - p, m)
+        r = (d > 1 && d < m - 1 && _diag_ok(st, verts, p, q)) ? (p, q) : (0, 0)
+        r[1] == 0 && (r = _ray_resolve(st, verts, p))
+        r[1] == 0 && (r = _ray_resolve(st, verts, q))
+        r[1] == 0 && (r = _try_chain(st, verts, refl, p, q))
         r[1] == 0 && (r = _try_chain(st, verts, refl, q, p))
         if r[1] == 0
             _fallback_piece!(st, verts)
             continue
         end
         i, j = minmax(r[1], r[2])
+        st.stats[11] += m
         piece1, piece2 = _split_piece(st, verts, refl, i, j)
         push!(stack, piece1)
         push!(stack, piece2)
@@ -384,7 +567,7 @@ end
 
 function _triangulate_diagonal_split_impl(vertices, kernel::AbstractKernel, rng::AbstractRNG)
     n = _validate_ccw_polygon(kernel, vertices)
-    stats = zeros(Int, 8)
+    stats = zeros(Int, 11)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)]), stats
     end
@@ -394,7 +577,11 @@ function _triangulate_diagonal_split_impl(vertices, kernel::AbstractKernel, rng:
             push!(refl, Int32(i))
     end
     et = _build_edge_tree(vertices, n)
-    st = _DiagSplitState(vertices, kernel, n, et, rng, Tuple{Int,Int}[], NTuple{3,Int}[], stats)
+    rpx = Float64[Float64(vertices[v].x) for v in refl]
+    rpy = Float64[Float64(vertices[v].y) for v in refl]
+    rt = Kd_tree._build_flat_tree!(Kd_tree.FlatNode2D{Float64}, rpx, rpy, copy(refl), n, 8)
+    st = _DiagSplitState(vertices, kernel, n, et, rt, Int32[], rng, Tuple{Int,Int}[],
+                         NTuple{3,Int}[], stats)
     sizehint!(st.diagonals, n - 3)
     sizehint!(st.triangles, n - 2)
     _process_pieces!(st, Int32[Int32(i) for i in 1:n], refl)
@@ -405,9 +592,11 @@ end
     BasicCompGeometry.triangulate_diagonal_split(vertices; kernel=FloatingKernel(), rng=Random.default_rng()) -> PolygonTriangulation
 
 Triangulate a simple counterclockwise polygon with `n >= 3` vertices by recursively splitting
-it along diagonals between reflex vertices (found by a randomized halving search and
-validated with a static Kd-tree over the edges), fanning pieces with at most one reflex
-vertex, and falling back to u_kd ear clipping on pieces where the search finds no diagonal.
+it along diagonals from reflex vertices, and fanning pieces with at most one reflex vertex.
+Each split first tries a random pair of reflex vertices; if that fails, a reflex endpoint is
+resolved by ray shooting (first boundary hit, then the angularly first reflex vertex of the
+swept triangle); then a halving search; and finally u_kd ear clipping of the piece. All
+diagonals are validated by cone tests and a Kd-tree over the edges.
 Experimental.
 
 # Preconditions

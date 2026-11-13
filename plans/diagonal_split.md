@@ -59,3 +59,53 @@ splits: `O(n log n)` total; unbalanced splits can be worse — revisit if it sho
   re-picking a random pair.
 - Start the edge query near `a` (climb) instead of from the root.
 - Avoid copying the larger side on unbalanced splits.
+
+## Status 2026-11-13
+
+### Iteration log
+
+1. **Pair + halving search** (commit 5f48f1a). Correct, but slow: star 1157 ms vs u_kd 56
+   (2^16). The spiral is quadratic (5169 tests / n): its reflex vertices are all on the inner
+   wall and never see each other, so the halving search burns O(k) failed (cone) tests per
+   split.
+2. **Gallop on convex chains + conservative Float64 predicates** (9076f28). Galloping did
+   not help the spiral (the waste is in ranges that contain reflex vertices). The Float64
+   fuzz found one silently wrong result (a vertex 1e-16 from a candidate diagonal); all
+   orientation decisions now treat values within Shewchuk's static bound as collinear,
+   which is always the conservative side.
+3. **Ray resolution** (this commit). After a failed pair test, shoot a ray from the reflex
+   endpoint along its interior bisector; the first hit (original edge via the edge tree, or
+   one of the piece's own diagonals via a linear scan) gives a triangle (a, h, x) whose
+   angularly first reflex vertex (or x) is visible from `a` — found by a branch-and-bound
+   query on a static Kd-tree of the input's reflex vertices. Validated by `_diag_ok`.
+   Every ray resolution so far has produced a valid diagonal; the halving search and the
+   ear-clip fallback are never reached on the benchmark inputs.
+
+   Storing diagonals in the edge tree was tried and dropped: long diagonals end up in the
+   root's list and every query scans them (comb: 3900 segment tests per query).
+
+### Measurements (2^16, ms; quiet-ish machine)
+
+| input | sweep | u_kd | diagonal_split | tests/n | work/n |
+|---|---|---|---|---|---|
+| star | 29 | 54 | 1199 | 0.71 | 327 |
+| altstar | 17 | 7.7 | 24 | 0.51 | 16 |
+| coast | 20 | 24 | 104 | 0.59 | 94 |
+| spiral | 7.6 | 11 | 31 | 0.55 | 20 |
+| comb | 15 | 7.0 | 40 | 0.65 | 43 |
+
+`work/n` = total size of the pieces that were split, per vertex (balanced: ~log2 n = 16).
+
+### Remaining problems
+
+- **Unbalanced splits** (coast, star): ray resolution often cuts off a small bay, and the
+  large remainder is copied and rescanned (piece diagonals, `findfirst`) each time:
+  ~n^1.5 work on coast. Fix: linked-list pieces with smaller-half relabeling (O(n log n)),
+  or prefer the larger of the two candidate splits.
+- **Edge boxes on the star**: its edges are long radial spikes, so a chord through the
+  center crosses ~20% of all edge boxes (nodes / test grows almost linearly in n). Box
+  pruning cannot fix this; it needs edges clipped into cells (each leaf lists the edges
+  crossing its cell) so a query walks only the cells along the segment.
+- Even on balanced inputs (altstar, spiral) it is ~3x slower than u_kd per vertex, despite
+  0.5 tests / n vs ~1.1-2.5 ear tests / n: a segment query (~50 nodes + exact edge tests)
+  plus the edge-tree build (~16% of the time) cost more than the saved ear tests.
