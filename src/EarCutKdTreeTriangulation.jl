@@ -385,6 +385,33 @@ end
     return 1
 end
 
+# Branch-free (SIMD-friendly) pre-scan of a leaf's live points for the Float64 query:
+# returns `false` when no live point lies in the closed triangle other than its endpoints
+# `a` (= `pr`) and `c` (= `nx`), which are recognized by their coordinates (input vertices
+# are pairwise distinct; the ear tip `b` is convex and thus never live). Only on `true`
+# does the caller run the exact scalar scan that identifies the blocker.
+@inline function _leaf_may_block(
+    q::_FlatTriQueryF64,
+    px::Vector{Float64},
+    py::Vector{Float64},
+    rs::Int,
+    le::Int,
+)::Bool
+    hit = false
+    @inbounds @simd for k in rs:le
+        x = px[k]
+        y = py[k]
+        inside = (q.dx1 * (y - q.ay) - q.dy1 * (x - q.ax) >= 0.0) &
+                 (q.dx2 * (y - q.by) - q.dy2 * (x - q.bx) >= 0.0) &
+                 (q.dx3 * (y - q.cy) - q.dy3 * (x - q.cx) >= 0.0)
+        is_end = ((x == q.ax) & (y == q.ay)) | ((x == q.cx) & (y == q.cy))
+        hit |= inside & !is_end
+    end
+    return hit
+end
+
+@inline _leaf_may_block(q, px, py, rs::Int, le::Int)::Bool = true
+
 function _dfs_ear_blocked!(
     idx::_KdTreeReflexIndex{T},
     q,
@@ -417,6 +444,7 @@ function _dfs_ear_blocked!(
         if nd.is_leaf
             rs = Int(nd.r_start)
             le = Int(live_end[nid])
+            _leaf_may_block(q, px_arr, py_arr, rs, le) || continue
             for k in rs:le
                 pxk = px_arr[k]
                 pyk = py_arr[k]

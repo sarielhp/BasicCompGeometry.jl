@@ -440,16 +440,26 @@ end
     )
 end
 
+# Ear queue. It is seeded with the polygon's initial ears (verified up front, in index
+# order). When an ear is clipped, each of its two neighbors is (re)appended to the back of
+# the queue as an unverified candidate, superseding any earlier entry, and is tested only
+# when that entry is dequeued. A candidate whose neighbors change several times before it
+# is dequeued is thus tested once, while the round-robin order (changed vertices go to the
+# back) keeps clipped triangles local.
+# `entry_ver[i]` is the `vert_ver[i]` of `i`'s live queue entry (0 = not queued);
+# `verified[i]` is the `vert_ver[i]` at which `i` was last confirmed an ear.
 function _ear_clip_run!(st::_EarClipState)
     n = length(st.poly)
     ear_queue = Int[]
     sizehint!(ear_queue, 3n)
+    entry_ver = zeros(Int, n)
     vert_ver = ones(Int, n)
-    in_queue_ver = zeros(Int, n)
+    verified = zeros(Int, n)
     for i in 1:n
         if _is_ear_vertex(st, i)
             push!(ear_queue, i)
-            in_queue_ver[i] = 1
+            entry_ver[i] = 1
+            verified[i] = 1
         end
     end
 
@@ -461,27 +471,25 @@ function _ear_clip_run!(st::_EarClipState)
     active_count = n
     active_hint = 1
     q_pos = 1
+    pushed_ver = Int[]  # vert_ver at push time, parallel to ear_queue
+    sizehint!(pushed_ver, 3n)
+    append!(pushed_ver, ones(Int, length(ear_queue)))
 
     while active_count > 3
         if q_pos > length(ear_queue)
             fb = _find_fallback_ear(st, active_hint)
             fb == 0 && _throw_no_ear(active_count)
             push!(ear_queue, fb)
-            in_queue_ver[fb] = vert_ver[fb]
+            push!(pushed_ver, vert_ver[fb])
+            entry_ver[fb] = vert_ver[fb]
         end
 
         ear = ear_queue[q_pos]
+        ver = pushed_ver[q_pos]
         q_pos += 1
-        qv = in_queue_ver[ear]
-        if qv == 0 || !st.is_active[ear]
-            in_queue_ver[ear] = 0
-            continue
-        end
-        if qv != vert_ver[ear] && !_is_ear_vertex(st, ear)
-            in_queue_ver[ear] = 0
-            continue
-        end
-        in_queue_ver[ear] = 0
+        (entry_ver[ear] == ver && st.is_active[ear]) || continue  # superseded entry
+        entry_ver[ear] = 0
+        (verified[ear] == vert_ver[ear] || _is_ear_vertex(st, ear)) || continue
 
         pr = st.prev_v[ear]
         nx = st.next_v[ear]
@@ -499,20 +507,13 @@ function _ear_clip_run!(st::_EarClipState)
         active_count -= 1
         active_hint = nx
 
-        vert_ver[pr] += 1
-        vert_ver[nx] += 1
         _update_reflex!(st, pr)
         _update_reflex!(st, nx)
-
         for nb in (pr, nx)
-            if _is_ear_vertex(st, nb)
-                if in_queue_ver[nb] == 0
-                    push!(ear_queue, nb)
-                end
-                in_queue_ver[nb] = vert_ver[nb]
-            else
-                in_queue_ver[nb] = 0
-            end
+            vert_ver[nb] += 1
+            push!(ear_queue, nb)
+            push!(pushed_ver, vert_ver[nb])
+            entry_ver[nb] = vert_ver[nb]
         end
     end
 
