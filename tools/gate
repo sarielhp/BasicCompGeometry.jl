@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Quality gate for review-cycle: the full test suite (~70 s). Build is run separately (tools/build).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec julia --project=. test/runtests.jl

@@ -10,3 +10,9 @@ lcov.info
 output/
 .agents/
 opencode.json
+# Review cycle artifacts
+reviews/archive/
+reviews/logs/
+.bws/.write.lock
+.bws/config.jsonc.bak
+.bws/tmp/

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Build validation for review-cycle: load and precompile the package. No tests.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec julia --project=. -e 'using BasicCompGeometry'

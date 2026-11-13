@@ -1,0 +1,25 @@
+{
+  "profiles": [
+    "git",
+    "agy"
+  ],
+  "reviewed_profiles": {
+    "agy": {
+      "source": "embedded",
+      "sha256": "3bf506077d185fc0b371317b2dd9832b737e55f32df395da8cc0dcd2b5717f3d"
+    },
+    "git": {
+      "source": "embedded",
+      "sha256": "ab2a4a53324856c9f3bdffa26e37aaa0d558ed4d44911a530abae2f4035f37c7"
+    }
+  },
+  "features": {
+    "enable_ssh": null,
+    "ssh_keys": null,
+    "auto_repo_deploy_key": null,
+    "enable_x11": null,
+    "enable_dbus": null,
+    "enable_wsl": null,
+    "enable_etc_auto_bind": null
+  },"binds_ro":["/home/sariel/.local/bin", "/home/sariel/bin/agy-run-wild", "/home/sariel/bin/agy_trust_dir", "/home/sariel/prog/standards/ruby/bin/ruby-audit", "/home/sariel/.local/share/gem/ruby/3.2.0", "/var/lib/gems/3.2.0"],"env":{"GEM_PATH":"/home/sariel/.local/share/gem/ruby/3.2.0:/var/lib/gems/3.2.0:/usr/lib/ruby/gems/3.2.0:/usr/share/rubygems-integration/all:/usr/lib/x86_64-linux-gnu/rubygems-integration/3.2.0"}
+}
