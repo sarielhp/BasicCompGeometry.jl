@@ -101,23 +101,23 @@ Absolute times (ms) vs `:sweep`:
 u_kd beats sweep only on altstar; the star stays ~2.5x slower (line-like queries on radial
 slivers). Accepted as good enough. Follow-ups tried and dropped: a sliding window of recently
 visited nodes (high reuse but little work saved) and a diagonal-split algorithm
-(`plans/diagonal_split.md`). A u_kd → sweep hand-off on a work budget was discussed but not
+(`archive/plans/diagonal_split.md`). A u_kd → sweep hand-off on a work budget was discussed but not
 built. CHANGELOG entry added under [Unreleased].
 
 ## Next steps (on a quiet machine) — done, see above
 
 1. Re-run correctness:
    - `julia --project=. -e 'using Pkg; Pkg.test()'`
-   - `cd plans/improve_u_kd && julia --project=../.. fuzz_exact.jl <seed> 400` for a few seeds
+   - `cd archive/plans/improve_u_kd && julia --project=../../.. fuzz_exact.jl <seed> 400` for a few seeds
      (expect `fails=Dict()`).
-   - `julia --project=../.. fuzz_float.jl 5 1500 <alg>` for `ear_cut`, `ear_cut_u_kd_tree`,
+   - `julia --project=../../.. fuzz_float.jl 5 1500 <alg>` for `ear_cut`, `ear_cut_u_kd_tree`,
      `ear_cut_z_order`. Before these changes: `ear_cut` 0 wrong / 6 `ArgumentError` of ~4500.
      An earlier fully-lazy variant produced 1 silently wrong result; confirm the final
      variant gives 0 (any "FAIL ... non-ccw tri" line is a silently wrong triangulation).
 2. Re-measure performance:
-   - `julia --project=../.. ab.jl`: old vs new queue in one process (`old_run.jl` is the
+   - `julia --project=../../.. ab.jl`: old vs new queue in one process (`old_run.jl` is the
      pre-change `_ear_clip_run!`, loaded as `_ear_clip_run_old!`).
-   - `julia --project=../.. ab2.jl`: with vs without the leaf pre-scan.
+   - `julia --project=../../.. ab2.jl`: with vs without the leaf pre-scan.
    - Absolute timings vs `:sweep` on the inputs in `polys.jl` (`star`, `altstar`, `coast`,
      `spiral`) at `n = 2^16, 2^18`, plus the comb (`comb.jl` also prints ear-test counts).
 3. If confirmed: add a CHANGELOG entry under
@@ -135,7 +135,7 @@ built. CHANGELOG entry added under [Unreleased].
    - **Sliver-specific test**: for very thin ears (bbox much larger than the triangle area
      suggests), a segment/stabbing-style query along the long edge may beat the box DFS.
 
-## Scripts (`plans/improve_u_kd/`)
+## Scripts (`archive/plans/improve_u_kd/`)
 
 - `polys.jl`: input generators (`star`, `altstar`, `coast`, `spiral`).
 - `ab.jl`, `old_run.jl`: in-process A/B of old vs new ear queue for u_kd / kd / z-order.

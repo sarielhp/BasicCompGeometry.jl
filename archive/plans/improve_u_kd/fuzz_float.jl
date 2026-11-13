@@ -19,7 +19,7 @@ function randpoly(rng,n,G,scale)
     nothing
 end
 rng=Xoshiro(parse(Int,ARGS[1])); fails=0; tried=0; argerr=0
-log = open(joinpath(mkpath(joinpath(@__DIR__, "..", "..", "output", "tmp")), "fuzz_float_last_$(ARGS[1]).txt"), "w")
+log = open(joinpath(mkpath(joinpath(@__DIR__, "..", "..", "..", "output", "tmp")), "fuzz_float_last_$(ARGS[1]).txt"), "w")
 for trial in 1:parse(Int,ARGS[2])
     n=rand(rng,4:25); G=rand(rng,[4,6,10]); sc=rand(rng,[0.1,0.3,1/3,0.7,1e-9*0.1])
     P=randpoly(rng,n,G,sc); P===nothing && continue

@@ -50,8 +50,8 @@ splits: `O(n log n)` total; unbalanced splits can be worse — revisit if it sho
 
 - Diagonal tests / n, failed tests / n, fallback pieces, edge-tree nodes / test.
 - Wall clock vs `:sweep` and `:ear_cut_u_kd_tree` on `star`, `altstar`, `coast`, `spiral`,
-  comb (`plans/improve_u_kd/polys.jl`).
-- Correctness: `plans/improve_u_kd/fuzz_exact.jl` / `fuzz_float.jl` with the new algorithm.
+  comb (`archive/plans/improve_u_kd/polys.jl`).
+- Correctness: `archive/plans/improve_u_kd/fuzz_exact.jl` / `fuzz_float.jl` with the new algorithm.
 
 ## Open questions / later
 
