@@ -169,27 +169,28 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     unclaimed = [i for i = 1:n_in if !claimed[i]]
     shuffle!(unclaimed)
 
-    # Initial conflict graph
-    for f in faces
+    # Initial bipartite conflict graph: face -> visible points and point -> visible faces.
+    point_conflicts = [Int[] for _ = 1:n_in]
+    for (f_idx, f) in enumerate(faces)
         for p_idx in unclaimed
             if is_visible(f, pnts_in[p_idx])
                 push!(f.visible_points, p_idx)
+                push!(point_conflicts[p_idx], f_idx)
             end
         end
     end
 
     # 3. Incremental add
     for p_idx in unclaimed
-        visible = [
-            f_idx for
-            (f_idx, f) in enumerate(faces) if f.active && p_idx in f.visible_points
-        ]
+        visible = [f_idx for f_idx in point_conflicts[p_idx] if faces[f_idx].active]
+        empty!(point_conflicts[p_idx])
         isempty(visible) && continue
 
         edges_count = _edge_counts(faces, visible)
         new_faces_info = _replace_visible_faces!(
             faces,
             edge_to_face,
+            point_conflicts,
             visible,
             edges_count,
             p_idx,
@@ -241,7 +242,15 @@ end
 
 # Deactivates the visible faces and creates a new face from each horizon edge to
 # the point `p_idx`. Returns the vector of `(face index, u, v)` of the new faces.
-function _replace_visible_faces!(faces, edge_to_face, visible, edges_count, p_idx, pnts)
+function _replace_visible_faces!(
+    faces,
+    edge_to_face,
+    point_conflicts,
+    visible,
+    edges_count,
+    p_idx,
+    pnts,
+)
     new_faces_info = Tuple{Int,Int,Int}[]
     for f_idx in visible
         f = faces[f_idx]
@@ -256,6 +265,7 @@ function _replace_visible_faces!(faces, edge_to_face, visible, edges_count, p_id
             new_f = Face(u, v_e, p_idx, pnts)
             new_f.active || continue
             push!(faces, new_f)
+            nf_idx = length(faces)
 
             # Conflict list candidates: points of the two faces sharing the
             # horizon edge.
@@ -264,9 +274,10 @@ function _replace_visible_faces!(faces, edge_to_face, visible, edges_count, p_id
             for pt in candidates
                 if pt != p_idx && is_visible(new_f, pnts[pt])
                     push!(new_f.visible_points, pt)
+                    push!(point_conflicts[pt], nf_idx)
                 end
             end
-            push!(new_faces_info, (length(faces), u, v_e))
+            push!(new_faces_info, (nf_idx, u, v_e))
         end
     end
     return new_faces_info

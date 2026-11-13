@@ -370,6 +370,7 @@ Aqua.test_all(BasicCompGeometry)
             :triangulate_monotone,
             :triangulate_polygon,
             :triangulate_seidel,
+            :triangulate_sweep,
             :twice_area,
             :turn_sign,
             :union_bbox,

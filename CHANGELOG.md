@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.14] - 2026-11-13
+
+### Added
+- Deterministic worst-case `O(n log n)` time and `O(n)` space plane-sweep simple polygon triangulation (`triangulate_sweep` and `triangulate_polygon(...; algorithm = :sweep)` in `src/SweepTriangulation.jl`), sorting events with `MergeSort` under `compare_xy` symbolic shear `(x + εy, y)`, maintaining active lower-boundary edges in a preallocated AVL tree (`_SweepAVLTree`), and triangulating monotone pieces in `O(n)` total time via `_triangulate_from_partition`.
+- Exported `triangulate_sweep` (`src/BasicCompGeometry.jl`, `test/runtests.jl`), documented it in `docs/src/algorithms.md` and `docs/src/reference/algorithms.md`, and added invariant, degeneracy, and `O(n log n)` scaling tests in `test/test_monotone_triangulation.jl`.
+
+### Fixed
+- `_ear_clipping_triangulate` (`src/MonotoneTriangulation.jl`) now tracks reflex vertices in a doubly-linked list (`_EarClipState`) and candidates in an ear queue so it runs in `O(n (r + 1))` time (`O(n)` for `r == 0`) rather than `Θ(n^2)`.
+- `convex_hull_3d` (`src/ConvexHull3D.jl`) now maintains reverse conflict adjacency `point_conflicts` incrementally instead of scanning all faces per point, matching its expected `O(n log n)` runtime.
+- `discrete_hull_columns` (`src/DiscreteHull.jl`) now uses linear-time `_lattice_hull_sorted` on unit-step columns to achieve its documented `O(r)` runtime without `O(r log r)` sorting.
+- Added complexity and scaling regression tests in `test/test_convex_hull_3d.jl` and `test/test_monotone_triangulation.jl`.
+
 ## [0.5.13] - 2026-11-13
 
 ### Changed

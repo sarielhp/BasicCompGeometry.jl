@@ -102,6 +102,7 @@ It returns a `PolygonTriangulation` (`MonotoneTriangulation` is a compatibility 
 
 Supported algorithm options via keyword `algorithm`:
 - `:ear_clipping` (default): Fast ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices.
+- `:sweep`: Deterministic plane-sweep monotone partitioning and triangulation running in worst-case $O(n \log n)$ time, also available via `triangulate_sweep(vertices; kernel=FloatingKernel())`.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected $O(n \log^* n)$ time, also available via `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())`.
 
 For strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`),

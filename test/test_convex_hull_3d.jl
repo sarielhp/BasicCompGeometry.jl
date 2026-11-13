@@ -1,4 +1,5 @@
 using Test
+using Random
 using BasicCompGeometry
 using BasicCompGeometry.ConvexHull3D
 using LinearAlgebra
@@ -57,6 +58,16 @@ using LinearAlgebra
 
         # For points on a sphere, most/all should be on the hull
         @test length(verts) >= n * 0.9
+    end
+
+    @testset "Large Random Sphere" begin
+        n = 2000
+        rng = Xoshiro(123)
+        pnts = [point(normalize(randn(rng, 3))...) for _ = 1:n]
+        verts, faces = convex_hull_3d(pnts)
+        @test length(verts) == n
+        @test length(faces) == 2n - 4
+        @test ConvexHull3D.verify_convex_hull_3d(pnts, verts, faces) == (true, "Hull is valid")
     end
 end
 

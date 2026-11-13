@@ -20,7 +20,7 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "SweepTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
 
@@ -76,7 +76,8 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:ear_clipping` or `:seidel`) |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:ear_clipping`, `:sweep`, or `:seidel`) |
+| `triangulate_sweep(vertices; kernel=FloatingKernel())` | Plane-sweep monotone partitioning and triangulation in worst-case `O(n log n)` time |
 | `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
 | `is_x_monotone(vertices)` | Return `true` if polygon is strictly x-monotone |

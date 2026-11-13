@@ -806,11 +806,7 @@ linear time `O(k)`.
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-function triangulate_seidel(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-    rng::AbstractRNG = Random.default_rng(),
-)
+function _validate_ccw_polygon(kernel::AbstractKernel, vertices)
     n = length(vertices)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
 
@@ -820,16 +816,18 @@ function triangulate_seidel(
             "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
         ),
     )
+    return n
+end
 
-    if n == 3
-        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
-    end
+function _triangulate_from_partition(
+    kernel::AbstractKernel,
+    vertices,
+    partition_diags::Vector{Tuple{Int,Int}},
+)
+    n = length(vertices)
+    pieces = _seidel_extract_pieces(n, partition_diags)
 
-    trap_map = _seidel_build_trapezoidal_map(kernel, vertices, rng)
-    trap_diags = _seidel_extract_diagonals(trap_map)
-    pieces = _seidel_extract_pieces(n, trap_diags)
-
-    all_diagonals = copy(trap_diags)
+    all_diagonals = copy(partition_diags)
     sizehint!(all_diagonals, n - 3)
     all_triangles = NTuple{3,Int}[]
     sizehint!(all_triangles, n - 2)
@@ -839,6 +837,21 @@ function triangulate_seidel(
     end
 
     return PolygonTriangulation(all_diagonals, all_triangles)
+end
+
+function triangulate_seidel(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+    rng::AbstractRNG = Random.default_rng(),
+)
+    n = _validate_ccw_polygon(kernel, vertices)
+    if n == 3
+        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
+    end
+
+    trap_map = _seidel_build_trapezoidal_map(kernel, vertices, rng)
+    trap_diags = _seidel_extract_diagonals(trap_map)
+    return _triangulate_from_partition(kernel, vertices, trap_diags)
 end
 
 export triangulate_seidel

@@ -163,6 +163,7 @@ include("Bundles.jl")
 include("Arrangements.jl")
 include("MonotoneTriangulation.jl")
 include("SeidelTriangulation.jl")
+include("SweepTriangulation.jl")
 include("VisibilityPolygon.jl")
 include("MinkowskiSum.jl")
 include("RMQ.jl")
@@ -231,6 +232,7 @@ export PolygonTriangulation,
     triangulate_polygon,
     triangulate_monotone,
     triangulate_seidel,
+    triangulate_sweep,
     is_x_monotone,
     is_y_monotone,
     monotone_chains,

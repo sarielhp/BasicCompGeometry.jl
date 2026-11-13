@@ -422,6 +422,9 @@ function discrete_hull_columns(C::AbsLatticeBody, xs::AbstractUnitRange{<:Intege
         push!(pts, Point2I(x, r[1]))
         r[2] > r[1] && push!(pts, Point2I(x, r[2]))
     end
+    # UnitRange yields strictly increasing x and r[1] <= r[2], so `pts` is already
+    # strictly sorted lexicographically without duplicates.
+    step(xs) == 1 && return _lattice_hull_sorted(pts)
     return lattice_convex_hull(pts)
 end
 
@@ -430,16 +433,9 @@ function discrete_hull_columns(D::LatticeDisk)
     return discrete_hull_columns(D, floor(Int, c[1] - r)-1:ceil(Int, c[1] + r)+1)
 end
 
-"""
-    lattice_convex_hull(pts) -> Vector{Point2I}
-
-Exact convex hull of integer points (Andrew's monotone chain, integer
-orientation tests), counterclockwise from the lowest-leftmost point, without
-collinear vertices.
-"""
-function lattice_convex_hull(pts::AbstractVector)
-    P = unique!(sort!([Point2I(p[1], p[2]) for p in pts]; by = p -> (p[1], p[2])))
-    length(P) <= 2 && return sort!(P; by = p -> (p[2], p[1]))
+# Andrew's monotone chain on strictly lexicographically sorted unique Point2I points in O(|P|).
+function _lattice_hull_sorted(P::Vector{Point2I})
+    length(P) <= 2 && return sort!(copy(P); by = p -> (p[2], p[1]))
     H = Point2I[]
     for pass = 1:2
         start = length(H)
@@ -453,4 +449,16 @@ function lattice_convex_hull(pts::AbstractVector)
     end
     k = argmin([(v[2], v[1]) for v in H])
     return circshift(H, 1 - k)
+end
+
+"""
+    lattice_convex_hull(pts) -> Vector{Point2I}
+
+Exact convex hull of integer points (Andrew's monotone chain, integer
+orientation tests), counterclockwise from the lowest-leftmost point, without
+collinear vertices.
+"""
+function lattice_convex_hull(pts::AbstractVector)
+    P = unique!(sort!([Point2I(p[1], p[2]) for p in pts]; by = p -> (p[1], p[2])))
+    return _lattice_hull_sorted(P)
 end
