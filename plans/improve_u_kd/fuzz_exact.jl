@@ -19,7 +19,7 @@ function randpoly(rng,n,G)
     nothing
 end
 rng=Xoshiro(parse(Int,ARGS[1])); fails=Dict{Symbol,Int}(); tried=0
-algs=(:sweep,:seidel,:ear_cut,:ear_cut_z_order,:ear_cut_kd_tree,:ear_cut_u_kd_tree)
+algs = length(ARGS) >= 3 ? Tuple(Symbol.(split(ARGS[3], ","))) : (:sweep,:seidel,:ear_cut,:ear_cut_z_order,:ear_cut_kd_tree,:ear_cut_u_kd_tree)
 for trial in 1:parse(Int,ARGS[2])
     n=rand(rng,4:60); G=rand(rng,[4,8,15,30])
     P=randpoly(rng,n,G); P===nothing && continue

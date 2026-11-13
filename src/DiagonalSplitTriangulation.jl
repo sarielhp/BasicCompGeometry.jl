@@ -1,0 +1,368 @@
+# Diagonal-split triangulation (prototype): recursively split the polygon by diagonals
+# between reflex vertices, found by a halving search, and fan the resulting pieces that have
+# at most one reflex vertex. Diagonals are validated by a cone test at both endpoints and a
+# static Kd-tree over the original edges. See `plans/diagonal_split.md`.
+
+# ---------------------------------------------------------------------------------------
+# Static edge Kd-tree. Built over edge midpoints; node and edge boxes are outward-rounded
+# Float64 boxes covering the true edge extents, so box pruning is conservative for any
+# coordinate type. Edge `e` joins vertices `e` and `mod1(e + 1, n)`.
+# ---------------------------------------------------------------------------------------
+
+struct _EdgeTree
+    left::Vector{Int32}
+    right::Vector{Int32}
+    rs::Vector{Int32}
+    re::Vector{Int32}
+    x0::Vector{Float64}
+    x1::Vector{Float64}
+    y0::Vector{Float64}
+    y1::Vector{Float64}
+    eid::Vector{Int32}       # slot -> edge id
+    ex0::Vector{Float64}     # per-slot edge boxes
+    ex1::Vector{Float64}
+    ey0::Vector{Float64}
+    ey1::Vector{Float64}
+    tol::Float64             # absolute slack for the Float64 line-side test
+    stack::Vector{Int32}
+end
+
+@inline _dn(x) = prevfloat(Float64(x))
+@inline _up(x) = nextfloat(Float64(x))
+
+function _build_edge_tree(poly, n::Int; leaf_size::Int = 8)
+    px = Vector{Float64}(undef, n)
+    py = Vector{Float64}(undef, n)
+    cmax = 0.0
+    @inbounds for i in 1:n
+        a = poly[i]
+        b = poly[i == n ? 1 : i + 1]
+        ax = Float64(a.x); ay = Float64(a.y); bx = Float64(b.x); by = Float64(b.y)
+        px[i] = 0.5 * ax + 0.5 * bx
+        py[i] = 0.5 * ay + 0.5 * by
+        cmax = max(cmax, abs(ax), abs(ay))
+    end
+    ids = Int32[Int32(i) for i in 1:n]
+    ft = Kd_tree._build_flat_tree!(Kd_tree.FlatNode2D{Float64}, px, py, ids, n, leaf_size)
+    nodes = ft.nodes
+    nn = length(nodes)
+    left = Vector{Int32}(undef, nn); right = Vector{Int32}(undef, nn)
+    rs = Vector{Int32}(undef, nn); re = Vector{Int32}(undef, nn)
+    x0 = fill(Inf, nn); x1 = fill(-Inf, nn); y0 = fill(Inf, nn); y1 = fill(-Inf, nn)
+    m = length(ft.perm)
+    eid = copy(ft.perm)
+    ex0 = Vector{Float64}(undef, m); ex1 = similar(ex0); ey0 = similar(ex0); ey1 = similar(ex0)
+    @inbounds for k in 1:m
+        e = Int(eid[k])
+        a = poly[e]
+        b = poly[e == n ? 1 : e + 1]
+        ex0[k] = _dn(min(a.x, b.x)); ex1[k] = _up(max(a.x, b.x))
+        ey0[k] = _dn(min(a.y, b.y)); ey1[k] = _up(max(a.y, b.y))
+    end
+    # Children always have larger ids than their parent: refit bottom-up in reverse order.
+    @inbounds for id in nn:-1:1
+        nd = nodes[id]
+        left[id] = nd.left; right[id] = nd.right
+        rs[id] = nd.r_start; re[id] = nd.r_end
+        if nd.is_leaf
+            left[id] = 0; right[id] = 0
+            for k in nd.r_start:nd.r_end
+                x0[id] = min(x0[id], ex0[k]); x1[id] = max(x1[id], ex1[k])
+                y0[id] = min(y0[id], ey0[k]); y1[id] = max(y1[id], ey1[k])
+            end
+        else
+            for c in (nd.left, nd.right)
+                x0[id] = min(x0[id], x0[c]); x1[id] = max(x1[id], x1[c])
+                y0[id] = min(y0[id], y0[c]); y1[id] = max(y1[id], y1[c])
+            end
+        end
+    end
+    # The computed line-side value has absolute error far below 1e-12 * C^2 for
+    # coordinates (and box corners) bounded by C, including Float64 conversion error.
+    c = _up(cmax) + 1.0e-300
+    tol = 1.0e-12 * (2c) * (2c) + 1.0e-300
+    stack = Int32[]
+    sizehint!(stack, 64)
+    return _EdgeTree(left, right, rs, re, x0, x1, y0, y1, eid, ex0, ex1, ey0, ey1, tol, stack)
+end
+
+# Closed segments [p1,p2] and [q1,q2] share a point.
+@inline function _closed_segs_meet(kernel, p1, p2, q1, q2)::Bool
+    o1 = orient_sign(kernel, p1, p2, q1)
+    o2 = orient_sign(kernel, p1, p2, q2)
+    o1 * o2 > 0 && return false
+    if o1 == 0 && o2 == 0
+        return on_segment(kernel, q1, p1, p2) || on_segment(kernel, q2, p1, p2) ||
+               on_segment(kernel, p1, q1, q2) || on_segment(kernel, p2, q1, q2)
+    end
+    o3 = orient_sign(kernel, q1, q2, p1)
+    o4 = orient_sign(kernel, q1, q2, p2)
+    return o3 * o4 <= 0
+end
+
+# Does some original edge meet the closed segment between vertices `a` and `b` other than at
+# `a` or `b` themselves? Edges incident to `a` or `b` count only if their other endpoint lies
+# on the segment.
+function _edge_blocked(et::_EdgeTree, poly, kernel, n::Int, a::Int, b::Int, stats)::Bool
+    A = poly[a]
+    B = poly[b]
+    axf = Float64(A.x); ayf = Float64(A.y); bxf = Float64(B.x); byf = Float64(B.y)
+    sx0 = _dn(min(A.x, B.x)); sx1 = _up(max(A.x, B.x))
+    sy0 = _dn(min(A.y, B.y)); sy1 = _up(max(A.y, B.y))
+    dx = bxf - axf
+    dy = byf - ayf
+    tol = et.tol
+    a_prev = a == 1 ? n : a - 1
+    b_prev = b == 1 ? n : b - 1
+    stack = et.stack
+    empty!(stack)
+    push!(stack, Int32(1))
+    @inbounds while !isempty(stack)
+        id = Int(pop!(stack))
+        stats[3] += 1
+        (et.x1[id] < sx0 || et.x0[id] > sx1 || et.y1[id] < sy0 || et.y0[id] > sy1) && continue
+        bx0 = et.x0[id]; bx1 = et.x1[id]; by0 = et.y0[id]; by1 = et.y1[id]
+        s1 = dx * (by0 - ayf) - dy * (bx0 - axf)
+        s2 = dx * (by0 - ayf) - dy * (bx1 - axf)
+        s3 = dx * (by1 - ayf) - dy * (bx0 - axf)
+        s4 = dx * (by1 - ayf) - dy * (bx1 - axf)
+        ((s1 > tol) & (s2 > tol) & (s3 > tol) & (s4 > tol)) && continue
+        ((s1 < -tol) & (s2 < -tol) & (s3 < -tol) & (s4 < -tol)) && continue
+        l = et.left[id]
+        if l == 0
+            for k in et.rs[id]:et.re[id]
+                (et.ex1[k] < sx0 || et.ex0[k] > sx1 || et.ey1[k] < sy0 || et.ey0[k] > sy1) &&
+                    continue
+                e = Int(et.eid[k])
+                e2 = e == n ? 1 : e + 1
+                stats[4] += 1
+                if e == a || e == a_prev || e == b || e == b_prev
+                    # Incident edge: blocked only if its far endpoint lies on the segment.
+                    far = (e == a || e == b) ? e2 : e
+                    (far == a || far == b) && continue
+                    on_segment(kernel, poly[far], A, B) && return true
+                else
+                    _closed_segs_meet(kernel, A, B, poly[e], poly[e2]) && return true
+                end
+            end
+        else
+            push!(stack, l)
+            push!(stack, et.right[id])
+        end
+    end
+    return false
+end
+
+# ---------------------------------------------------------------------------------------
+# Pieces and the halving search
+# ---------------------------------------------------------------------------------------
+
+mutable struct _DiagSplitState{P,K,R}
+    poly::P
+    kernel::K
+    n::Int
+    et::_EdgeTree
+    rng::R
+    diagonals::Vector{Tuple{Int,Int}}
+    triangles::Vector{NTuple{3,Int}}
+    # stats: 1 diagonal tests, 2 failed tests, 3 edge-tree nodes, 4 exact edge tests,
+    #        5 splits, 6 fallback pieces, 7 fanned pieces
+    stats::Vector{Int}
+end
+
+# Open interior cone at `a` (piece neighbors `u` before, `w` after; ccw) contains `x`.
+@inline function _in_open_cone(kernel, u, a, w, x)::Bool
+    if orient_sign(kernel, u, a, w) > 0
+        return orient_sign(kernel, a, w, x) > 0 && orient_sign(kernel, u, a, x) > 0
+    else
+        return orient_sign(kernel, a, w, x) > 0 || orient_sign(kernel, u, a, x) > 0
+    end
+end
+
+@inline _is_reflex_at(kernel, poly, u::Int, v::Int, w::Int) =
+    orient_sign(kernel, poly[u], poly[v], poly[w]) <= 0
+
+function _diag_ok(st::_DiagSplitState, verts::Vector{Int32}, p::Int, q::Int)::Bool
+    m = length(verts)
+    poly = st.poly
+    kernel = st.kernel
+    a = Int(verts[p]); b = Int(verts[q])
+    st.stats[1] += 1
+    ua = Int(verts[p == 1 ? m : p - 1]); wa = Int(verts[p == m ? 1 : p + 1])
+    ub = Int(verts[q == 1 ? m : q - 1]); wb = Int(verts[q == m ? 1 : q + 1])
+    ok = _in_open_cone(kernel, poly[ua], poly[a], poly[wa], poly[b]) &&
+         _in_open_cone(kernel, poly[ub], poly[b], poly[wb], poly[a]) &&
+         !_edge_blocked(st.et, poly, kernel, st.n, a, b, st.stats)
+    ok || (st.stats[2] += 1)
+    return ok
+end
+
+# Middle reflex position strictly between p and q (cyclically forward), or 0.
+function _middle_reflex(refl::Vector{Int32}, m::Int, p::Int, q::Int)::Int
+    if p < q
+        lo = searchsortedfirst(refl, p + 1)
+        hi = searchsortedlast(refl, q - 1)
+        cnt = hi - lo + 1
+        cnt <= 0 && return 0
+        return Int(refl[lo + (cnt - 1) ÷ 2])
+    else
+        lo1 = searchsortedfirst(refl, p + 1)
+        c1 = length(refl) - lo1 + 1
+        c2 = searchsortedlast(refl, q - 1)
+        cnt = c1 + c2
+        cnt <= 0 && return 0
+        t = (cnt - 1) ÷ 2
+        return Int(t < c1 ? refl[lo1 + t] : refl[t - c1 + 1])
+    end
+end
+
+# Search the chain p -> q (cyclically forward positions) for a valid diagonal.
+function _try_chain(st::_DiagSplitState, verts::Vector{Int32}, refl::Vector{Int32}, p::Int, q::Int)
+    m = length(verts)
+    d = mod(q - p, m)
+    d <= 1 && return (0, 0)
+    if d != m - 1 && _diag_ok(st, verts, p, q)
+        return (p, q)
+    end
+    mid = _middle_reflex(refl, m, p, q)
+    if mid == 0
+        mid = mod1(p + d ÷ 2, m)
+    end
+    r = _try_chain(st, verts, refl, p, mid)
+    r[1] != 0 && return r
+    return _try_chain(st, verts, refl, mid, q)
+end
+
+function _fan_piece!(st::_DiagSplitState, verts::Vector{Int32}, s::Int)
+    m = length(verts)
+    v = Int(verts[s])
+    for t in 1:m-2
+        w1 = Int(verts[mod1(s + t, m)])
+        w2 = Int(verts[mod1(s + t + 1, m)])
+        push!(st.triangles, (v, w1, w2))
+        t >= 2 && push!(st.diagonals, v < w1 ? (v, w1) : (w1, v))
+    end
+    st.stats[7] += 1
+    return nothing
+end
+
+function _fallback_piece!(st::_DiagSplitState, verts::Vector{Int32})
+    st.stats[6] += 1
+    sub = [st.poly[v] for v in verts]
+    res = triangulate_ear_cut_u_kd_tree(sub; kernel = st.kernel)
+    for (i, j, k) in res.triangles
+        push!(st.triangles, (Int(verts[i]), Int(verts[j]), Int(verts[k])))
+    end
+    for (i, j) in res.diagonals
+        a = Int(verts[i]); b = Int(verts[j])
+        push!(st.diagonals, a < b ? (a, b) : (b, a))
+    end
+    return nothing
+end
+
+# Split piece at positions i < j into verts[i:j] and verts[j:m] ∪ verts[1:i].
+function _split_piece(st::_DiagSplitState, verts::Vector{Int32}, refl::Vector{Int32}, i::Int, j::Int)
+    m = length(verts)
+    kernel = st.kernel
+    poly = st.poly
+    v1 = verts[i:j]
+    v2 = Vector{Int32}(undef, m - j + 1 + i)
+    copyto!(v2, 1, verts, j, m - j + 1)
+    copyto!(v2, m - j + 2, verts, 1, i)
+    m1 = length(v1); m2 = length(v2)
+
+    r1 = Int32[]
+    _is_reflex_at(kernel, poly, Int(v1[m1]), Int(v1[1]), Int(v1[2])) && push!(r1, Int32(1))
+    lo = searchsortedfirst(refl, i + 1); hi = searchsortedlast(refl, j - 1)
+    for t in lo:hi
+        push!(r1, refl[t] - Int32(i - 1))
+    end
+    _is_reflex_at(kernel, poly, Int(v1[m1 - 1]), Int(v1[m1]), Int(v1[1])) && push!(r1, Int32(m1))
+
+    r2 = Int32[]
+    _is_reflex_at(kernel, poly, Int(v2[m2]), Int(v2[1]), Int(v2[2])) && push!(r2, Int32(1))
+    for t in searchsortedfirst(refl, j + 1):length(refl)
+        push!(r2, refl[t] - Int32(j - 1))
+    end
+    for t in 1:searchsortedlast(refl, i - 1)
+        push!(r2, refl[t] + Int32(m - j + 1))
+    end
+    _is_reflex_at(kernel, poly, Int(v2[m2 - 1]), Int(v2[m2]), Int(v2[1])) && push!(r2, Int32(m2))
+
+    a = Int(verts[i]); b = Int(verts[j])
+    push!(st.diagonals, a < b ? (a, b) : (b, a))
+    st.stats[5] += 1
+    return (v1, r1), (v2, r2)
+end
+
+function _process_pieces!(st::_DiagSplitState, verts0::Vector{Int32}, refl0::Vector{Int32})
+    stack = [(verts0, refl0)]
+    while !isempty(stack)
+        verts, refl = pop!(stack)
+        m = length(verts)
+        if m == 3
+            push!(st.triangles, (Int(verts[1]), Int(verts[2]), Int(verts[3])))
+            continue
+        end
+        k = length(refl)
+        if k == 0
+            _fan_piece!(st, verts, 1)
+            continue
+        elseif k == 1
+            _fan_piece!(st, verts, Int(refl[1]))
+            continue
+        end
+        ia = rand(st.rng, 1:k)
+        ib = mod1(ia + k ÷ 2, k)
+        p = Int(refl[ia]); q = Int(refl[ib])
+        r = _try_chain(st, verts, refl, p, q)
+        r[1] == 0 && (r = _try_chain(st, verts, refl, q, p))
+        if r[1] == 0
+            _fallback_piece!(st, verts)
+            continue
+        end
+        i, j = minmax(r[1], r[2])
+        piece1, piece2 = _split_piece(st, verts, refl, i, j)
+        push!(stack, piece1)
+        push!(stack, piece2)
+    end
+    return nothing
+end
+
+function _triangulate_diagonal_split_impl(vertices, kernel::AbstractKernel, rng::AbstractRNG)
+    n = _validate_ccw_polygon(kernel, vertices)
+    stats = zeros(Int, 7)
+    if n == 3
+        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)]), stats
+    end
+    refl = Int32[]
+    @inbounds for i in 1:n
+        _is_reflex_at(kernel, vertices, i == 1 ? n : i - 1, i, i == n ? 1 : i + 1) &&
+            push!(refl, Int32(i))
+    end
+    et = _build_edge_tree(vertices, n)
+    st = _DiagSplitState(vertices, kernel, n, et, rng, Tuple{Int,Int}[], NTuple{3,Int}[], stats)
+    sizehint!(st.diagonals, n - 3)
+    sizehint!(st.triangles, n - 2)
+    _process_pieces!(st, Int32[Int32(i) for i in 1:n], refl)
+    return PolygonTriangulation(st.diagonals, st.triangles), stats
+end
+
+"""
+    BasicCompGeometry.triangulate_diagonal_split(vertices; kernel=FloatingKernel(), rng=Random.default_rng()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices by recursively splitting
+it along diagonals between reflex vertices (found by a randomized halving search and
+validated with a static Kd-tree over the edges), fanning pieces with at most one reflex
+vertex, and falling back to u_kd ear clipping on pieces where the search finds no diagonal.
+Experimental.
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
+triangulate_diagonal_split(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+    rng::AbstractRNG = Random.default_rng(),
+) = first(_triangulate_diagonal_split_impl(vertices, kernel, rng))
+
