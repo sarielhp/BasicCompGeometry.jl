@@ -1,7 +1,7 @@
 # Ear-clipping polygon triangulation using the flat array-backed 2D Kd-tree
 # (`Kd_tree.FlatTree2D` or unshrunk-cell `Kd_tree.FlatUTree2D`) over active reflex
-# vertices, with O(1) swap-to-end live-leaf tracking, parent climbing, and
-# cache-line-packed halfplane pruning.
+# vertices, with swap-to-end live-leaf tracking (O(depth) per update, for the per-node
+# active counts), parent climbing, and cache-line-packed halfplane pruning.
 
 mutable struct _KdTreeReflexIndex{T,FT<:Kd_tree._AnyFlatTree2D} <: _AbstractReflexIndex
     is_reflex::Vector{Bool}
@@ -176,7 +176,7 @@ struct _FlatTriQueryF64
 end
 
 @inline function _make_tri_query(
-    kernel::FloatingKernel,
+    kernel::FloatingKernel{Float64},
     a::Point{2,Float64},
     b::Point{2,Float64},
     c::Point{2,Float64},
@@ -533,28 +533,10 @@ function _triangulate_ear_cut_kd_tree_impl(
     unshrunk::Val{U},
 ) where {U}
     n = _validate_ccw_polygon(kernel, vertices)
-    if n == 3
-        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
+    return _ear_clip_with_index(vertices, n, kernel) do is_reflex, reflex_cnt
+        reflex_cnt <= 16 && return _build_plain_reflex_index(is_reflex)
+        return _build_kdtree_reflex_index(vertices, Vector{Bool}(is_reflex), reflex_cnt, unshrunk)
     end
-
-    prev_v, next_v, is_active = _init_ear_clip_ring(n)
-    is_reflex = fill(false, n)
-    reflex_cnt = 0
-    @inbounds for i in 1:n
-        if orient_sign(kernel, vertices[prev_v[i]], vertices[i], vertices[next_v[i]]) <= 0
-            is_reflex[i] = true
-            reflex_cnt += 1
-        end
-    end
-
-    rindex = if reflex_cnt <= 16
-        _build_plain_reflex_index(BitVector(is_reflex))
-    else
-        _build_kdtree_reflex_index(vertices, is_reflex, reflex_cnt, unshrunk)
-    end
-
-    st = _EarClipState(kernel, vertices, prev_v, next_v, is_active, rindex)
-    return _ear_clip_run!(st)
 end
 
 """

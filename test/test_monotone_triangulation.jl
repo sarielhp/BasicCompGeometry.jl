@@ -1044,17 +1044,8 @@ using BasicCompGeometry
         @test kl.cmps / (nl * log2(nl)) < 6.0
     end
 
-    @testset "Z-Order Ear-Cut Polygon Triangulation (triangulate_ear_cut_z_order)" begin
-        mutable struct _EarCutZOrderCountKernel{K<:AbstractKernel} <: AbstractKernel
-            inner::K
-            orients::Int
-        end
-        BasicCompGeometry.orient_sign(k::_EarCutZOrderCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
-            (k.orients += 1; orient_sign(k.inner, a, b, c))
-        BasicCompGeometry.turn_sign(k::_EarCutZOrderCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
-            (k.orients += 1; turn_sign(k.inner, a, b, c))
-
-        function _verify_ear_cut_z_order_result(poly, res; kernel = FloatingKernel())
+    # Full structural check shared by the ear-cut testsets (counts, crossings, edge use, CCW, area).
+    function _verify_triangulation_result(poly, res; kernel = FloatingKernel())
             m = length(poly)
             @test length(res.diagonals) == m - 3
             @test length(res.triangles) == m - 2
@@ -1085,25 +1076,35 @@ using BasicCompGeometry
 
             edge_counts = Dict{Tuple{Int,Int},Int}()
             all_ccw = true
+            tri_sum = zero(twice_area([poly[1], poly[2], poly[3]]; kernel = kernel))
             for (a, b, c) in res.triangles
-                orient_sign(kernel, poly[a], poly[b], poly[c]) > 0 || (all_ccw = false)
+                pa, pb, pc = poly[a], poly[b], poly[c]
+                orient_sign(kernel, pa, pb, pc) > 0 || (all_ccw = false)
+                tri_sum += twice_area([pa, pb, pc]; kernel = kernel)
                 for (u, v) in ((a, b), (b, c), (c, a))
                     edge = u < v ? (u, v) : (v, u)
                     edge_counts[edge] = get(edge_counts, edge, 0) + 1
                 end
             end
             @test all_ccw
-            @test all(i -> get(edge_counts, (i < mod1(i + 1, m) ? (i, mod1(i + 1, m)) : (mod1(i + 1, m), i)), 0) == 1, 1:m)
+            @test all(i -> get(edge_counts, (min(i, mod1(i + 1, m)), max(i, mod1(i + 1, m))), 0) == 1, 1:m)
             @test all(d -> get(edge_counts, d, 0) == 2, res.diagonals)
-
-            poly_a = twice_area(poly; kernel = kernel)
-            tri_a = sum(twice_area([poly[a], poly[b], poly[c]]; kernel = kernel) for (a, b, c) in res.triangles)
             if kernel isa ExactKernel
-                @test poly_a == tri_a
+                @test tri_sum == twice_area(poly; kernel = kernel)
             else
-                @test isapprox(poly_a, tri_a; rtol = 1e-8)
+                @test isapprox(tri_sum, twice_area(poly; kernel = kernel); rtol = 1e-8)
             end
+    end
+
+    @testset "Z-Order Ear-Cut Polygon Triangulation (triangulate_ear_cut_z_order)" begin
+        mutable struct _EarCutZOrderCountKernel{K<:AbstractKernel} <: AbstractKernel
+            inner::K
+            orients::Int
         end
+        BasicCompGeometry.orient_sign(k::_EarCutZOrderCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+            (k.orients += 1; orient_sign(k.inner, a, b, c))
+        BasicCompGeometry.turn_sign(k::_EarCutZOrderCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+            (k.orients += 1; turn_sign(k.inner, a, b, c))
 
         @testset "Preconditions and trivial triangle" begin
             @test_throws ArgumentError triangulate_ear_cut_z_order([point(0.0, 0.0), point(1.0, 0.0)])
@@ -1234,7 +1235,7 @@ using BasicCompGeometry
                 point(1 // 1, 4 // 1), point(0 // 1, 4 // 1),
             ]
             res_u = triangulate_ear_cut_z_order(u_poly; kernel = exact)
-            _verify_ear_cut_z_order_result(u_poly, res_u; kernel = exact)
+            _verify_triangulation_result(u_poly, res_u; kernel = exact)
             @test triangulate_polygon(u_poly; kernel = exact, algorithm = :ear_cut_z_order).diagonals == res_u.diagonals
             @test polygon_diagonals(u_poly; kernel = exact, algorithm = :ear_cut_z_order) == res_u.diagonals
             @test triangulate_polygon(PntSeq(u_poly); kernel = exact, algorithm = :ear_cut_z_order).diagonals == res_u.diagonals
@@ -1247,7 +1248,7 @@ using BasicCompGeometry
                 point(big(3) // 2, big(3) // 1), point(big(1) // 1, big(2) // 1),
                 point(big(1) // 2, big(1) // 1),
             ]
-            _verify_ear_cut_z_order_result(collinear_poly, triangulate_ear_cut_z_order(collinear_poly; kernel = exact); kernel = exact)
+            _verify_triangulation_result(collinear_poly, triangulate_ear_cut_z_order(collinear_poly; kernel = exact); kernel = exact)
 
             # Large exact comb (> 16 reflex vertices -> Z-order index active)
             exact_comb = Point{2,Rational{BigInt}}[]
@@ -1260,17 +1261,17 @@ using BasicCompGeometry
             end
             pushfirst!(exact_comb, point(big(0) // 1, big(0) // 1))
             push!(exact_comb, point(big(10) // 1, big(50) // 1), point(big(0) // 1, big(50) // 1))
-            _verify_ear_cut_z_order_result(exact_comb, triangulate_ear_cut_z_order(exact_comb; kernel = exact); kernel = exact)
+            _verify_triangulation_result(exact_comb, triangulate_ear_cut_z_order(exact_comb; kernel = exact); kernel = exact)
 
             # BigInt > 10^308 non-finite Float64 span fallback
             huge = big(10)^320
             huge_comb = [Point{2,Rational{BigInt}}(p.x * huge, p.y * huge) for p in exact_comb]
-            _verify_ear_cut_z_order_result(huge_comb, triangulate_ear_cut_z_order(huge_comb; kernel = exact); kernel = exact)
+            _verify_triangulation_result(huge_comb, triangulate_ear_cut_z_order(huge_comb; kernel = exact); kernel = exact)
 
             # Extreme Float64 coordinate scales (tiny 1e-12 and huge 1e12)
             for s in (1e-12, 1e12)
                 comb_s = [point(Float64(p.x) * s, Float64(p.y) * s) for p in exact_comb]
-                _verify_ear_cut_z_order_result(comb_s, triangulate_ear_cut_z_order(comb_s))
+                _verify_triangulation_result(comb_s, triangulate_ear_cut_z_order(comb_s))
             end
         end
 
@@ -1315,7 +1316,7 @@ using BasicCompGeometry
             r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = :ear_cut_z_order)
             triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
 
-            _verify_ear_cut_z_order_result(comb_1k, r_ec1)
+            _verify_triangulation_result(comb_1k, r_ec1)
             @test length(r_ec5.triangles) == length(comb_5k) - 2
             @test isapprox(
                 twice_area(comb_5k),
@@ -1343,8 +1344,8 @@ using BasicCompGeometry
                 r = 0.7 + 0.5 * k / 32
                 push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
             end
-            _verify_ear_cut_z_order_result(star, triangulate_polygon(star; algorithm = :ear_cut_z_order))
-            _verify_ear_cut_z_order_result(spiral, triangulate_polygon(spiral; algorithm = :ear_cut_z_order))
+            _verify_triangulation_result(star, triangulate_polygon(star; algorithm = :ear_cut_z_order))
+            _verify_triangulation_result(spiral, triangulate_polygon(spiral; algorithm = :ear_cut_z_order))
         end
     end
 
@@ -1356,57 +1357,6 @@ using BasicCompGeometry
         (k.orients += 1; orient_sign(k.inner, a, b, c))
     BasicCompGeometry.turn_sign(k::_EarCutKdTreeCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
         (k.orients += 1; turn_sign(k.inner, a, b, c))
-
-    function _verify_ear_cut_kd_tree_result(poly, res; kernel = FloatingKernel())
-            m = length(poly)
-            @test length(res.diagonals) == m - 3
-            @test length(res.triangles) == m - 2
-            @test length(unique(res.diagonals)) == m - 3
-            @test all(d -> 1 <= d[1] < d[2] <= m && 1 < abs(d[1] - d[2]) < m - 1, res.diagonals)
-
-            edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i in 1:m]
-            diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-            no_diag_crossing = true
-            no_edge_crossing = true
-            for i in 1:length(diag_segs)
-                di = diag_segs[i]
-                for j in (i + 1):length(diag_segs)
-                    if proper_crossing(di, diag_segs[j]; kernel = kernel)
-                        no_diag_crossing = false
-                        break
-                    end
-                end
-                for e in edges
-                    if proper_crossing(di, e; kernel = kernel)
-                        no_edge_crossing = false
-                        break
-                    end
-                end
-            end
-            @test no_diag_crossing
-            @test no_edge_crossing
-
-            edge_counts = Dict{Tuple{Int,Int},Int}()
-            all_ccw = true
-            tri_sum = zero(twice_area([poly[1], poly[2], poly[3]]; kernel = kernel))
-            for (a, b, c) in res.triangles
-                pa, pb, pc = poly[a], poly[b], poly[c]
-                orient_sign(kernel, pa, pb, pc) > 0 || (all_ccw = false)
-                tri_sum += twice_area([pa, pb, pc]; kernel = kernel)
-                for (u, v) in ((a, b), (b, c), (c, a))
-                    edge = u < v ? (u, v) : (v, u)
-                    edge_counts[edge] = get(edge_counts, edge, 0) + 1
-                end
-            end
-            @test all_ccw
-            @test all(i -> get(edge_counts, (min(i, mod1(i + 1, m)), max(i, mod1(i + 1, m))), 0) == 1, 1:m)
-            @test all(d -> get(edge_counts, d, 0) == 2, res.diagonals)
-            if kernel isa ExactKernel
-                @test tri_sum == twice_area(poly; kernel = kernel)
-            else
-                @test isapprox(tri_sum, twice_area(poly; kernel = kernel); rtol = 1e-8)
-            end
-    end
 
     for (ts_name, alg_sym, alg_fn) in (
         ("Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_kd_tree)", :ear_cut_kd_tree, triangulate_ear_cut_kd_tree),
@@ -1432,7 +1382,7 @@ using BasicCompGeometry
                 @test triangulate_polygon(u_poly; algorithm = alg_sym).diagonals == res_kd.diagonals
                 @test triangulate_polygon(PntSeq(u_poly); algorithm = alg_sym).diagonals == res_kd.diagonals
                 @test polygon_diagonals(u_poly; algorithm = alg_sym) == res_kd.diagonals
-                _verify_ear_cut_kd_tree_result(u_poly, res_kd)
+                _verify_triangulation_result(u_poly, res_kd)
             end
 
             @testset "ExactKernel, extreme scales, and collinear chains" begin
@@ -1444,7 +1394,7 @@ using BasicCompGeometry
                     point(big(3) // 2, big(3) // 1), point(big(1) // 1, big(2) // 1),
                     point(big(1) // 2, big(1) // 1),
                 ]
-                _verify_ear_cut_kd_tree_result(collinear_poly, alg_fn(collinear_poly; kernel = exact); kernel = exact)
+                _verify_triangulation_result(collinear_poly, alg_fn(collinear_poly; kernel = exact); kernel = exact)
 
                 exact_comb = Point{2,Rational{BigInt}}[]
                 for i in 1:25
@@ -1456,11 +1406,11 @@ using BasicCompGeometry
                 end
                 pushfirst!(exact_comb, point(big(0) // 1, big(0) // 1))
                 push!(exact_comb, point(big(10) // 1, big(50) // 1), point(big(0) // 1, big(50) // 1))
-                _verify_ear_cut_kd_tree_result(exact_comb, alg_fn(exact_comb; kernel = exact); kernel = exact)
+                _verify_triangulation_result(exact_comb, alg_fn(exact_comb; kernel = exact); kernel = exact)
 
                 huge = big(10)^320
                 huge_comb = [Point{2,Rational{BigInt}}(p.x * huge, p.y * huge) for p in exact_comb]
-                _verify_ear_cut_kd_tree_result(huge_comb, alg_fn(huge_comb; kernel = exact); kernel = exact)
+                _verify_triangulation_result(huge_comb, alg_fn(huge_comb; kernel = exact); kernel = exact)
 
                 if alg_sym == :ear_cut_u_kd_tree
                     int_comb = Point{2,Int}[point(0, 0)]
@@ -1470,12 +1420,12 @@ using BasicCompGeometry
                         push!(int_comb, point(20, y0), point(20, y0 + 4), point(xn, y0 + 5), point(xn, y0 + 9))
                     end
                     push!(int_comb, point(20, 300), point(0, 300))
-                    _verify_ear_cut_kd_tree_result(int_comb, alg_fn(int_comb; kernel = exact); kernel = exact)
+                    _verify_triangulation_result(int_comb, alg_fn(int_comb; kernel = exact); kernel = exact)
                 end
 
                 for s in (1e-12, 1e12)
                     comb_s = [point(Float64(p.x) * s, Float64(p.y) * s) for p in exact_comb]
-                    _verify_ear_cut_kd_tree_result(comb_s, alg_fn(comb_s))
+                    _verify_triangulation_result(comb_s, alg_fn(comb_s))
                 end
             end
 
@@ -1516,7 +1466,7 @@ using BasicCompGeometry
                 r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = alg_sym)
                 triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
 
-                _verify_ear_cut_kd_tree_result(comb_1k, r_ec1)
+                _verify_triangulation_result(comb_1k, r_ec1)
                 @test length(r_ec5.triangles) == length(comb_5k) - 2
                 @test isapprox(
                     twice_area(comb_5k),
@@ -1551,9 +1501,130 @@ using BasicCompGeometry
                     end
                     for i in 0:1999
                 ]
-                _verify_ear_cut_kd_tree_result(star, triangulate_polygon(star; algorithm = alg_sym))
-                _verify_ear_cut_kd_tree_result(spiral, triangulate_polygon(spiral; algorithm = alg_sym))
-                _verify_ear_cut_kd_tree_result(coast, triangulate_polygon(coast; algorithm = alg_sym))
+                _verify_triangulation_result(star, triangulate_polygon(star; algorithm = alg_sym))
+                _verify_triangulation_result(spiral, triangulate_polygon(spiral; algorithm = alg_sym))
+                _verify_triangulation_result(coast, triangulate_polygon(coast; algorithm = alg_sym))
+            end
+        end
+    end
+
+    @testset "Degenerate input handling and cross-algorithm agreement" begin
+        all_algs = (:sweep, :seidel, :ear_cut, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
+        sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+
+        # `:ear_clipping` (pre-0.5.15 name) stays accepted as an alias of `:ear_cut`.
+        @test triangulate_polygon(sq; algorithm = :ear_clipping).triangles ==
+              triangulate_polygon(sq; algorithm = :ear_cut).triangles
+
+        @test occursin("Seidel", string(@doc(triangulate_seidel)))
+
+        # Repeated vertices (consecutive, closing repeat, pinch) are rejected, never truncated.
+        dup_polys = (
+            [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)],
+            [point(0.0, 0.0), point(2.0, 0.0), point(2.0, 2.0), point(0.0, 2.0), point(0.0, 0.0)],
+            [point(0.0, 0.0), point(2.0, 2.0), point(4.0, 0.0), point(4.0, 4.0), point(2.0, 2.0), point(0.0, 4.0)],
+        )
+        for P in dup_polys, alg in all_algs
+            @test_throws ArgumentError triangulate_polygon(P; algorithm = alg)
+        end
+
+        # A simple polygon that is numerically degenerate for Float64 predicates: ear clipping
+        # must throw instead of returning a partial triangulation; ExactKernel succeeds.
+        q14 = [(0.1, 0.3), (0.011707525606919664, 0.3469514532847201), (-0.42975484635848205, 0.5817087197083206),
+               (-0.3884138252501218, 0.4464647920305202), (-0.5706092062126423, 0.3168312965290796),
+               (-0.34707280414176156, 0.31122086435271973), (-0.3940242574264817, 0.22292838995963937),
+               (-0.48792716399592195, 0.04634344117347866), (-0.3526832363181214, 0.08768446228183896),
+               (-0.534878617280642, -0.04194903321960164), (-0.18170871970832062, -0.22975484635848203),
+               (-0.08780581313888042, -0.05316989757232138), (-0.2643907619250411, 0.04073300899711885),
+               (-0.25878032974868126, 0.2642694110679996)]
+        P14 = [point(x, y) for (x, y) in q14]
+        for alg in (:ear_cut, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
+            r = try
+                triangulate_polygon(P14; algorithm = alg)
+            catch e
+                e
+            end
+            @test r isa ArgumentError || length(r.triangles) == length(P14) - 2
+            @test length(triangulate_polygon(P14; algorithm = alg, kernel = ExactKernel()).triangles) == 12
+        end
+
+        # Seidel walks fail with a clear ArgumentError (not BoundsError) on inconsistent
+        # floating-point predicates; the same points triangulate exactly with ExactKernel.
+        k19 = [(1, 2), (0, 2), (1, 0), (2, 0), (6, 0), (6, 1), (5, 2), (5, 1), (3, 5), (5, 5),
+               (6, 6), (3, 6), (1, 5), (0, 5), (1, 4), (3, 2), (4, 1), (2, 1), (0, 3)]
+        P19 = [point(a * (1 / 3), b * (1 / 3)) for (a, b) in k19]
+        r19 = try
+            triangulate_seidel(P19; rng = Xoshiro(1))
+        catch e
+            e
+        end
+        @test r19 isa ArgumentError || length(r19.triangles) == 17
+        _verify_triangulation_result(P19, triangulate_seidel(P19; kernel = ExactKernel(), rng = Xoshiro(1)); kernel = ExactKernel())
+
+        # Randomized differential test on simple polygons over small integer grids (many
+        # collinear vertices, shared coordinates, horizontal/vertical edges), exact predicates.
+        _o(a, b, c) = sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
+        _onseg(a, b, p) = _o(a, b, p) == 0 && min(a.x, b.x) <= p.x <= max(a.x, b.x) && min(a.y, b.y) <= p.y <= max(a.y, b.y)
+        function _meet(a, b, c, d)
+            o1, o2, o3, o4 = _o(a, b, c), _o(a, b, d), _o(c, d, a), _o(c, d, b)
+            (o1 * o2 < 0 && o3 * o4 < 0) && return true
+            return _onseg(a, b, c) || _onseg(a, b, d) || _onseg(c, d, a) || _onseg(c, d, b)
+        end
+        function _simple(P)
+            m = length(P)
+            for i in 1:m, j in (i + 1):m
+                a, b, c, d = P[i], P[mod1(i + 1, m)], P[j], P[mod1(j + 1, m)]
+                if j == i + 1
+                    (_onseg(c, d, a) || _onseg(a, b, d)) && return false
+                elseif i == 1 && j == m
+                    (_onseg(c, d, b) || _onseg(a, b, c)) && return false
+                else
+                    _meet(a, b, c, d) && return false
+                end
+            end
+            return true
+        end
+        function _rand_simple_polygon(rng, n, G)
+            P = unique([point(Float64(rand(rng, 0:G)), Float64(rand(rng, 0:G))) for _ in 1:n])
+            length(P) < 3 && return nothing
+            shuffle!(rng, P)
+            m = length(P)
+            for _ in 1:500  # 2-opt untangling
+                changed = false
+                for i in 1:m, j in (i + 2):m
+                    (i == 1 && j == m) && continue
+                    if _meet(P[i], P[i + 1], P[j], P[mod1(j + 1, m)])
+                        reverse!(P, i + 1, j)
+                        changed = true
+                    end
+                end
+                changed || break
+            end
+            _simple(P) || return nothing
+            a2 = twice_area(P; kernel = ExactKernel())
+            a2 == 0 && return nothing
+            a2 < 0 && reverse!(P)
+            return P
+        end
+
+        rng = Xoshiro(20261113)
+        exact = ExactKernel()
+        tested = 0
+        while tested < 120
+            P = _rand_simple_polygon(rng, rand(rng, 4:64), rand(rng, (4, 8, 16, 30)))
+            P === nothing && continue
+            tested += 1
+            ref = BasicCompGeometry._ear_clipping_from_valid(P, length(P); kernel = exact)
+            _verify_triangulation_result(P, ref; kernel = exact)
+            _verify_triangulation_result(P, triangulate_ear_cut(P; kernel = exact); kernel = exact)
+            for alg in (:sweep, :seidel)
+                _verify_triangulation_result(P, triangulate_polygon(P; algorithm = alg, kernel = exact, rng = Xoshiro(tested)); kernel = exact)
+            end
+            # The spatial indexes only accelerate the same blocking test, so the indexed ear
+            # cutters must reproduce the plain reflex-list ear clipper exactly (polygons with
+            # more than 16 reflex vertices exercise the Z-order and Kd-tree indexes).
+            for alg in (:ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
+                @test triangulate_polygon(P; algorithm = alg, kernel = exact).triangles == ref.triangles
             end
         end
     end

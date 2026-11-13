@@ -528,21 +528,28 @@ function _ear_clip_run!(st::_EarClipState)
     return PolygonTriangulation(diagonals, triangles)
 end
 
-function _ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = FloatingKernel())
+# Shared ear-clipping driver: classify reflex vertices (collinear counts as reflex, so it
+# blocks conservatively), build the reflex index with `make_index(is_reflex, reflex_cnt)`,
+# and run the ear queue.
+function _ear_clip_with_index(make_index, poly, n::Int, kernel::AbstractKernel)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
     end
-
     prev_v, next_v, is_active = _init_ear_clip_ring(n)
     is_reflex = falses(n)
+    reflex_cnt = 0
     @inbounds for i in 1:n
         if orient_sign(kernel, poly[prev_v[i]], poly[i], poly[next_v[i]]) <= 0
             is_reflex[i] = true
+            reflex_cnt += 1
         end
     end
-    st = _EarClipState(kernel, poly, prev_v, next_v, is_active, _build_plain_reflex_index(is_reflex))
+    st = _EarClipState(kernel, poly, prev_v, next_v, is_active, make_index(is_reflex, reflex_cnt))
     return _ear_clip_run!(st)
 end
+
+_ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = FloatingKernel()) =
+    _ear_clip_with_index((is_reflex, _) -> _build_plain_reflex_index(is_reflex), poly, n, kernel)
 
 """
     triangulate_ear_cut(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
@@ -586,9 +593,9 @@ Returns a `PolygonTriangulation` with:
 Supported `algorithm` options:
 - `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
-- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
-- `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n log r)` typical, `O(n r)` worst case).
-- `:ear_cut_u_kd_tree`: Ear clipping indexing active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) spatial tree with uncapped upward cell-containment climbing (`O(n log r)` typical, `O(n r)` worst case).
+- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n r)` worst case; queries prune only by the ear's bounding box, so long thin ears and far outlier vertices degrade it toward quadratic in practice).
+- `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n r)` worst case; measured roughly `n^1.2` on random star polygons).
+- `:ear_cut_u_kd_tree`: Ear clipping indexing active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) spatial tree with uncapped upward cell-containment climbing (`O(n r)` worst case; subquadratic in practice).
 - `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions

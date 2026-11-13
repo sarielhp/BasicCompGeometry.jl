@@ -862,6 +862,41 @@ Aqua.test_all(BasicCompGeometry)
                 @test ((bm & 0x08) == 0 || fut_big.py[k] <= nd.uy1)
             end
         end
+
+        # Multi-point leaves: nearest-neighbor queries must scan every point of a leaf.
+        nn_rng = Xoshiro(7)
+        nn_pts = PntSeq([point(rand(nn_rng), rand(nn_rng)) for _ in 1:200])
+        nn_tree = Tree_init(nn_pts; leaf_size = 8)
+        Tree_fully_expand(nn_tree)
+        nn_ok = true
+        for _ in 1:100
+            q = point(rand(nn_rng), rand(nn_rng))
+            d_tree, _, _ = BBT.approx_nn(nn_tree, q, 1.0)
+            d_scan, _, _ = BBT.exact_naive_scan(nn_pts, q)
+            d_tree == d_scan || (nn_ok = false)
+        end
+        @test nn_ok
+        @test get_min_orig_index(nn_tree, nn_tree.root) == 1
+        @test get_max_orig_index(nn_tree, nn_tree.root) == 200
+        @test_throws ArgumentError Tree_init(nn_pts; leaf_size = 0)
+
+        # Parent pointers must not make `show` dump the whole tree.
+        @test length(sprint(show, nn_tree.root.left)) < 200
+        @test length(sprint(show, nn_tree)) < 200
+
+        # Flat trees reject non-finite coordinates (they used to hang) and bad original ids.
+        @test_throws ArgumentError Kd_tree.Tree_init_flat([point(-Inf, 0.0), point(0.0, 0.0), point(Inf, 0.0)]; leaf_size = 1)
+        @test_throws ArgumentError Kd_tree.Tree_init_flat_u([point(0.0, 0.0), point(NaN, 0.0), point(1.0, 0.0)]; leaf_size = 1)
+        @test_throws ArgumentError Kd_tree.Tree_init_flat([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1, 2, 50], 3; leaf_size = 1)
+        @test_throws ArgumentError Kd_tree.Tree_init_flat([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [2, 2, 1], 3; leaf_size = 1)
+        @test_throws ArgumentError Kd_tree.Tree_init_flat_u([1.0, 2.0], [1.0, 2.0], [0, 1], 2; leaf_size = 1)
+
+        # Integer coordinate spans beyond typemax must not overflow into a single huge leaf.
+        wide_rng = Xoshiro(3)
+        wide_pts = [point(rand(wide_rng, (typemin(Int), typemax(Int) - 1, typemax(Int))), rand(wide_rng, 1:10)) for _ in 1:50]
+        for ft_wide in (Kd_tree.Tree_init_flat(wide_pts; leaf_size = 4), Kd_tree.Tree_init_flat_u(wide_pts; leaf_size = 4))
+            @test all(nd -> !nd.is_leaf || nd.r_end - nd.r_start + 1 <= 4 || (nd.x0 == nd.x1 && nd.y0 == nd.y1), ft_wide.nodes)
+        end
     end
 
     @testset "Diameter Algorithms" begin

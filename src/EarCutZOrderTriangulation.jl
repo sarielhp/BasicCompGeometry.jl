@@ -522,8 +522,11 @@ with a Morton spatial index over active reflex vertices.
 
 For inputs with at most 16 reflex vertices (including convex polygons) or non-finite
 `Float64` bounding spans, falls back automatically to the direct reflex-list ear clipper.
-Typical practical running time is near-linear (`O(n log r)` with worst-case `O(n r)`
-where `r` is the reflex vertex count).
+Worst-case running time is `O(n r)`, where `r` is the reflex vertex count. Candidate
+reflex vertices are pruned only by the ear's bounding box on a fixed 16-bit Morton grid over
+the polygon's bounding box, so it is fast when ears stay small and well spread, but long
+thin ears (e.g. random star polygons) or a few far-away vertices make it degrade toward
+quadratic; prefer `triangulate_ear_cut_kd_tree` or `triangulate_sweep` for such inputs.
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
@@ -533,30 +536,12 @@ function triangulate_ear_cut_z_order(
     kernel::AbstractKernel = FloatingKernel(),
 )
     n = _validate_ccw_polygon(kernel, vertices)
-    if n == 3
-        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
-    end
-
-    prev_v, next_v, is_active = _init_ear_clip_ring(n)
-    is_reflex = falses(n)
-    reflex_cnt = 0
-    @inbounds for i in 1:n
-        if orient_sign(kernel, vertices[prev_v[i]], vertices[i], vertices[next_v[i]]) <= 0
-            is_reflex[i] = true
-            reflex_cnt += 1
-        end
-    end
-
-    rindex = if reflex_cnt <= 16
-        _build_plain_reflex_index(is_reflex)
-    else
+    return _ear_clip_with_index(vertices, n, kernel) do is_reflex, reflex_cnt
+        reflex_cnt <= 16 && return _build_plain_reflex_index(is_reflex)
         ok, min_x, min_y, inv_x, inv_y = _compute_z_bounds(vertices)
-        ok ? _build_zorder_reflex_index(vertices, is_reflex, reflex_cnt, min_x, min_y, inv_x, inv_y) :
-             _build_plain_reflex_index(is_reflex)
+        ok || return _build_plain_reflex_index(is_reflex)
+        return _build_zorder_reflex_index(vertices, is_reflex, reflex_cnt, min_x, min_y, inv_x, inv_y)
     end
-
-    st = _EarClipState(kernel, vertices, prev_v, next_v, is_active, rindex)
-    return _ear_clip_run!(st)
 end
 
 export triangulate_ear_cut_z_order
