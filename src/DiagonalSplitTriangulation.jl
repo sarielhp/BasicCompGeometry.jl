@@ -86,17 +86,39 @@ function _build_edge_tree(poly, n::Int; leaf_size::Int = 8)
     return _EdgeTree(left, right, rs, re, x0, x1, y0, y1, eid, ex0, ex1, ey0, ey1, tol, stack)
 end
 
-# Closed segments [p1,p2] and [q1,q2] share a point.
+# Orientation sign used by all decisions of this algorithm. Under the plain Float64 kernel,
+# values within Shewchuk's static error bound (orient2dfast, errboundA ~ 3.3e-16) are
+# reported as 0. Every caller treats 0 conservatively (a diagonal touching an edge, a vertex
+# being reflex, a point outside an open cone), so rounding can only reject a valid diagonal
+# or delay a fan, never accept an invalid one.
+@inline _cons_orient(kernel, a, b, c) = orient_sign(kernel, a, b, c)
+@inline function _cons_orient(::FloatingKernel{Float64}, a, b, c)
+    ax = Float64(a.x); ay = Float64(a.y)
+    l = (Float64(b.x) - ax) * (Float64(c.y) - ay)
+    r = (Float64(b.y) - ay) * (Float64(c.x) - ax)
+    det = l - r
+    bound = 1.0e-15 * (abs(l) + abs(r))
+    return det > bound ? 1 : (det < -bound ? -1 : 0)
+end
+
+# `p` lies on the closed segment [a, b] (conservatively: near-collinear counts).
+@inline _cons_on_seg(kernel, p, a, b) =
+    _cons_orient(kernel, a, b, p) == 0 &&
+    min(a.x, b.x) <= p.x <= max(a.x, b.x) && min(a.y, b.y) <= p.y <= max(a.y, b.y)
+
+# Closed segments [p1,p2] and [q1,q2] share a point (conservatively under Float64).
+# For (near-)collinear segments, bounding-box overlap decides: exact for truly collinear
+# segments, conservative otherwise.
 @inline function _closed_segs_meet(kernel, p1, p2, q1, q2)::Bool
-    o1 = orient_sign(kernel, p1, p2, q1)
-    o2 = orient_sign(kernel, p1, p2, q2)
+    o1 = _cons_orient(kernel, p1, p2, q1)
+    o2 = _cons_orient(kernel, p1, p2, q2)
     o1 * o2 > 0 && return false
     if o1 == 0 && o2 == 0
-        return on_segment(kernel, q1, p1, p2) || on_segment(kernel, q2, p1, p2) ||
-               on_segment(kernel, p1, q1, q2) || on_segment(kernel, p2, q1, q2)
+        return max(p1.x, p2.x) >= min(q1.x, q2.x) && max(q1.x, q2.x) >= min(p1.x, p2.x) &&
+               max(p1.y, p2.y) >= min(q1.y, q2.y) && max(q1.y, q2.y) >= min(p1.y, p2.y)
     end
-    o3 = orient_sign(kernel, q1, q2, p1)
-    o4 = orient_sign(kernel, q1, q2, p2)
+    o3 = _cons_orient(kernel, q1, q2, p1)
+    o4 = _cons_orient(kernel, q1, q2, p2)
     return o3 * o4 <= 0
 end
 
@@ -140,7 +162,7 @@ function _edge_blocked(et::_EdgeTree, poly, kernel, n::Int, a::Int, b::Int, stat
                     # Incident edge: blocked only if its far endpoint lies on the segment.
                     far = (e == a || e == b) ? e2 : e
                     (far == a || far == b) && continue
-                    on_segment(kernel, poly[far], A, B) && return true
+                    _cons_on_seg(kernel, poly[far], A, B) && return true
                 else
                     _closed_segs_meet(kernel, A, B, poly[e], poly[e2]) && return true
                 end
@@ -166,21 +188,20 @@ mutable struct _DiagSplitState{P,K,R}
     diagonals::Vector{Tuple{Int,Int}}
     triangles::Vector{NTuple{3,Int}}
     # stats: 1 diagonal tests, 2 failed tests, 3 edge-tree nodes, 4 exact edge tests,
-    #        5 splits, 6 fallback pieces, 7 fanned pieces
+    #        5 splits, 6 fallback pieces, 7 fanned pieces, 8 tests made by galloping
     stats::Vector{Int}
 end
 
 # Open interior cone at `a` (piece neighbors `u` before, `w` after; ccw) contains `x`.
+# A (near-)straight angle at `a` uses the stricter convex rule.
 @inline function _in_open_cone(kernel, u, a, w, x)::Bool
-    if orient_sign(kernel, u, a, w) > 0
-        return orient_sign(kernel, a, w, x) > 0 && orient_sign(kernel, u, a, x) > 0
-    else
-        return orient_sign(kernel, a, w, x) > 0 || orient_sign(kernel, u, a, x) > 0
-    end
+    s1 = _cons_orient(kernel, a, w, x) > 0
+    s2 = _cons_orient(kernel, u, a, x) > 0
+    return _cons_orient(kernel, u, a, w) < 0 ? (s1 | s2) : (s1 & s2)
 end
 
 @inline _is_reflex_at(kernel, poly, u::Int, v::Int, w::Int) =
-    orient_sign(kernel, poly[u], poly[v], poly[w]) <= 0
+    _cons_orient(kernel, poly[u], poly[v], poly[w]) <= 0
 
 function _diag_ok(st::_DiagSplitState, verts::Vector{Int32}, p::Int, q::Int)::Bool
     m = length(verts)
@@ -216,6 +237,35 @@ function _middle_reflex(refl::Vector{Int32}, m::Int, p::Int, q::Int)::Int
     end
 end
 
+# Exponential (galloping) search along a chain of length `d` starting at position `p`
+# (the diagonal to `p + d` is known to fail): test `p + 2, p + 4, p + 8, ...` while valid,
+# then binary-search between the last valid and first failed offset. Returns the farthest
+# valid diagonal found, or (0, 0) if `p + 2` already fails.
+function _gallop_chain(st::_DiagSplitState, verts::Vector{Int32}, p::Int, d::Int)
+    m = length(verts)
+    best = 0
+    t = 2
+    while t < d
+        st.stats[8] += 1
+        _diag_ok(st, verts, p, mod1(p + t, m)) || break
+        best = t
+        t *= 2
+    end
+    best == 0 && return (0, 0)
+    lo = best
+    hi = min(2best, d)
+    while hi - lo > 1
+        mid = (lo + hi) >>> 1
+        st.stats[8] += 1
+        if _diag_ok(st, verts, p, mod1(p + mid, m))
+            lo = mid
+        else
+            hi = mid
+        end
+    end
+    return (p, mod1(p + lo, m))
+end
+
 # Search the chain p -> q (cyclically forward positions) for a valid diagonal.
 function _try_chain(st::_DiagSplitState, verts::Vector{Int32}, refl::Vector{Int32}, p::Int, q::Int)
     m = length(verts)
@@ -226,6 +276,9 @@ function _try_chain(st::_DiagSplitState, verts::Vector{Int32}, refl::Vector{Int3
     end
     mid = _middle_reflex(refl, m, p, q)
     if mid == 0
+        # Convex chain p -> q: gallop forward from p for the farthest visible vertex.
+        r = _gallop_chain(st, verts, p, d)
+        r[1] != 0 && return r
         mid = mod1(p + d ÷ 2, m)
     end
     r = _try_chain(st, verts, refl, p, mid)
@@ -331,7 +384,7 @@ end
 
 function _triangulate_diagonal_split_impl(vertices, kernel::AbstractKernel, rng::AbstractRNG)
     n = _validate_ccw_polygon(kernel, vertices)
-    stats = zeros(Int, 7)
+    stats = zeros(Int, 8)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)]), stats
     end

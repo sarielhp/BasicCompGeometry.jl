@@ -24,7 +24,7 @@ for e in exps
                 " nodes/test=", rpad(round(s[3] / max(s[1], 1), digits=1), 6),
                 " edges/test=", rpad(round(s[4] / max(s[1], 1), digits=1), 6),
                 " splits/n=", rpad(round(s[5] / nP, digits=3), 6),
-                " fans=", s[7], " fallbacks=", s[6])
+                " gallop/n=", rpad(round(s[8] / nP, digits=3), 6), " fans=", s[7], " fallbacks=", s[6])
         print(" "^14)
         for a in (:sweep, :ear_cut_u_kd_tree, :diagonal_split)
             triangulate_polygon(P; algorithm=a, rng=Xoshiro(1))
