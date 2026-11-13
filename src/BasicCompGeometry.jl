@@ -44,6 +44,7 @@ include("CairoDraw.jl")
 include("ConvexHull3D.jl")
 include("VirtArray.jl")
 include("BBT.jl")
+const Kd_tree = BBT
 include("WSPD.jl")
 include("Diameter.jl")
 include("MetricSpace.jl")
@@ -227,7 +228,7 @@ export orient,
     polygon_segments
 export polar, polar_line
 export bottom_left, corner, top_right, diam, max_dist, is_inside
-export BBT, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
+export BBT, Kd_tree, WSPD, MVBB, MetricSpace, LongestConvexSubset, ConvexHull3D, IpeDraw
 export PolygonTriangulation,
     MonotoneTriangulation,
     triangulate_polygon,

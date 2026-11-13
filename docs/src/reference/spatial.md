@@ -1,7 +1,8 @@
 # Spatial structures
 
 See [Algorithms and spatial structures](../algorithms.md) for examples. These
-operations belong to the `BBT`, `WSPD`, and `MVBB` submodules.
+operations belong to the `BBT` (aliased as `Kd_tree`), `WSPD`, and `MVBB`
+submodules.
 
 ## Bounding box trees
 
@@ -10,6 +11,8 @@ operations belong to the `BBT`, `WSPD`, and `MVBB` submodules.
 | `BBT.Tree_init(points)` | Create a tree over an `AbsPntSeq` and initially expand its root |
 | `BBT.Tree_fully_expand(tree)` | Refine the entire tree |
 | `BBT.Tree_refine_node(tree, node)` | Split a node when possible |
+| `BBT.parent_node(node)` / `parent(node)` | Travel up to a node's parent (`nothing` at root) |
+| `BBT.is_root(node)` | Return `true` when `node.parent === nothing` |
 | `BBT.get_min_orig_index(tree, node)` | Minimum input index stored under a node |
 | `BBT.get_max_orig_index(tree, node)` | Maximum input index stored under a node |
 

@@ -17,6 +17,7 @@ mutable struct Node{D,T,S,V}
     r::UnitRange{Int}
     left::Union{Nothing,Node{D,T,S,V}}
     right::Union{Nothing,Node{D,T,S,V}}
+    parent::Union{Nothing,Node{D,T,S,V}}
     f_leaf::Bool
     diam::S
     id::Int
@@ -37,12 +38,14 @@ mutable struct Node{D,T,S,V}
         max_index::Union{Nothing,Int},
         split_dim::Union{Nothing,Int},
         split_val::Union{Nothing,T},
+        parent::Union{Nothing,Node{D,T,S,V}} = nothing,
     ) where {D,T,S,V}
         return new{D,T,S,V}(
             bb,
             r,
             left,
             right,
+            parent,
             f_leaf,
             diam,
             id,
@@ -110,7 +113,11 @@ function get_max_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where
     return get_min_max_orig_index(tree, node, maximum, :max_index)
 end
 
-function node_init(tree::Tree{D,T,S,V}, range::UnitRange{Int}) where {D,T,S,V}
+function node_init(
+    tree::Tree{D,T,S,V},
+    range::UnitRange{Int},
+    parent::Union{Nothing,Node{D,T,S,V}} = nothing,
+) where {D,T,S,V}
     bb = BBox{D,T}()
     tree.id_counter += 1
     bound!(bb, tree.PS[range])
@@ -127,6 +134,7 @@ function node_init(tree::Tree{D,T,S,V}, range::UnitRange{Int}) where {D,T,S,V}
         nothing,
         nothing,
         nothing,
+        parent,
     )
 end
 
@@ -212,8 +220,8 @@ function node_split(node::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
 
     node.split_dim = dim_max
     node.split_val = cutoff
-    node.left = node_init(tree, r_l)
-    node.right = node_init(tree, r_r)
+    node.left = node_init(tree, r_l, node)
+    node.right = node_init(tree, r_r, node)
 
     return node
 end
@@ -469,7 +477,32 @@ Requires `Cairo` and `Colors` to be loaded.
 """
 function Tree_draw end
 
+import Base: parent
+
+"""
+    parent(node::Node) -> Union{Nothing,Node}
+
+Return the parent node of `node`, or `nothing` if `node` is the root node.
+"""
+parent(node::Node) = node.parent
+
+"""
+    parent_node(node::Node) -> Union{Nothing,Node}
+
+Return the parent node of `node`, or `nothing` if `node` is the root node.
+Equivalent to `parent(node)` and `node.parent`.
+"""
+parent_node(node::Node) = node.parent
+
+"""
+    is_root(node::Node) -> Bool
+
+Return `true` if `node` has no parent (`node.parent === nothing`).
+"""
+is_root(node::Node) = isnothing(node.parent)
+
 export Node, Tree
+export parent_node, is_root
 export Tree_draw, Tree_init, Tree_fully_expand
 export Tree_refine_node, depth
 export get_min_orig_index,

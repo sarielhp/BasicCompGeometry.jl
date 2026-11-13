@@ -28,8 +28,10 @@ see [the spatial reference](reference/spatial.md).
 
 ## Nearest neighbors with BBT
 
-Construct a bounding box tree with `BBT.Tree_init`. Nodes can expand lazily;
-`BBT.Tree_fully_expand` refines the entire tree.
+Construct a bounding box tree with `BBT.Tree_init` (`Kd_tree` is an alias for
+`BBT`). Nodes can expand lazily; `BBT.Tree_fully_expand` refines the entire tree,
+and each node stores a `parent` link accessible via `parent(node)` or
+`BBT.parent_node(node)`.
 
 ```@example algorithms
 tree = BBT.Tree_init(points)

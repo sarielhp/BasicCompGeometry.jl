@@ -225,6 +225,7 @@ Aqua.test_all(BasicCompGeometry)
             :Halfplane2F,
             :Hyperbola,
             :IpeDraw,
+            :Kd_tree,
             :Line,
             :LongestConvexSubset,
             :MVBB,
@@ -660,6 +661,73 @@ Aqua.test_all(BasicCompGeometry)
         root_bb = tree3d.root.bb
         all_inside = all(p -> is_inside(p, root_bb), pnts3d)
         @test all_inside == true
+
+        # Kd_tree alias and parent-node upward navigation
+        @test Kd_tree === BBT
+        @test BasicCompGeometry.Kd_tree === BBT
+        kdt = Kd_tree.Tree_init(poly)
+        @test kdt.root !== nothing
+        @test isnothing(kdt.root.parent)
+        @test parent(kdt.root) === nothing
+        @test Kd_tree.parent(kdt.root) === nothing
+        @test Kd_tree.parent_node(kdt.root) === nothing
+        @test Kd_tree.is_root(kdt.root)
+        @test !isnothing(kdt.root.left)
+        @test !isnothing(kdt.root.right)
+        @test kdt.root.left.parent === kdt.root
+        @test parent(kdt.root.left) === kdt.root
+        @test Kd_tree.parent_node(kdt.root.left) === kdt.root
+        @test !Kd_tree.is_root(kdt.root.left)
+        @test kdt.root.right.parent === kdt.root
+
+        # Lazy refinement sets parent links on newly split children
+        refined = Kd_tree.Tree_refine_node(kdt, kdt.root.left)
+        @test refined === kdt.root.left
+        @test !isnothing(refined.left)
+        @test !isnothing(refined.right)
+        @test refined.left.parent === refined
+        @test parent(refined.right) === refined
+        @test parent(parent(refined.left)) === kdt.root
+
+        # Verify every node after full expansion links back to root
+        function verify_parent_links(node, expected_parent, root_node)
+            @test node.parent === expected_parent
+            @test parent(node) === expected_parent
+            @test parent_node(node) === expected_parent
+            @test is_root(node) == isnothing(expected_parent)
+            if isnothing(node.left) && isnothing(node.right)
+                curr = node
+                steps = 0
+                while !is_root(curr)
+                    curr = parent(curr)
+                    steps += 1
+                    @test steps <= length(root_node.r)
+                end
+                @test curr === root_node
+            else
+                !isnothing(node.left) && verify_parent_links(node.left, node, root_node)
+                !isnothing(node.right) && verify_parent_links(node.right, node, root_node)
+            end
+        end
+        verify_parent_links(tree.root, nothing, tree.root)
+        verify_parent_links(tree3d.root, nothing, tree3d.root)
+
+        # Legacy 11-argument Node constructor compatibility (defaults parent to nothing)
+        legacy_node = typeof(kdt.root)(
+            kdt.root.bb,
+            1:1,
+            nothing,
+            nothing,
+            true,
+            0.0,
+            999,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+        )
+        @test isnothing(legacy_node.parent)
+        @test is_root(legacy_node)
     end
 
     @testset "Diameter Algorithms" begin
