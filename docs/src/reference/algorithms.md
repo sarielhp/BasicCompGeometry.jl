@@ -20,7 +20,7 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
 

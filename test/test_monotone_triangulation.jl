@@ -1,4 +1,5 @@
 using Test
+using Random
 using BasicCompGeometry
 
 @testset "Monotone Polygon Triangulation" begin
@@ -574,5 +575,166 @@ using BasicCompGeometry
         poly_area100 = twice_area(star100)
         tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res_seidel100.triangles)
         @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
+
+        @testset "Trapezoidal map invariants, spirals, collinearity, and O(n log* n) scaling" begin
+            function _verify_seidel_result(poly, res; kernel = FloatingKernel())
+                m = length(poly)
+                @test length(res.diagonals) == m - 3
+                @test length(res.triangles) == m - 2
+                @test length(unique(res.diagonals)) == m - 3
+                edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i in 1:m]
+                diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
+                for i in 1:length(diag_segs)
+                    for j in i+1:length(diag_segs)
+                        @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = kernel)
+                    end
+                    for e in edges
+                        @test !proper_crossing(diag_segs[i], e; kernel = kernel)
+                    end
+                end
+                for (a, b, c) in res.triangles
+                    @test orient_sign(kernel, poly[a], poly[b], poly[c]) > 0
+                end
+                poly_a = twice_area(poly; kernel = kernel)
+                tri_a = sum(twice_area([poly[a], poly[b], poly[c]]; kernel = kernel) for (a, b, c) in res.triangles)
+                if kernel isa ExactKernel
+                    @test poly_a == tri_a
+                else
+                    @test isapprox(poly_a, tri_a; rtol = 1e-9)
+                end
+            end
+
+            function _verify_trap_invariants(poly, rng; kernel = FloatingKernel())
+                m = BasicCompGeometry._seidel_build_trapezoidal_map(kernel, poly, rng)
+                traps = m.traps
+                dag = m.dag
+                alive_cnt = 0
+                for (t_id, T) in enumerate(traps)
+                    T.alive || continue
+                    alive_cnt += 1
+                    @test dag[T.sink].kind == BasicCompGeometry._SEIDEL_DAG_LEAF
+                    @test dag[T.sink].key == t_id
+                    @test BasicCompGeometry._seidel_cmp_pt(kernel, m.pts, T.leftp, T.rightp) < 0
+                    @test (T.l0 == 0 && T.l1 == 0) || (T.l0 != T.l1)
+                    @test (T.r0 == 0 && T.r1 == 0) || (T.r0 != T.r1)
+                    for nb in (T.l0, T.l1)
+                        if nb != 0
+                            @test traps[nb].alive
+                            @test traps[nb].r0 == t_id || traps[nb].r1 == t_id
+                            @test traps[nb].rightp == T.leftp
+                        end
+                    end
+                    for nb in (T.r0, T.r1)
+                        if nb != 0
+                            @test traps[nb].alive
+                            @test traps[nb].l0 == t_id || traps[nb].l1 == t_id
+                            @test traps[nb].leftp == T.rightp
+                        end
+                    end
+                end
+                @test alive_cnt <= 3 * m.n + 1
+
+                # Verify extracted pieces are CCW and strictly compare_xy-monotone
+                diags = BasicCompGeometry._seidel_extract_diagonals(m)
+                pieces = BasicCompGeometry._seidel_extract_pieces(length(poly), diags)
+                @test sum(length(pc) - 2 for pc in pieces) == length(poly) - 2
+                for pc in pieces
+                    @test twice_area([poly[idx] for idx in pc]; kernel = kernel) > 0
+                end
+            end
+
+            # Vertical-edge quad and multi-side collinear triangle
+            vquad = [point(4//1, 5//1), point(0//1, 4//1), point(0//1, 0//1), point(4//1, 0//1)]
+            _verify_trap_invariants(vquad, Xoshiro(7); kernel = exact)
+            _verify_seidel_result(vquad, triangulate_seidel(vquad; kernel = exact, rng = Xoshiro(7)); kernel = exact)
+
+            collinear_tri = [
+                point(0//1, 0//1), point(1//1, 0//1), point(2//1, 0//1), point(3//1, 0//1),
+                point(5//2, 1//1), point(2//1, 2//1), point(3//2, 3//1), point(1//1, 2//1),
+                point(1//2, 1//1),
+            ]
+            for seed in 1:5
+                _verify_trap_invariants(collinear_tri, Xoshiro(seed); kernel = exact)
+                _verify_seidel_result(
+                    collinear_tri,
+                    triangulate_seidel(collinear_tri; kernel = exact, rng = Xoshiro(seed));
+                    kernel = exact,
+                )
+            end
+
+            # Spiral polygon
+            outer = Point2F[]
+            inner = Point2F[]
+            for i in 0:32
+                θ = 2 * pi * i / 8
+                r_out = 2.0 + 0.5 * i
+                r_in = 1.0 + 0.5 * i
+                push!(outer, point(r_out * cos(θ), r_out * sin(θ)))
+                push!(inner, point(r_in * cos(θ), r_in * sin(θ)))
+            end
+            spiral = vcat(outer, reverse(inner))
+            for seed in 1:5
+                _verify_trap_invariants(spiral, Xoshiro(seed))
+                _verify_seidel_result(spiral, triangulate_seidel(spiral; rng = Xoshiro(seed)))
+            end
+
+            # Orthogonal snake with many shared x and y coordinates
+            snake = [point(0.0, 0.0), point(10.0, 0.0)]
+            y_cur = 0.0
+            for _ in 1:12
+                push!(snake, point(10.0, y_cur + 1.0))
+                push!(snake, point(2.0, y_cur + 1.0))
+                push!(snake, point(2.0, y_cur + 2.0))
+                push!(snake, point(10.0, y_cur + 2.0))
+                y_cur += 2.0
+            end
+            push!(snake, point(10.0, y_cur + 1.0), point(0.0, y_cur + 1.0))
+            _verify_trap_invariants(snake, Xoshiro(11))
+            _verify_seidel_result(snake, triangulate_seidel(snake; rng = Xoshiro(11)))
+
+            # Phase schedule sanity: n = 65536 yields 4 phases (<= log* n)
+            bounds = BasicCompGeometry._seidel_phase_bounds(65536)
+            @test bounds == [4096, 16384, 32768, 65536]
+
+            # Double-comb scaling & custom kernel forwarding
+            mutable struct _SeidelCountKernel <: AbstractKernel
+                turns::Int
+                cmps::Int
+            end
+            BasicCompGeometry.turn_sign(k::_SeidelCountKernel, p::Point{2}, q::Point{2}, r::Point{2}) =
+                (k.turns += 1; turn_sign(FloatingKernel(), p, q, r))
+            BasicCompGeometry.compare_xy(k::_SeidelCountKernel, p::Point{2}, q::Point{2}) =
+                (k.cmps += 1; compare_xy(FloatingKernel(), p, q))
+
+            function _double_comb(m_teeth::Int)
+                pts = Point2F[point(0.0, 0.0), point(20.0, 0.0)]
+                for i in 1:m_teeth
+                    push!(pts, point(20.0, 2.0 * i - 1.0), point(12.0, 2.0 * i))
+                end
+                push!(pts, point(20.0, 2.0 * m_teeth + 1.0), point(0.0, 2.0 * m_teeth + 1.0))
+                for i in m_teeth:-1:1
+                    push!(pts, point(0.0, 2.0 * i + 0.5), point(8.0, 2.0 * i - 0.5))
+                end
+                return pts
+            end
+
+            comb_small = _double_comb(250)  # n = 1004
+            comb_large = _double_comb(2000) # n = 8004
+            kc_small = _SeidelCountKernel(0, 0)
+            kc_large = _SeidelCountKernel(0, 0)
+            res_small = triangulate_seidel(comb_small; kernel = kc_small, rng = Xoshiro(1))
+            res_large = triangulate_seidel(comb_large; kernel = kc_large, rng = Xoshiro(1))
+            @test length(res_small.triangles) == length(comb_small) - 2
+            @test length(res_large.triangles) == length(comb_large) - 2
+            @test isapprox(
+                twice_area(comb_large),
+                sum(twice_area([comb_large[a], comb_large[b], comb_large[c]]) for (a, b, c) in res_large.triangles);
+                rtol = 1e-8,
+            )
+            # Predicate work per vertex remains bounded by a small O(log* n) constant
+            @test kc_small.turns / length(comb_small) < 20.0
+            @test kc_large.turns / length(comb_large) < 20.0
+            @test kc_large.cmps / length(comb_large) < 25.0
+        end
     end
 end
