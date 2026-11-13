@@ -80,6 +80,17 @@ mutable struct Tree{D,T,S,V}
     end
 end
 
+# Compact display: the default `show` would follow `parent`/`left`/`right` and print the
+# entire tree for every node.
+function Base.show(io::IO, node::Node{D,T,S,V}) where {D,T,S,V}
+    kind = node.f_leaf ? "leaf" : (isnothing(node.left) ? "unexpanded" : "internal")
+    print(io, "BBT.Node{$D,$T}(id=$(node.id), r=$(node.r), $kind, diam=$(node.diam))")
+end
+
+function Base.show(io::IO, tree::Tree{D,T,S,V}) where {D,T,S,V}
+    print(io, "BBT.Tree{$D,$T}($(length(tree.PS)) points, leaf_size=$(tree.leaf_size))")
+end
+
 function get_min_max_orig_index(
     tree::Tree{D,T,S,V},
     node::Node{D,T,S,V},
@@ -92,7 +103,7 @@ function get_min_max_orig_index(
     end
 
     if node.f_leaf
-        idx = orig_index(tree.PS, first(node.r))
+        idx = min_max_func(orig_index(tree.PS, i) for i in node.r)
         setfield!(node, field_name, idx)
         return idx
     end
@@ -197,6 +208,7 @@ function Tree_init_inner(
     leaf_size::Int = 1,
     compute_diam::Bool = true,
 ) where {D,T}
+    leaf_size >= 1 || throw(ArgumentError("leaf_size must be at least 1, got $leaf_size"))
     pnts = Points(p)
     varr = VArray(pnts)
     V = typeof(pnts)
@@ -204,17 +216,6 @@ function Tree_init_inner(
     tree = Tree{D,T,S,V}(varr, nothing, 0, leaf_size, compute_diam)
     tree.root = node_init(tree, 1:length(p))
     return tree
-end
-
-function is_identical(arr::VArray{T,V}, r::UnitRange{Int})::Bool where {T,V}
-    length(r) <= 1 && return true
-    s = first(r)
-    for i = (s+1):last(r)
-        if arr[s] != arr[i]
-            return false
-        end
-    end
-    return true
 end
 
 function pnt_varray_partition!(
@@ -291,6 +292,18 @@ function node_expand(v::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
     node_split(v, tree)
 end
 
+"""
+    Tree_init(PS; leaf_size=1, compute_diam=true) -> Tree
+
+Build a bounding-box tree over the points of `PS` (lazily expanded below the root's children).
+
+- `leaf_size`: a node becomes a leaf once it holds at most `leaf_size` points (must be
+  `>= 1`). Nodes whose points all coincide are always leaves. Nearest-neighbor
+  queries scan every point of a leaf.
+- `compute_diam`: when `false`, node diameters are not computed and every `node.diam` is
+  zero. Such trees must not be used with code that reads `diam` (e.g. WSPD separation tests
+  or diameter approximation); `WSPD` and `Diameter` build their own trees with the default.
+"""
 function Tree_init(
     PS::AbsPntSeq{D,T};
     leaf_size::Int = 1,
@@ -468,13 +481,17 @@ function approx_nn_with_start(
         end
 
         # "Whenever a node of the BBT is poped the distance of its point to the query point is computed"
-        p_node = tree.PS[first(node.r)]
-        d_p = dist(q, p_node)
-        if d_p < best_dist
-            best_dist = d_p
-            best_dist_over_c = best_dist / c
-            best_pnt = p_node
-            best_orig_index = orig_index(tree.PS, first(node.r))
+        # Leaves may hold up to `tree.leaf_size` distinct points, so scan them all;
+        # internal nodes contribute their first point as a cheap candidate.
+        for i in (node.f_leaf ? node.r : (first(node.r):first(node.r)))
+            p_node = tree.PS[i]
+            d_p = dist(q, p_node)
+            if d_p < best_dist
+                best_dist = d_p
+                best_dist_over_c = best_dist / c
+                best_pnt = p_node
+                best_orig_index = orig_index(tree.PS, i)
+            end
         end
         if d_node_bb >= best_dist_over_c
             continue
@@ -523,13 +540,18 @@ function silly_nn(tree::Tree{D,T,S,V}, q::Point{D}) where {D,T,S,V}
         end
     end
 
-    # At leaf, return the distance to the point stored there
+    # At the leaf, return the closest of its (up to `tree.leaf_size`) points.
     idx = first(curr.r)
     pnt = tree.PS[idx]
     d = dist(q, pnt)
-    orig_idx = orig_index(tree.PS, idx)
-
-    return d, pnt, orig_idx
+    for i in (first(curr.r) + 1):last(curr.r)
+        p_i = tree.PS[i]
+        d_i = dist(q, p_i)
+        if d_i < d
+            d, pnt, idx = d_i, p_i, i
+        end
+    end
+    return d, pnt, orig_index(tree.PS, idx)
 end
 
 """
@@ -647,6 +669,10 @@ const _AnyFlatTree2D = Union{FlatTree2D,FlatUTree2D}
 Base.isempty(ft::FlatUTree2D) = isempty(ft.nodes)
 Base.length(ft::FlatUTree2D) = length(ft.px)
 
+# Width of [a, b]; widened for integers so huge coordinate ranges cannot overflow.
+@inline _flat_span(a::T, b::T) where {T<:Integer} = widen(b) - widen(a)
+@inline _flat_span(a::T, b::T) where {T} = b - a
+
 @inline function _flat_midpoint(a::T, b::T) where {T<:AbstractFloat}
     return T(0.5) * a + T(0.5) * b
 end
@@ -741,6 +767,8 @@ end
             perm[i], perm[j] = perm[j], perm[i]
             i += 1
             j -= 1
+        elseif i == j
+            break  # arr[i] is unordered w.r.t. cutoff (NaN); never spin
         end
     end
     return j
@@ -973,9 +1001,9 @@ function _build_flat_node!(
     end
 
     n = e - s + 1
-    dx = x1 - x0
-    dy = y1 - y0
-    if n <= leaf_size || (dx <= zero(T) && dy <= zero(T))
+    dx = _flat_span(x0, x1)
+    dy = _flat_span(y0, y1)
+    if n <= leaf_size || (dx <= zero(dx) && dy <= zero(dy))
         @inbounds nodes[id] =
             _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
         @inbounds for k in s:e
@@ -1081,6 +1109,25 @@ function _build_flat_node!(
     )
 end
 
+# Validate flat-tree inputs: finite coordinates (non-finite values break midpoint splits and
+# cell containment) and original ids that are distinct and lie in `1:n_total` (they index
+# `leaf_of` / `slot_of`).
+function _check_flat_inputs(px::Vector{T}, py::Vector{T}, perm::Vector{Int32}, n_total::Int) where {T}
+    if T <: AbstractFloat
+        (all(isfinite, px) && all(isfinite, py)) ||
+            throw(ArgumentError("Kd_tree coordinates must be finite (no NaN or Inf)"))
+    end
+    length(perm) <= n_total ||
+        throw(ArgumentError("n_total = $n_total is smaller than the number of points $(length(perm))"))
+    seen = falses(n_total)
+    for id in perm
+        1 <= id <= n_total || throw(ArgumentError("original id $id is outside 1:$n_total"))
+        seen[id] && throw(ArgumentError("duplicate original id $id"))
+        seen[id] = true
+    end
+    return nothing
+end
+
 function _build_flat_tree!(
     ::Type{N},
     px::Vector{T},
@@ -1093,6 +1140,7 @@ function _build_flat_tree!(
     m = length(px)
     length(py) == m || throw(DimensionMismatch("px and py must have the same length"))
     length(perm) == m || throw(DimensionMismatch("perm must match px length"))
+    _check_flat_inputs(px, py, perm, n_total)
     leaf_of = zeros(Int32, n_total)
     slot_of = zeros(Int32, n_total)
     if m == 0
