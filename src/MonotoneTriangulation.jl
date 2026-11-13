@@ -597,7 +597,6 @@ Supported `algorithm` options:
 - `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n r)` worst case; queries prune only by the ear's bounding box, so long thin ears and far outlier vertices degrade it toward quadratic in practice).
 - `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n r)` worst case; measured roughly `n^1.2` on random star polygons).
 - `:ear_cut_u_kd_tree`: Ear clipping indexing active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) spatial tree with uncapped upward cell-containment climbing (`O(n r)` worst case; subquadratic in practice).
-- `:diagonal_split` (experimental): Recursive splitting along diagonals between reflex vertices found by a randomized halving search (validated with a static Kd-tree over the edges); pieces with at most one reflex vertex are fanned, and pieces where the search fails fall back to `:ear_cut_u_kd_tree`.
 - `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions
@@ -621,10 +620,8 @@ function triangulate_polygon(
         return triangulate_ear_cut_u_kd_tree(vertices; kernel = kernel)
     elseif algorithm == :ear_cut || algorithm == :ear_clipping
         return triangulate_ear_cut(vertices; kernel = kernel)
-    elseif algorithm == :diagonal_split
-        return triangulate_diagonal_split(vertices; kernel = kernel, rng = rng)
     else
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut, :diagonal_split)"))
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)"))
     end
 end
 

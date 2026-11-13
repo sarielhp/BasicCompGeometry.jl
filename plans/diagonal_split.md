@@ -109,3 +109,11 @@ splits: `O(n log n)` total; unbalanced splits can be worse — revisit if it sho
 - Even on balanced inputs (altstar, spiral) it is ~3x slower than u_kd per vertex, despite
   0.5 tests / n vs ~1.1-2.5 ear tests / n: a segment query (~50 nodes + exact edge tests)
   plus the edge-tree build (~16% of the time) cost more than the saved ear tests.
+
+## Outcome 2026-11-13: abandoned
+
+Dropped. The diagonal split saves ear tests, but each segment query costs more than the
+tests it saves, unbalanced splits cost ~n^1.5 on coast, and the star needs a different edge
+index altogether. `:ear_cut_u_kd_tree` stays as the ear-clipping algorithm. The code
+(`src/DiagonalSplitTriangulation.jl`, `plans/diagonal_split/bench.jl`) was removed; it is
+recoverable from commit 8939c08.
