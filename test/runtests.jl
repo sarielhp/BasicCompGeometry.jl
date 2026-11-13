@@ -369,6 +369,7 @@ Aqua.test_all(BasicCompGeometry)
             :trapezoid_chains,
             :trapezoids,
             :triangulate_ear_cut,
+            :triangulate_ear_cut_kd_tree,
             :triangulate_ear_cut_z_order,
             :triangulate_monotone,
             :triangulate_polygon,
@@ -728,6 +729,77 @@ Aqua.test_all(BasicCompGeometry)
         )
         @test isnothing(legacy_node.parent)
         @test is_root(legacy_node)
+
+        # Flat array-backed 2D Kd-tree (FlatNode2D / FlatTree2D / Tree_init_flat)
+        @test sizeof(Kd_tree.FlatNode2D{Float64}) == 64
+        empty_ft = Kd_tree.Tree_init_flat(Point{2,Float64}[])
+        @test isempty(empty_ft)
+        @test length(empty_ft) == 0
+
+        ft_pts = [Point(cos(0.37 * i) * (1.0 + 0.2 * (i % 5)), sin(0.37 * i) * (1.0 + 0.1 * (i % 7))) for i in 1:120]
+        ft = Kd_tree.Tree_init_flat(ft_pts; leaf_size = 8)
+        ft_ps = Kd_tree.Tree_init_flat(PntSeq(ft_pts); leaf_size = 8)
+        @test !isempty(ft)
+        @test length(ft) == 120
+        @test length(ft_ps.nodes) == length(ft.nodes)
+        @test is_root(ft, 1)
+        @test parent(ft, 1) == 0
+        @test parent_node(ft, 1) == 0
+
+        seen_slots = falses(120)
+        for id in eachindex(ft.nodes)
+            nd = ft.nodes[id]
+            if id > 1
+                @test !is_root(ft, id)
+                pid = parent(ft, id)
+                @test pid == parent_node(ft, id)
+                @test 1 <= pid < id
+                pnd = ft.nodes[pid]
+                @test pnd.left == id || pnd.right == id
+                @test pnd.r_start <= nd.r_start <= nd.r_end <= pnd.r_end
+            end
+            if nd.is_leaf
+                @test (nd.r_end - nd.r_start + 1) <= 8 || (nd.x1 == nd.x0 && nd.y1 == nd.y0)
+                for slot in nd.r_start:nd.r_end
+                    @test !seen_slots[slot]
+                    seen_slots[slot] = true
+                    orig = ft.perm[slot]
+                    @test ft.leaf_of[orig] == id
+                    @test ft.slot_of[orig] == slot
+                    @test ft.px[slot] == ft_pts[orig].x
+                    @test ft.py[slot] == ft_pts[orig].y
+                    @test nd.x0 <= ft.px[slot] <= nd.x1
+                    @test nd.y0 <= ft.py[slot] <= nd.y1
+                end
+            else
+                lnd = ft.nodes[nd.left]
+                rnd = ft.nodes[nd.right]
+                @test lnd.r_start == nd.r_start
+                @test lnd.r_end + 1 == rnd.r_start
+                @test rnd.r_end == nd.r_end
+            end
+        end
+        @test all(seen_slots)
+
+        # Subset build + integer and Rational{BigInt} 10^320 coordinates
+        sub_px = Float64[p.x for p in ft_pts[1:2:120]]
+        sub_py = Float64[p.y for p in ft_pts[1:2:120]]
+        sub_ids = collect(1:2:120)
+        ft_sub = Kd_tree.Tree_init_flat(sub_px, sub_py, sub_ids, 120; leaf_size = 6)
+        @test length(ft_sub) == 60
+        @test count(!iszero, ft_sub.leaf_of) == 60
+        @test all(i -> ft_sub.leaf_of[i] == 0 && ft_sub.slot_of[i] == 0, 2:2:120)
+
+        int_pts = [Point(i, (i * 17) % 41) for i in 1:40]
+        ft_int = Kd_tree.Tree_init_flat(int_pts; leaf_size = 4)
+        @test length(ft_int) == 40
+        @test is_root(ft_int, 1)
+
+        huge_scale = big(10)^320
+        big_pts = [Point{2,Rational{BigInt}}(big(i) * huge_scale // 1, big((i * 13) % 29) * huge_scale // 1) for i in 1:40]
+        ft_big = Kd_tree.Tree_init_flat(big_pts; leaf_size = 4)
+        @test length(ft_big) == 40
+        @test is_root(ft_big, 1)
     end
 
     @testset "Diameter Algorithms" begin

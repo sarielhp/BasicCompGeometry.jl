@@ -20,7 +20,7 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "SweepTriangulation.jl", "EarCutZOrderTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "SweepTriangulation.jl", "EarCutZOrderTriangulation.jl", "EarCutKdTreeTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
 
@@ -76,10 +76,11 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, `:ear_cut_z_order`, or `:ear_cut`) |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, `:ear_cut_z_order`, `:ear_cut_kd_tree`, or `:ear_cut`) |
 | `triangulate_sweep(vertices; kernel=FloatingKernel())` | Plane-sweep monotone partitioning and triangulation in worst-case `O(n log n)` time |
 | `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
 | `triangulate_ear_cut_z_order(vertices; kernel=FloatingKernel())` | Z-order ear clipping with a Morton spatial index over reflex vertices (`O(n log r)` typical, `O(n r)` worst case) |
+| `triangulate_ear_cut_kd_tree(vertices; kernel=FloatingKernel())` | Kd-tree ear clipping using a flat array-backed 2D `Kd_tree` (`BBT.FlatTree2D`) spatial index over reflex vertices (`O(n log r)` typical, `O(n r)` worst case) |
 | `triangulate_ear_cut(vertices; kernel=FloatingKernel())` | Reflex-list ear clipping in `O(n r)` time (`O(n)` fast path on strictly x- or y-monotone polygons) |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
 | `is_x_monotone(vertices)` | Return `true` if polygon is strictly x-monotone |

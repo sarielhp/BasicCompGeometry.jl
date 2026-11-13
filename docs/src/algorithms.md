@@ -106,6 +106,7 @@ Supported algorithm options via keyword `algorithm`:
 - `:sweep` (default): Deterministic plane-sweep monotone partitioning and triangulation running in worst-case $O(n \log n)$ time, also available via `triangulate_sweep(vertices; kernel=FloatingKernel())`.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected $O(n \log^* n)$ time, also available via `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())`.
 - `:ear_cut_z_order`: Z-order ear clipping using a Morton Z-order spatial index over active reflex vertices ($O(n \log r)$ typical, $O(n r)$ worst case), also available via `triangulate_ear_cut_z_order(vertices; kernel=FloatingKernel())`.
+- `:ear_cut_kd_tree`: Kd-tree ear clipping using a flat array-backed 2D `Kd_tree` (`BBT.FlatTree2D`) spatial index over active reflex vertices with bounded parent climbing ($O(n \log r)$ typical, $O(n r)$ worst case), also available via `triangulate_ear_cut_kd_tree(vertices; kernel=FloatingKernel())`.
 - `:ear_cut`: Fast ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices (using an $O(n)$ linear-time fast path when `is_x_monotone` or `is_y_monotone` holds), also available via `triangulate_ear_cut(vertices; kernel=FloatingKernel())`.
 
 When calling `triangulate_polygon(...; algorithm = :ear_cut)`, strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`)

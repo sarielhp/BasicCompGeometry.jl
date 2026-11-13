@@ -9,10 +9,11 @@ submodules.
 | Call | Purpose |
 |:-----|:--------|
 | `BBT.Tree_init(points)` | Create a tree over an `AbsPntSeq` and initially expand its root |
+| `BBT.Tree_init_flat(points; leaf_size=16)` | Build a compact flat array-backed 2D Kd-tree ([`BBT.FlatTree2D`](@ref)) of 64-byte [`BBT.FlatNode2D`](@ref) nodes |
 | `BBT.Tree_fully_expand(tree)` | Refine the entire tree |
 | `BBT.Tree_refine_node(tree, node)` | Split a node when possible |
-| `BBT.parent_node(node)` / `parent(node)` | Travel up to a node's parent (`nothing` at root) |
-| `BBT.is_root(node)` | Return `true` when `node.parent === nothing` |
+| `BBT.parent_node(node)` / `parent(node)` | Travel up to a node's parent (`nothing` at root for `Node`, `0` at root for `FlatTree2D`) |
+| `BBT.is_root(node)` | Return `true` when at the root (`node.parent === nothing` or `parent == 0`) |
 | `BBT.get_min_orig_index(tree, node)` | Minimum input index stored under a node |
 | `BBT.get_max_orig_index(tree, node)` | Maximum input index stored under a node |
 

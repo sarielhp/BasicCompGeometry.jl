@@ -551,6 +551,7 @@ Supported `algorithm` options:
 - `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
 - `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
+- `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT`) spatial tree (`O(n log r)` typical, `O(n r)` worst case).
 - `:ear_cut`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions
@@ -568,10 +569,12 @@ function triangulate_polygon(
         return triangulate_seidel(vertices; kernel = kernel, rng = rng)
     elseif algorithm == :ear_cut_z_order
         return triangulate_ear_cut_z_order(vertices; kernel = kernel)
+    elseif algorithm == :ear_cut_kd_tree
+        return triangulate_ear_cut_kd_tree(vertices; kernel = kernel)
     elseif algorithm == :ear_cut
         return triangulate_ear_cut(vertices; kernel = kernel)
     else
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut)"))
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut)"))
     end
 end
 

@@ -66,13 +66,17 @@ mutable struct Tree{D,T,S,V}
     PS::VArray{Point{D,T},V}
     root::Union{Nothing,Node{D,T,S,V}}
     id_counter::Int
+    leaf_size::Int
+    compute_diam::Bool
 
     function Tree{D,T,S,V}(
         PS::VArray{Point{D,T},V},
         root::Union{Nothing,Node{D,T,S,V}},
         id_counter::Int,
+        leaf_size::Int = 1,
+        compute_diam::Bool = true,
     ) where {D,T,S,V}
-        return new{D,T,S,V}(PS, root, id_counter)
+        return new{D,T,S,V}(PS, root, id_counter, max(1, leaf_size), compute_diam)
     end
 end
 
@@ -113,6 +117,56 @@ function get_max_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where
     return get_min_max_orig_index(tree, node, maximum, :max_index)
 end
 
+@inline function _bound_varray_range!(
+    bb::BBox{D,T},
+    PS::VArray{Point{D,T},V},
+    r::UnitRange{Int},
+) where {D,T,V}
+    s = first(r)
+    e = last(r)
+    s > e && return bb
+    vec = PS.vec
+    loc = PS.loc
+    @inbounds begin
+        p0 = vec[loc[s]]
+        if D == 2
+            minx = p0.x
+            maxx = p0.x
+            miny = p0.y
+            maxy = p0.y
+            for idx = (s+1):e
+                p = vec[loc[idx]]
+                px = p.x
+                py = p.y
+                px < minx && (minx = px)
+                px > maxx && (maxx = px)
+                py < miny && (miny = py)
+                py > maxy && (maxy = py)
+            end
+            bb.f_init = true
+            bb.mini[1] = minx
+            bb.mini[2] = miny
+            bb.maxi[1] = maxx
+            bb.maxi[2] = maxy
+        else
+            for d = 1:D
+                bb.mini[d] = p0[d]
+                bb.maxi[d] = p0[d]
+            end
+            for idx = (s+1):e
+                p = vec[loc[idx]]
+                for d = 1:D
+                    v = p[d]
+                    v < bb.mini[d] && (bb.mini[d] = v)
+                    v > bb.maxi[d] && (bb.maxi[d] = v)
+                end
+            end
+            bb.f_init = true
+        end
+    end
+    return bb
+end
+
 function node_init(
     tree::Tree{D,T,S,V},
     range::UnitRange{Int},
@@ -120,9 +174,9 @@ function node_init(
 ) where {D,T,S,V}
     bb = BBox{D,T}()
     tree.id_counter += 1
-    bound!(bb, tree.PS[range])
-    d = diam(bb)
-    return Node{D,T,typeof(d),V}(
+    _bound_varray_range!(bb, tree.PS, range)
+    d = tree.compute_diam ? S(diam(bb)) : zero(S)
+    return Node{D,T,S,V}(
         bb,
         range,
         nothing,
@@ -138,14 +192,16 @@ function node_init(
     )
 end
 
-function Tree_init_inner(p::AbsPntSeq{D,T}) where {D,T}
+function Tree_init_inner(
+    p::AbsPntSeq{D,T};
+    leaf_size::Int = 1,
+    compute_diam::Bool = true,
+) where {D,T}
     pnts = Points(p)
     varr = VArray(pnts)
     V = typeof(pnts)
-    # Determine type of diam from an empty bbox or a bound one
-    d_temp = diam(bound!(BBox{D,T}(), pnts))
-    S = typeof(d_temp)
-    tree = Tree{D,T,S,V}(varr, nothing, 0)
+    S = isempty(pnts) ? Float64 : typeof(dist(pnts[1], pnts[1]))
+    tree = Tree{D,T,S,V}(varr, nothing, 0, leaf_size, compute_diam)
     tree.root = node_init(tree, 1:length(p))
     return tree
 end
@@ -164,15 +220,17 @@ end
 function pnt_varray_partition!(
     P::VArray{Point{D,T},V},
     r::UnitRange{Int},
-    dim,
+    dim::Int,
     cutoff,
 ) where {D,T,V}
     @assert 1 <= first(r) && last(r) <= length(P)
+    vec = P.vec
+    loc = P.loc
     top = last(r)
     i = first(r)
     @inbounds while i <= top
-        if P[i][dim] > cutoff
-            swap!(P, i, top)
+        if vec[loc[i]][dim] > cutoff
+            loc[i], loc[top] = loc[top], loc[i]
             top -= 1
         else
             i += 1
@@ -186,28 +244,30 @@ function node_split(node::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
         return node
     end
 
-    if node.f_leaf
-        return node
-    end
+    node.f_leaf && return node
 
-    if is_identical(tree.PS, node.r)
+    if length(node.r) <= tree.leaf_size
         node.f_leaf = true
         return node
     end
 
-    # Find dimension with maximum width
-    w_max = -1.0
+    # Find dimension with maximum width; zero width means all points in r are equal.
+    w_max = zero(T)
     dim_max = 1
-    for i = 1:D
-        w = width(node.bb, i)
+    @inbounds for i = 1:D
+        w = node.bb.maxi[i] - node.bb.mini[i]
         if w > w_max
             w_max = w
             dim_max = i
         end
     end
+    if !(w_max > zero(T))
+        node.f_leaf = true
+        return node
+    end
 
-    m_min = node.bb.mini[dim_max]
-    m_max = node.bb.maxi[dim_max]
+    @inbounds m_min = node.bb.mini[dim_max]
+    @inbounds m_max = node.bb.maxi[dim_max]
     cutoff = (T <: Integer) ? T(fld(m_min + m_max, 2)) : (m_min + m_max) / 2
 
     r_l, r_r = pnt_varray_partition!(tree.PS, node.r, dim_max, cutoff)
@@ -231,8 +291,12 @@ function node_expand(v::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
     node_split(v, tree)
 end
 
-function Tree_init(PS::AbsPntSeq{D,T}) where {D,T}
-    tree = Tree_init_inner(PS)
+function Tree_init(
+    PS::AbsPntSeq{D,T};
+    leaf_size::Int = 1,
+    compute_diam::Bool = true,
+) where {D,T}
+    tree = Tree_init_inner(PS; leaf_size = leaf_size, compute_diam = compute_diam)
     node_expand(tree.root, tree)
     return tree
 end
@@ -477,33 +541,411 @@ Requires `Cairo` and `Colors` to be loaded.
 """
 function Tree_draw end
 
+# ==============================================================================
+# Flat array-backed 2D Kd-tree (cache-line packed for high-throughput queries)
+# ==============================================================================
+
+"""
+    FlatNode2D{T}
+
+A compact node in a flat array-backed 2D [`FlatTree2D`](@ref) (`Kd_tree.FlatTree2D`).
+
+Fields are ordered so `FlatNode2D{Float64}` packs cleanly into 64 bytes (one cache
+line). `left`, `right`, and `parent` are `Int32` node indices (`0` denotes none).
+"""
+struct FlatNode2D{T}
+    x0::T
+    x1::T
+    y0::T
+    y1::T
+    split_val::T
+    left::Int32
+    right::Int32
+    parent::Int32
+    r_start::Int32
+    r_end::Int32
+    split_dim::Int8
+    is_leaf::Bool
+end
+
+"""
+    FlatTree2D{T}
+
+A flat array-backed 2D Bounding Box Tree / Kd-tree storing points in Structure-of-Arrays
+(`px`, `py`) layout alongside a permutation `perm` mapping leaf slots back to caller-supplied
+integer identifiers, plus reverse lookup arrays (`leaf_of`, `slot_of`).
+
+Parent navigation uses index-based `parent(ft, id)`, [`parent_node`](@ref) (`parent_node(ft, id)`),
+and [`is_root`](@ref) (`is_root(ft, id)`), where `0` denotes no parent.
+"""
+struct FlatTree2D{T}
+    nodes::Vector{FlatNode2D{T}}
+    px::Vector{T}
+    py::Vector{T}
+    perm::Vector{Int32}
+    leaf_of::Vector{Int32}
+    slot_of::Vector{Int32}
+    leaf_size::Int
+    n_total::Int
+end
+
+Base.isempty(ft::FlatTree2D) = isempty(ft.nodes)
+Base.length(ft::FlatTree2D) = length(ft.px)
+
+@inline function _flat_midpoint(a::T, b::T) where {T<:AbstractFloat}
+    return T(0.5) * a + T(0.5) * b
+end
+@inline function _flat_midpoint(a::T, b::T) where {T<:Integer}
+    both_odd = (mod(a, 2) == 1 && mod(b, 2) == 1) ? 1 : 0
+    return T(fld(a, 2) + fld(b, 2) + both_odd)
+end
+@inline function _flat_midpoint(a::T, b::T) where {T}
+    return (a + b) / 2
+end
+
+@inline function _sort5(a::T, b::T, c::T, d::T, e::T) where {T}
+    if a > b
+        a, b = b, a
+    end
+    if d > e
+        d, e = e, d
+    end
+    if c > e
+        c, e = e, c
+    end
+    if c > d
+        c, d = d, c
+    end
+    if a > d
+        a, d = d, a
+    end
+    if a > c
+        a, c = c, a
+    end
+    if b > e
+        b, e = e, b
+    end
+    if b > d
+        b, d = d, b
+    end
+    if b > c
+        b, c = c, b
+    end
+    return a, b, c, d, e
+end
+
+@inline function _pick_sample_split(
+    arr::Vector{T},
+    s::Int,
+    e::Int,
+    m_min::T,
+    m_max::T,
+) where {T}
+    span = e - s
+    @inbounds begin
+        v1 = arr[s]
+        v2 = arr[s + (span >> 2)]
+        v3 = arr[(s + e) >> 1]
+        v4 = arr[s + ((3 * span) >> 2)]
+        v5 = arr[e]
+    end
+    s1, s2, s3, _, _ = _sort5(v1, v2, v3, v4, v5)
+    # m_min <= s1 <= s2 <= s3 and m_min < m_max guarantee any candidate < m_max splits non-emptily
+    if s3 < m_max
+        return s3
+    elseif s2 < m_max
+        return s2
+    elseif s1 < m_max
+        return s1
+    end
+    return m_min
+end
+
+@inline function _partition_flat_xy!(
+    px::Vector{T},
+    py::Vector{T},
+    perm::Vector{Int32},
+    s::Int,
+    e::Int,
+    dim::Int,
+    cutoff::T,
+)::Int where {T}
+    arr = dim == 1 ? px : py
+    i = s
+    j = e
+    @inbounds while i <= j
+        while i <= j && arr[i] <= cutoff
+            i += 1
+        end
+        while i <= j && arr[j] > cutoff
+            j -= 1
+        end
+        if i < j
+            px[i], px[j] = px[j], px[i]
+            py[i], py[j] = py[j], py[i]
+            perm[i], perm[j] = perm[j], perm[i]
+            i += 1
+            j -= 1
+        end
+    end
+    return j
+end
+
+function _build_flat_node!(
+    nodes::Vector{FlatNode2D{T}},
+    px::Vector{T},
+    py::Vector{T},
+    perm::Vector{Int32},
+    leaf_of::Vector{Int32},
+    slot_of::Vector{Int32},
+    id::Int,
+    next_free::Int,
+    parent_id::Int32,
+    s::Int,
+    e::Int,
+    leaf_size::Int,
+)::Int where {T}
+    @inbounds begin
+        x0 = px[s]
+        x1 = x0
+        y0 = py[s]
+        y1 = y0
+        for k in (s + 1):e
+            xk = px[k]
+            yk = py[k]
+            if xk < x0
+                x0 = xk
+            elseif xk > x1
+                x1 = xk
+            end
+            if yk < y0
+                y0 = yk
+            elseif yk > y1
+                y1 = yk
+            end
+        end
+    end
+
+    n = e - s + 1
+    dx = x1 - x0
+    dy = y1 - y0
+    if n <= leaf_size || (dx <= zero(T) && dy <= zero(T))
+        @inbounds nodes[id] = FlatNode2D{T}(
+            x0,
+            x1,
+            y0,
+            y1,
+            zero(T),
+            Int32(0),
+            Int32(0),
+            parent_id,
+            Int32(s),
+            Int32(e),
+            Int8(0),
+            true,
+        )
+        @inbounds for k in s:e
+            orig = perm[k]
+            leaf_of[orig] = Int32(id)
+            slot_of[orig] = Int32(k)
+        end
+        return next_free
+    end
+
+    dim = dx >= dy ? 1 : 2
+    m_min = dim == 1 ? x0 : y0
+    m_max = dim == 1 ? x1 : y1
+    cutoff = _flat_midpoint(m_min, m_max)
+
+    mid = _partition_flat_xy!(px, py, perm, s, e, dim, cutoff)
+    n_left = mid - s + 1
+    n_right = e - mid
+    if n_left == 0 || n_right == 0 || (n_left << 3) < n || (n_right << 3) < n
+        arr = dim == 1 ? px : py
+        cand = _pick_sample_split(arr, s, e, m_min, m_max)
+        if cand != cutoff || n_left == 0 || n_right == 0
+            mid = _partition_flat_xy!(px, py, perm, s, e, dim, cand)
+            cutoff = cand
+        end
+    end
+
+    if mid < s || mid >= e
+        @inbounds nodes[id] = FlatNode2D{T}(
+            x0,
+            x1,
+            y0,
+            y1,
+            zero(T),
+            Int32(0),
+            Int32(0),
+            parent_id,
+            Int32(s),
+            Int32(e),
+            Int8(0),
+            true,
+        )
+        @inbounds for k in s:e
+            orig = perm[k]
+            leaf_of[orig] = Int32(id)
+            slot_of[orig] = Int32(k)
+        end
+        return next_free
+    end
+
+    left_id = next_free
+    right_id = next_free + 1
+    next_free_after_children = next_free + 2
+
+    @inbounds nodes[id] = FlatNode2D{T}(
+        x0,
+        x1,
+        y0,
+        y1,
+        cutoff,
+        Int32(left_id),
+        Int32(right_id),
+        parent_id,
+        Int32(s),
+        Int32(e),
+        Int8(dim),
+        false,
+    )
+
+    next_free = _build_flat_node!(
+        nodes,
+        px,
+        py,
+        perm,
+        leaf_of,
+        slot_of,
+        left_id,
+        next_free_after_children,
+        Int32(id),
+        s,
+        mid,
+        leaf_size,
+    )
+    return _build_flat_node!(
+        nodes,
+        px,
+        py,
+        perm,
+        leaf_of,
+        slot_of,
+        right_id,
+        next_free,
+        Int32(id),
+        mid + 1,
+        e,
+        leaf_size,
+    )
+end
+
+function _build_flat_tree!(
+    px::Vector{T},
+    py::Vector{T},
+    perm::Vector{Int32},
+    n_total::Int,
+    leaf_size::Int,
+)::FlatTree2D{T} where {T}
+    leaf_size >= 1 || throw(ArgumentError("leaf_size must be at least 1, got $leaf_size"))
+    m = length(px)
+    length(py) == m || throw(DimensionMismatch("px and py must have the same length"))
+    length(perm) == m || throw(DimensionMismatch("perm must match px length"))
+    leaf_of = zeros(Int32, n_total)
+    slot_of = zeros(Int32, n_total)
+    if m == 0
+        return FlatTree2D{T}(FlatNode2D{T}[], px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+    end
+    nodes = Vector{FlatNode2D{T}}(undef, 2 * m - 1)
+    used = _build_flat_node!(nodes, px, py, perm, leaf_of, slot_of, 1, 2, Int32(0), 1, m, leaf_size) - 1
+    resize!(nodes, used)
+    return FlatTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+end
+
+"""
+    Tree_init_flat(P::AbsPntSeq{2,T}; leaf_size::Int = 16) -> FlatTree2D{T}
+    Tree_init_flat(pts::AbstractVector{<:Point{2,T}}; leaf_size::Int = 16) -> FlatTree2D{T}
+    Tree_init_flat(px::AbstractVector{T}, py::AbstractVector{T}, orig_ids::AbstractVector{<:Integer}, n_total::Integer; leaf_size::Int = 16) -> FlatTree2D{T}
+
+Build and fully expand a flat array-backed 2D Kd-tree ([`FlatTree2D`](@ref)) over the
+input 2D points using cache-line-packed [`FlatNode2D`](@ref) nodes, midpoint splits with
+5-point sample median skew fallback, and leaf stopping threshold `leaf_size`.
+"""
+function Tree_init_flat(P::AbsPntSeq{2,T}; leaf_size::Int = 16) where {T}
+    m = length(P)
+    px = Vector{T}(undef, m)
+    py = Vector{T}(undef, m)
+    perm = Vector{Int32}(undef, m)
+    @inbounds for i in 1:m
+        p = P[i]
+        px[i] = p.x
+        py[i] = p.y
+        perm[i] = Int32(i)
+    end
+    return _build_flat_tree!(px, py, perm, m, leaf_size)
+end
+
+function Tree_init_flat(pts::AbstractVector{<:Point{2,T}}; leaf_size::Int = 16) where {T}
+    m = length(pts)
+    px = Vector{T}(undef, m)
+    py = Vector{T}(undef, m)
+    perm = Vector{Int32}(undef, m)
+    @inbounds for i in 1:m
+        p = pts[i]
+        px[i] = p.x
+        py[i] = p.y
+        perm[i] = Int32(i)
+    end
+    return _build_flat_tree!(px, py, perm, m, leaf_size)
+end
+
+function Tree_init_flat(
+    px::AbstractVector{T},
+    py::AbstractVector{T},
+    orig_ids::AbstractVector{<:Integer},
+    n_total::Integer;
+    leaf_size::Int = 16,
+) where {T}
+    px_c = Vector{T}(px)
+    py_c = Vector{T}(py)
+    perm_c = Int32[Int32(i) for i in orig_ids]
+    return _build_flat_tree!(px_c, py_c, perm_c, Int(n_total), leaf_size)
+end
+
 import Base: parent
 
 """
     parent(node::Node) -> Union{Nothing,Node}
+    parent(ft::FlatTree2D, id::Integer) -> Int
 
-Return the parent node of `node`, or `nothing` if `node` is the root node.
+Return the parent node of `node` (or `nothing` if root), or the parent node index of
+`id` in `ft` (or `0` if `id` is the root node).
 """
 parent(node::Node) = node.parent
+parent(ft::FlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
 
 """
     parent_node(node::Node) -> Union{Nothing,Node}
+    parent_node(ft::FlatTree2D, id::Integer) -> Int
 
-Return the parent node of `node`, or `nothing` if `node` is the root node.
-Equivalent to `parent(node)` and `node.parent`.
+Return the parent of `node` / node `id`. Equivalent to `parent`.
 """
 parent_node(node::Node) = node.parent
+parent_node(ft::FlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
 
 """
     is_root(node::Node) -> Bool
+    is_root(ft::FlatTree2D, id::Integer) -> Bool
 
-Return `true` if `node` has no parent (`node.parent === nothing`).
+Return `true` if `node` (or node `id` in `ft`) has no parent.
 """
 is_root(node::Node) = isnothing(node.parent)
+is_root(ft::FlatTree2D, id::Integer)::Bool = @inbounds ft.nodes[id].parent == Int32(0)
 
-export Node, Tree
+export Node, Tree, FlatNode2D, FlatTree2D
 export parent_node, is_root
-export Tree_draw, Tree_init, Tree_fully_expand
+export Tree_draw, Tree_init, Tree_init_flat, Tree_fully_expand
 export Tree_refine_node, depth
 export get_min_orig_index,
     get_max_orig_index, approx_nn, silly_nn, hybrid_nn, exact_naive_scan

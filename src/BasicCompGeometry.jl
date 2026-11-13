@@ -166,6 +166,7 @@ include("MonotoneTriangulation.jl")
 include("SeidelTriangulation.jl")
 include("SweepTriangulation.jl")
 include("EarCutZOrderTriangulation.jl")
+include("EarCutKdTreeTriangulation.jl")
 include("VisibilityPolygon.jl")
 include("MinkowskiSum.jl")
 include("RMQ.jl")
@@ -234,6 +235,7 @@ export PolygonTriangulation,
     triangulate_polygon,
     triangulate_monotone,
     triangulate_ear_cut,
+    triangulate_ear_cut_kd_tree,
     triangulate_ear_cut_z_order,
     triangulate_seidel,
     triangulate_sweep,
