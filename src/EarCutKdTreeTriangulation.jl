@@ -1,11 +1,11 @@
 # Ear-clipping polygon triangulation using the flat array-backed 2D Kd-tree
-# (`Kd_tree.FlatTree2D`) over active reflex vertices, with O(1) swap-to-end
-# live-leaf tracking, bounded parent climbing, and cache-line-packed halfplane
-# pruning.
+# (`Kd_tree.FlatTree2D` or unshrunk-cell `Kd_tree.FlatUTree2D`) over active reflex
+# vertices, with O(1) swap-to-end live-leaf tracking, parent climbing, and
+# cache-line-packed halfplane pruning.
 
-mutable struct _KdTreeReflexIndex{T} <: _AbstractReflexIndex
+mutable struct _KdTreeReflexIndex{T,FT<:Kd_tree._AnyFlatTree2D} <: _AbstractReflexIndex
     is_reflex::Vector{Bool}
-    tree::Kd_tree.FlatTree2D{T}
+    tree::FT
     live_end::Vector{Int32}
     active_count::Vector{Int32}
     overflow::Vector{Int}
@@ -13,11 +13,15 @@ mutable struct _KdTreeReflexIndex{T} <: _AbstractReflexIndex
     blocker_hint::Int32
 end
 
+@inline _kdtree_node_type(::Val{false}, ::Type{T}) where {T} = Kd_tree.FlatNode2D{T}
+@inline _kdtree_node_type(::Val{true}, ::Type{T}) where {T} = Kd_tree.FlatUNode2D{T}
+
 function _build_kdtree_reflex_index(
     vertices,
     is_reflex::Vector{Bool},
     reflex_cnt::Int,
-)
+    unshrunk::Val{U} = Val(false),
+) where {U}
     n = length(vertices)
     T = if isconcretetype(eltype(vertices))
         typeof(@inbounds vertices[1].x)
@@ -38,7 +42,7 @@ function _build_kdtree_reflex_index(
         end
     end
 
-    tree = Kd_tree._build_flat_tree!(px, py, orig_ids, n, 16)
+    tree = Kd_tree._build_flat_tree!(_kdtree_node_type(unshrunk, T), px, py, orig_ids, n, 16)
     num_nodes = length(tree.nodes)
     live_end = Vector{Int32}(undef, num_nodes)
     active_count = Vector{Int32}(undef, num_nodes)
@@ -51,7 +55,7 @@ function _build_kdtree_reflex_index(
     stack = Int32[]
     sizehint!(stack, 64)
 
-    return _KdTreeReflexIndex{T}(
+    return _KdTreeReflexIndex{T,typeof(tree)}(
         is_reflex,
         tree,
         live_end,
@@ -63,7 +67,7 @@ function _build_kdtree_reflex_index(
 end
 
 @inline function _swap_tree_slots!(
-    ft::Kd_tree.FlatTree2D{T},
+    ft::Union{Kd_tree.FlatTree2D{T},Kd_tree.FlatUTree2D{T}},
     p1::Int,
     p2::Int,
 ) where {T}
@@ -257,7 +261,10 @@ end
     return dx * (py - ay) - dy * (px - ax) < -tol
 end
 
-@inline function _box_hits(q::_FlatTriQueryF64, nd::Kd_tree.FlatNode2D{Float64})::Bool
+@inline function _box_hits(
+    q::_FlatTriQueryF64,
+    nd::Union{Kd_tree.FlatNode2D{Float64},Kd_tree.FlatUNode2D{Float64}},
+)::Bool
     x0 = nd.x0
     x1 = nd.x1
     (x1 < q.min_tx || x0 > q.max_tx) && return false
@@ -287,7 +294,10 @@ end
     return orient_sign(kernel, a, b, Point{2,T}(px, py)) < 0
 end
 
-@inline function _box_hits(q::_FlatTriQueryGeneric{K,T}, nd::Kd_tree.FlatNode2D)::Bool where {K,T}
+@inline function _box_hits(
+    q::_FlatTriQueryGeneric{K,T},
+    nd::Union{Kd_tree.FlatNode2D,Kd_tree.FlatUNode2D},
+)::Bool where {K,T}
     x0 = T(nd.x0)
     x1 = T(nd.x1)
     (x1 < q.min_tx || x0 > q.max_tx) && return false
@@ -308,6 +318,71 @@ end
 
 @inline function _pt_in_tri(q::_FlatTriQueryGeneric{K,T}, px, py)::Bool where {K,T}
     return _point_in_ccw_triangle(q.kernel, Point{2,T}(T(px), T(py)), q.a, q.b, q.c)
+end
+
+@inline function _in_unshrunk_cell(
+    nd::Kd_tree.FlatUNode2D{T},
+    min_tx::T,
+    max_tx::T,
+    min_ty::T,
+    max_ty::T,
+)::Bool where {T<:AbstractFloat}
+    return nd.ux0 < min_tx && max_tx <= nd.ux1 && nd.uy0 < min_ty && max_ty <= nd.uy1
+end
+
+@inline function _in_unshrunk_cell(
+    nd::Kd_tree.FlatUNode2D{T},
+    min_tx::T,
+    max_tx::T,
+    min_ty::T,
+    max_ty::T,
+)::Bool where {T}
+    bm = nd.bound_mask
+    return ((bm & 0x01) == 0 || nd.ux0 < min_tx) &&
+           ((bm & 0x02) == 0 || max_tx <= nd.ux1) &&
+           ((bm & 0x04) == 0 || nd.uy0 < min_ty) &&
+           ((bm & 0x08) == 0 || max_ty <= nd.uy1)
+end
+
+@inline function _climb_to_subtree(
+    ft::Kd_tree.FlatTree2D{T},
+    start::Int,
+    min_tx::T,
+    max_tx::T,
+    min_ty::T,
+    max_ty::T,
+)::Int where {T}
+    start == 0 && return 1
+    nodes = ft.nodes
+    curr = start
+    steps = 0
+    @inbounds while curr > 1 && steps < 5
+        nd = nodes[curr]
+        if nd.x0 <= min_tx && max_tx <= nd.x1 && nd.y0 <= min_ty && max_ty <= nd.y1
+            return curr
+        end
+        curr = Kd_tree.parent(ft, curr)
+        steps += 1
+    end
+    return 1
+end
+
+@inline function _climb_to_subtree(
+    ft::Kd_tree.FlatUTree2D{T},
+    start::Int,
+    min_tx::T,
+    max_tx::T,
+    min_ty::T,
+    max_ty::T,
+)::Int where {T}
+    start == 0 && return 1
+    nodes = ft.nodes
+    curr = start
+    @inbounds while curr > 1
+        _in_unshrunk_cell(nodes[curr], min_tx, max_tx, min_ty, max_ty) && return curr
+        curr = Kd_tree.parent(ft, curr)
+    end
+    return 1
 end
 
 function _dfs_ear_blocked!(
@@ -433,20 +508,7 @@ function _ear_blocked(
         start = @inbounds Int(ft.leaf_of[nx])
     end
 
-    u = 1
-    if start != 0
-        curr = start
-        steps = 0
-        @inbounds while curr > 1 && steps < 5
-            nd = nodes[curr]
-            if nd.x0 <= min_tx && max_tx <= nd.x1 && nd.y0 <= min_ty && max_ty <= nd.y1
-                u = curr
-                break
-            end
-            curr = Kd_tree.parent(ft, curr)
-            steps += 1
-        end
-    end
+    u = _climb_to_subtree(ft, start, min_tx, max_tx, min_ty, max_ty)
 
     @inbounds ac[u] == Int32(0) && return false
 
@@ -465,23 +527,11 @@ function _ear_blocked(
     return _dfs_ear_blocked!(idx, q, pr, ear, nx, T(b.x), T(b.y), u)
 end
 
-"""
-    triangulate_ear_cut_kd_tree(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
-
-Triangulate a simple counterclockwise polygon with `n >= 3` vertices using ear clipping
-with a flat array-backed `Kd_tree` (`BBT.FlatTree2D`) spatial index over active reflex
-vertices.
-
-For inputs with at most 16 reflex vertices (including convex polygons), falls back
-automatically to the direct reflex-list ear clipper.
-
-# Preconditions
-- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
-"""
-function triangulate_ear_cut_kd_tree(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function _triangulate_ear_cut_kd_tree_impl(
+    vertices,
+    kernel::AbstractKernel,
+    unshrunk::Val{U},
+) where {U}
     n = _validate_ccw_polygon(kernel, vertices)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
@@ -500,11 +550,48 @@ function triangulate_ear_cut_kd_tree(
     rindex = if reflex_cnt <= 16
         _build_plain_reflex_index(BitVector(is_reflex))
     else
-        _build_kdtree_reflex_index(vertices, is_reflex, reflex_cnt)
+        _build_kdtree_reflex_index(vertices, is_reflex, reflex_cnt, unshrunk)
     end
 
     st = _EarClipState(kernel, vertices, prev_v, next_v, is_active, rindex)
     return _ear_clip_run!(st)
 end
 
-export triangulate_ear_cut_kd_tree
+"""
+    triangulate_ear_cut_kd_tree(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices using ear clipping
+with a flat array-backed `Kd_tree` (`BBT.FlatTree2D`) spatial index over active reflex
+vertices.
+
+For inputs with at most 16 reflex vertices (including convex polygons), falls back
+automatically to the direct reflex-list ear clipper.
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
+triangulate_ear_cut_kd_tree(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+) = _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(false))
+
+"""
+    triangulate_ear_cut_u_kd_tree(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices using ear clipping
+with an unshrunk-cell flat 2D `Kd_tree` (`BBT.FlatUTree2D`) spatial index over active
+reflex vertices, allowing bottom-up parent climbing to terminate on exact unshrunk split
+cells without a depth cap.
+
+For inputs with at most 16 reflex vertices (including convex polygons), falls back
+automatically to the direct reflex-list ear clipper.
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
+triangulate_ear_cut_u_kd_tree(
+    vertices;
+    kernel::AbstractKernel = FloatingKernel(),
+) = _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(true))
+
+export triangulate_ear_cut_kd_tree, triangulate_ear_cut_u_kd_tree

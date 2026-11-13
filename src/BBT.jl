@@ -592,6 +592,61 @@ end
 Base.isempty(ft::FlatTree2D) = isempty(ft.nodes)
 Base.length(ft::FlatTree2D) = length(ft.px)
 
+"""
+    FlatUNode2D{T}
+
+A node in an unshrunk-cell flat 2D Kd-tree ([`FlatUTree2D`](@ref), `Kd_tree.FlatUTree2D`),
+storing both the tight point bounding box `(x0, x1, y0, y1)` and the unshrunk split cell
+`(ux0, ux1, uy0, uy1)` alongside `bound_mask::UInt8` (bits `0..3` mark constrained
+`ux0, ux1, uy0, uy1` split walls).
+
+`FlatUNode2D{Float64}` occupies 96 bytes.
+"""
+struct FlatUNode2D{T}
+    x0::T
+    x1::T
+    y0::T
+    y1::T
+    split_val::T
+    ux0::T
+    ux1::T
+    uy0::T
+    uy1::T
+    left::Int32
+    right::Int32
+    parent::Int32
+    r_start::Int32
+    r_end::Int32
+    split_dim::Int8
+    bound_mask::UInt8
+    is_leaf::Bool
+end
+
+"""
+    FlatUTree2D{T}
+
+A flat array-backed 2D Bounding Box Tree / Kd-tree using [`FlatUNode2D`](@ref) nodes that
+maintain both tight point bounding boxes and unshrunk split-cell rectangles `(ux0, ux1] x (uy0, uy1]`
+for faster bottom-up subtree stopping.
+
+Parent navigation uses index-based `parent(ft, id)`, [`parent_node`](@ref) (`parent_node(ft, id)`),
+and [`is_root`](@ref) (`is_root(ft, id)`), where `0` denotes no parent.
+"""
+struct FlatUTree2D{T}
+    nodes::Vector{FlatUNode2D{T}}
+    px::Vector{T}
+    py::Vector{T}
+    perm::Vector{Int32}
+    leaf_of::Vector{Int32}
+    slot_of::Vector{Int32}
+    leaf_size::Int
+    n_total::Int
+end
+
+const _AnyFlatTree2D = Union{FlatTree2D,FlatUTree2D}
+Base.isempty(ft::FlatUTree2D) = isempty(ft.nodes)
+Base.length(ft::FlatUTree2D) = length(ft.px)
+
 @inline function _flat_midpoint(a::T, b::T) where {T<:AbstractFloat}
     return T(0.5) * a + T(0.5) * b
 end
@@ -691,8 +746,194 @@ end
     return j
 end
 
+@inline _root_ubounds(::Type{FlatNode2D{T}}) where {T} = (zero(T), zero(T), zero(T), zero(T), UInt8(0))
+@inline function _root_ubounds(::Type{FlatUNode2D{T}}) where {T}
+    if T <: AbstractFloat
+        return (T(-Inf), T(Inf), T(-Inf), T(Inf), UInt8(0))
+    end
+    return (zero(T), zero(T), zero(T), zero(T), UInt8(0))
+end
+
+@inline function _make_flat_leaf(
+    ::Type{FlatNode2D{T}},
+    x0::T,
+    x1::T,
+    y0::T,
+    y1::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+    parent_id::Int32,
+    s::Int,
+    e::Int,
+) where {T}
+    return FlatNode2D{T}(
+        x0,
+        x1,
+        y0,
+        y1,
+        zero(T),
+        Int32(0),
+        Int32(0),
+        parent_id,
+        Int32(s),
+        Int32(e),
+        Int8(0),
+        true,
+    )
+end
+
+@inline function _make_flat_leaf(
+    ::Type{FlatUNode2D{T}},
+    x0::T,
+    x1::T,
+    y0::T,
+    y1::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+    parent_id::Int32,
+    s::Int,
+    e::Int,
+) where {T}
+    return FlatUNode2D{T}(
+        x0,
+        x1,
+        y0,
+        y1,
+        zero(T),
+        ux0,
+        ux1,
+        uy0,
+        uy1,
+        Int32(0),
+        Int32(0),
+        parent_id,
+        Int32(s),
+        Int32(e),
+        Int8(0),
+        bmask,
+        true,
+    )
+end
+
+@inline function _make_flat_internal(
+    ::Type{FlatNode2D{T}},
+    x0::T,
+    x1::T,
+    y0::T,
+    y1::T,
+    cutoff::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+    left_id::Int,
+    right_id::Int,
+    parent_id::Int32,
+    s::Int,
+    e::Int,
+    dim::Int,
+) where {T}
+    return FlatNode2D{T}(
+        x0,
+        x1,
+        y0,
+        y1,
+        cutoff,
+        Int32(left_id),
+        Int32(right_id),
+        parent_id,
+        Int32(s),
+        Int32(e),
+        Int8(dim),
+        false,
+    )
+end
+
+@inline function _make_flat_internal(
+    ::Type{FlatUNode2D{T}},
+    x0::T,
+    x1::T,
+    y0::T,
+    y1::T,
+    cutoff::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+    left_id::Int,
+    right_id::Int,
+    parent_id::Int32,
+    s::Int,
+    e::Int,
+    dim::Int,
+) where {T}
+    return FlatUNode2D{T}(
+        x0,
+        x1,
+        y0,
+        y1,
+        cutoff,
+        ux0,
+        ux1,
+        uy0,
+        uy1,
+        Int32(left_id),
+        Int32(right_id),
+        parent_id,
+        Int32(s),
+        Int32(e),
+        Int8(dim),
+        bmask,
+        false,
+    )
+end
+
+@inline function _split_flat_ubounds(
+    ::Type{FlatNode2D{T}},
+    dim::Int,
+    cutoff::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+) where {T}
+    z = zero(T)
+    return (z, z, z, z, UInt8(0), z, z, z, z, UInt8(0))
+end
+
+@inline function _split_flat_ubounds(
+    ::Type{FlatUNode2D{T}},
+    dim::Int,
+    cutoff::T,
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+) where {T}
+    if dim == 1
+        return (ux0, cutoff, uy0, uy1, bmask | UInt8(0x02), cutoff, ux1, uy0, uy1, bmask | UInt8(0x01))
+    end
+    return (ux0, ux1, uy0, cutoff, bmask | UInt8(0x08), ux0, ux1, cutoff, uy1, bmask | UInt8(0x04))
+end
+
+@inline _wrap_flat_tree(::Type{FlatNode2D{T}}, nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total) where {T} =
+    FlatTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+
+@inline _wrap_flat_tree(::Type{FlatUNode2D{T}}, nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total) where {T} =
+    FlatUTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+
 function _build_flat_node!(
-    nodes::Vector{FlatNode2D{T}},
+    nodes::Vector{N},
     px::Vector{T},
     py::Vector{T},
     perm::Vector{Int32},
@@ -704,7 +945,12 @@ function _build_flat_node!(
     s::Int,
     e::Int,
     leaf_size::Int,
-)::Int where {T}
+    ux0::T,
+    ux1::T,
+    uy0::T,
+    uy1::T,
+    bmask::UInt8,
+)::Int where {T,N<:Union{FlatNode2D{T},FlatUNode2D{T}}}
     @inbounds begin
         x0 = px[s]
         x1 = x0
@@ -730,20 +976,8 @@ function _build_flat_node!(
     dx = x1 - x0
     dy = y1 - y0
     if n <= leaf_size || (dx <= zero(T) && dy <= zero(T))
-        @inbounds nodes[id] = FlatNode2D{T}(
-            x0,
-            x1,
-            y0,
-            y1,
-            zero(T),
-            Int32(0),
-            Int32(0),
-            parent_id,
-            Int32(s),
-            Int32(e),
-            Int8(0),
-            true,
-        )
+        @inbounds nodes[id] =
+            _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
         @inbounds for k in s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
@@ -770,20 +1004,8 @@ function _build_flat_node!(
     end
 
     if mid < s || mid >= e
-        @inbounds nodes[id] = FlatNode2D{T}(
-            x0,
-            x1,
-            y0,
-            y1,
-            zero(T),
-            Int32(0),
-            Int32(0),
-            parent_id,
-            Int32(s),
-            Int32(e),
-            Int8(0),
-            true,
-        )
+        @inbounds nodes[id] =
+            _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
         @inbounds for k in s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
@@ -796,20 +1018,28 @@ function _build_flat_node!(
     right_id = next_free + 1
     next_free_after_children = next_free + 2
 
-    @inbounds nodes[id] = FlatNode2D{T}(
+    @inbounds nodes[id] = _make_flat_internal(
+        N,
         x0,
         x1,
         y0,
         y1,
         cutoff,
-        Int32(left_id),
-        Int32(right_id),
+        ux0,
+        ux1,
+        uy0,
+        uy1,
+        bmask,
+        left_id,
+        right_id,
         parent_id,
-        Int32(s),
-        Int32(e),
-        Int8(dim),
-        false,
+        s,
+        e,
+        dim,
     )
+
+    lux0, lux1, luy0, luy1, lmask, rux0, rux1, ruy0, ruy1, rmask =
+        _split_flat_ubounds(N, dim, cutoff, ux0, ux1, uy0, uy1, bmask)
 
     next_free = _build_flat_node!(
         nodes,
@@ -824,6 +1054,11 @@ function _build_flat_node!(
         s,
         mid,
         leaf_size,
+        lux0,
+        lux1,
+        luy0,
+        luy1,
+        lmask,
     )
     return _build_flat_node!(
         nodes,
@@ -838,16 +1073,22 @@ function _build_flat_node!(
         mid + 1,
         e,
         leaf_size,
+        rux0,
+        rux1,
+        ruy0,
+        ruy1,
+        rmask,
     )
 end
 
 function _build_flat_tree!(
+    ::Type{N},
     px::Vector{T},
     py::Vector{T},
     perm::Vector{Int32},
     n_total::Int,
     leaf_size::Int,
-)::FlatTree2D{T} where {T}
+) where {T,N<:Union{FlatNode2D{T},FlatUNode2D{T}}}
     leaf_size >= 1 || throw(ArgumentError("leaf_size must be at least 1, got $leaf_size"))
     m = length(px)
     length(py) == m || throw(DimensionMismatch("px and py must have the same length"))
@@ -855,12 +1096,54 @@ function _build_flat_tree!(
     leaf_of = zeros(Int32, n_total)
     slot_of = zeros(Int32, n_total)
     if m == 0
-        return FlatTree2D{T}(FlatNode2D{T}[], px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+        return _wrap_flat_tree(N, N[], px, py, perm, leaf_of, slot_of, leaf_size, n_total)
     end
-    nodes = Vector{FlatNode2D{T}}(undef, 2 * m - 1)
-    used = _build_flat_node!(nodes, px, py, perm, leaf_of, slot_of, 1, 2, Int32(0), 1, m, leaf_size) - 1
+    nodes = Vector{N}(undef, 2 * m - 1)
+    ux0, ux1, uy0, uy1, bmask = _root_ubounds(N)
+    used =
+        _build_flat_node!(
+            nodes,
+            px,
+            py,
+            perm,
+            leaf_of,
+            slot_of,
+            1,
+            2,
+            Int32(0),
+            1,
+            m,
+            leaf_size,
+            ux0,
+            ux1,
+            uy0,
+            uy1,
+            bmask,
+        ) - 1
     resize!(nodes, used)
-    return FlatTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+    return _wrap_flat_tree(N, nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+end
+
+_build_flat_tree!(
+    px::Vector{T},
+    py::Vector{T},
+    perm::Vector{Int32},
+    n_total::Int,
+    leaf_size::Int,
+) where {T} = _build_flat_tree!(FlatNode2D{T}, px, py, perm, n_total, leaf_size)
+
+function _extract_xy_perm(pts::Union{AbsPntSeq{2,T},AbstractVector{<:Point{2,T}}}) where {T}
+    m = length(pts)
+    px = Vector{T}(undef, m)
+    py = Vector{T}(undef, m)
+    perm = Vector{Int32}(undef, m)
+    @inbounds for i in 1:m
+        p = pts[i]
+        px[i] = p.x
+        py[i] = p.y
+        perm[i] = Int32(i)
+    end
+    return px, py, perm, m
 end
 
 """
@@ -873,31 +1156,13 @@ input 2D points using cache-line-packed [`FlatNode2D`](@ref) nodes, midpoint spl
 5-point sample median skew fallback, and leaf stopping threshold `leaf_size`.
 """
 function Tree_init_flat(P::AbsPntSeq{2,T}; leaf_size::Int = 16) where {T}
-    m = length(P)
-    px = Vector{T}(undef, m)
-    py = Vector{T}(undef, m)
-    perm = Vector{Int32}(undef, m)
-    @inbounds for i in 1:m
-        p = P[i]
-        px[i] = p.x
-        py[i] = p.y
-        perm[i] = Int32(i)
-    end
-    return _build_flat_tree!(px, py, perm, m, leaf_size)
+    px, py, perm, m = _extract_xy_perm(P)
+    return _build_flat_tree!(FlatNode2D{T}, px, py, perm, m, leaf_size)
 end
 
 function Tree_init_flat(pts::AbstractVector{<:Point{2,T}}; leaf_size::Int = 16) where {T}
-    m = length(pts)
-    px = Vector{T}(undef, m)
-    py = Vector{T}(undef, m)
-    perm = Vector{Int32}(undef, m)
-    @inbounds for i in 1:m
-        p = pts[i]
-        px[i] = p.x
-        py[i] = p.y
-        perm[i] = Int32(i)
-    end
-    return _build_flat_tree!(px, py, perm, m, leaf_size)
+    px, py, perm, m = _extract_xy_perm(pts)
+    return _build_flat_tree!(FlatNode2D{T}, px, py, perm, m, leaf_size)
 end
 
 function Tree_init_flat(
@@ -910,42 +1175,74 @@ function Tree_init_flat(
     px_c = Vector{T}(px)
     py_c = Vector{T}(py)
     perm_c = Int32[Int32(i) for i in orig_ids]
-    return _build_flat_tree!(px_c, py_c, perm_c, Int(n_total), leaf_size)
+    return _build_flat_tree!(FlatNode2D{T}, px_c, py_c, perm_c, Int(n_total), leaf_size)
+end
+
+"""
+    Tree_init_flat_u(P::AbsPntSeq{2,T}; leaf_size::Int = 16) -> FlatUTree2D{T}
+    Tree_init_flat_u(pts::AbstractVector{<:Point{2,T}}; leaf_size::Int = 16) -> FlatUTree2D{T}
+    Tree_init_flat_u(px::AbstractVector{T}, py::AbstractVector{T}, orig_ids::AbstractVector{<:Integer}, n_total::Integer; leaf_size::Int = 16) -> FlatUTree2D{T}
+
+Build and fully expand a flat array-backed unshrunk-cell 2D Kd-tree ([`FlatUTree2D`](@ref))
+over the input 2D points using [`FlatUNode2D`](@ref) nodes that maintain both tight point
+bounding boxes and unshrunk split-cell rectangles `(ux0, ux1] x (uy0, uy1]`.
+"""
+function Tree_init_flat_u(P::AbsPntSeq{2,T}; leaf_size::Int = 16) where {T}
+    px, py, perm, m = _extract_xy_perm(P)
+    return _build_flat_tree!(FlatUNode2D{T}, px, py, perm, m, leaf_size)
+end
+
+function Tree_init_flat_u(pts::AbstractVector{<:Point{2,T}}; leaf_size::Int = 16) where {T}
+    px, py, perm, m = _extract_xy_perm(pts)
+    return _build_flat_tree!(FlatUNode2D{T}, px, py, perm, m, leaf_size)
+end
+
+function Tree_init_flat_u(
+    px::AbstractVector{T},
+    py::AbstractVector{T},
+    orig_ids::AbstractVector{<:Integer},
+    n_total::Integer;
+    leaf_size::Int = 16,
+) where {T}
+    px_c = Vector{T}(px)
+    py_c = Vector{T}(py)
+    perm_c = Int32[Int32(i) for i in orig_ids]
+    return _build_flat_tree!(FlatUNode2D{T}, px_c, py_c, perm_c, Int(n_total), leaf_size)
 end
 
 import Base: parent
 
 """
     parent(node::Node) -> Union{Nothing,Node}
-    parent(ft::FlatTree2D, id::Integer) -> Int
+    parent(ft::Union{FlatTree2D,FlatUTree2D}, id::Integer) -> Int
 
 Return the parent node of `node` (or `nothing` if root), or the parent node index of
 `id` in `ft` (or `0` if `id` is the root node).
 """
 parent(node::Node) = node.parent
-parent(ft::FlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
+parent(ft::_AnyFlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
 
 """
     parent_node(node::Node) -> Union{Nothing,Node}
-    parent_node(ft::FlatTree2D, id::Integer) -> Int
+    parent_node(ft::Union{FlatTree2D,FlatUTree2D}, id::Integer) -> Int
 
 Return the parent of `node` / node `id`. Equivalent to `parent`.
 """
 parent_node(node::Node) = node.parent
-parent_node(ft::FlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
+parent_node(ft::_AnyFlatTree2D, id::Integer)::Int = @inbounds Int(ft.nodes[id].parent)
 
 """
     is_root(node::Node) -> Bool
-    is_root(ft::FlatTree2D, id::Integer) -> Bool
+    is_root(ft::Union{FlatTree2D,FlatUTree2D}, id::Integer) -> Bool
 
 Return `true` if `node` (or node `id` in `ft`) has no parent.
 """
 is_root(node::Node) = isnothing(node.parent)
-is_root(ft::FlatTree2D, id::Integer)::Bool = @inbounds ft.nodes[id].parent == Int32(0)
+is_root(ft::_AnyFlatTree2D, id::Integer)::Bool = @inbounds ft.nodes[id].parent == Int32(0)
 
-export Node, Tree, FlatNode2D, FlatTree2D
+export Node, Tree, FlatNode2D, FlatTree2D, FlatUNode2D, FlatUTree2D
 export parent_node, is_root
-export Tree_draw, Tree_init, Tree_init_flat, Tree_fully_expand
+export Tree_draw, Tree_init, Tree_init_flat, Tree_init_flat_u, Tree_fully_expand
 export Tree_refine_node, depth
 export get_min_orig_index,
     get_max_orig_index, approx_nn, silly_nn, hybrid_nn, exact_naive_scan

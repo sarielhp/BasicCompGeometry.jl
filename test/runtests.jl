@@ -370,6 +370,7 @@ Aqua.test_all(BasicCompGeometry)
             :trapezoids,
             :triangulate_ear_cut,
             :triangulate_ear_cut_kd_tree,
+            :triangulate_ear_cut_u_kd_tree,
             :triangulate_ear_cut_z_order,
             :triangulate_monotone,
             :triangulate_polygon,
@@ -800,6 +801,67 @@ Aqua.test_all(BasicCompGeometry)
         ft_big = Kd_tree.Tree_init_flat(big_pts; leaf_size = 4)
         @test length(ft_big) == 40
         @test is_root(ft_big, 1)
+
+        # Unshrunk-cell 96-byte FlatUTree2D checks
+        @test sizeof(Kd_tree.FlatUNode2D{Float64}) == 96
+        empty_fut = Kd_tree.Tree_init_flat_u(Point{2,Float64}[])
+        @test isempty(empty_fut) && length(empty_fut) == 0
+        fut_u = Kd_tree.Tree_init_flat_u(ft_pts; leaf_size = 8)
+        @test fut_u isa Kd_tree.FlatUTree2D{Float64}
+        @test length(fut_u) == length(ft_pts)
+        @test is_root(fut_u, 1)
+        @test Kd_tree.parent(fut_u, 1) == 0
+        @test Kd_tree.parent_node(fut_u, 1) == 0
+        @test fut_u.nodes[1].ux0 == -Inf && fut_u.nodes[1].ux1 == Inf
+        @test fut_u.nodes[1].uy0 == -Inf && fut_u.nodes[1].uy1 == Inf
+        @test fut_u.nodes[1].bound_mask == 0x00
+        for nid in eachindex(fut_u.nodes)
+            nd = fut_u.nodes[nid]
+            for k in nd.r_start:nd.r_end
+                x = fut_u.px[k]
+                y = fut_u.py[k]
+                @test nd.ux0 < x <= nd.ux1
+                @test nd.uy0 < y <= nd.uy1
+            end
+            if !is_root(fut_u, nid)
+                @test Kd_tree.parent(fut_u, nid) > 0
+            end
+        end
+
+        fut_sub = Kd_tree.Tree_init_flat_u([1.0, 3.0, 2.0, 4.0], [4.0, 2.0, 3.0, 1.0], Int32[2, 5, 7, 10], 12; leaf_size = 2)
+        @test length(fut_sub) == 4
+        @test fut_sub.n_total == 12
+        @test fut_sub.leaf_of[5] != 0
+        @test fut_sub.leaf_of[1] == 0
+
+        fut_seq = Kd_tree.Tree_init_flat_u(PntSeq(ft_pts); leaf_size = 8)
+        @test length(fut_seq) == length(ft_pts)
+
+        fut_int = Kd_tree.Tree_init_flat_u(int_pts; leaf_size = 4)
+        @test length(fut_int) == 40
+        @test is_root(fut_int, 1)
+        for nd in fut_int.nodes
+            bm = nd.bound_mask
+            for k in nd.r_start:nd.r_end
+                @test ((bm & 0x01) == 0 || nd.ux0 < fut_int.px[k])
+                @test ((bm & 0x02) == 0 || fut_int.px[k] <= nd.ux1)
+                @test ((bm & 0x04) == 0 || nd.uy0 < fut_int.py[k])
+                @test ((bm & 0x08) == 0 || fut_int.py[k] <= nd.uy1)
+            end
+        end
+
+        fut_big = Kd_tree.Tree_init_flat_u(big_pts; leaf_size = 4)
+        @test length(fut_big) == 40
+        @test is_root(fut_big, 1)
+        for nd in fut_big.nodes
+            bm = nd.bound_mask
+            for k in nd.r_start:nd.r_end
+                @test ((bm & 0x01) == 0 || nd.ux0 < fut_big.px[k])
+                @test ((bm & 0x02) == 0 || fut_big.px[k] <= nd.ux1)
+                @test ((bm & 0x04) == 0 || nd.uy0 < fut_big.py[k])
+                @test ((bm & 0x08) == 0 || fut_big.py[k] <= nd.uy1)
+            end
+        end
     end
 
     @testset "Diameter Algorithms" begin

@@ -181,7 +181,7 @@ using Random
         exact = ExactKernel()
         l_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in l_shape]
         sq_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in sq]
-        for alg in (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut)
+        for alg in (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)
             decomp_alg = minkowski_sum_decomposition(l_shape, sq; algorithm = alg)
             @test length(decomp_alg) == 4
             @test all(p -> is_convex(p) && twice_area(p) > 0, decomp_alg)

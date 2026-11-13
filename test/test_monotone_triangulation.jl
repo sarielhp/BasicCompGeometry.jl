@@ -1348,17 +1348,16 @@ using BasicCompGeometry
         end
     end
 
-    @testset "Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_kd_tree)" begin
-        mutable struct _EarCutKdTreeCountKernel{K<:AbstractKernel} <: AbstractKernel
-            inner::K
-            orients::Int
-        end
-        BasicCompGeometry.orient_sign(k::_EarCutKdTreeCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
-            (k.orients += 1; orient_sign(k.inner, a, b, c))
-        BasicCompGeometry.turn_sign(k::_EarCutKdTreeCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
-            (k.orients += 1; turn_sign(k.inner, a, b, c))
+    mutable struct _EarCutKdTreeCountKernel{K<:AbstractKernel} <: AbstractKernel
+        inner::K
+        orients::Int
+    end
+    BasicCompGeometry.orient_sign(k::_EarCutKdTreeCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+        (k.orients += 1; orient_sign(k.inner, a, b, c))
+    BasicCompGeometry.turn_sign(k::_EarCutKdTreeCountKernel, a::Point{2}, b::Point{2}, c::Point{2}) =
+        (k.orients += 1; turn_sign(k.inner, a, b, c))
 
-        function _verify_ear_cut_kd_tree_result(poly, res; kernel = FloatingKernel())
+    function _verify_ear_cut_kd_tree_result(poly, res; kernel = FloatingKernel())
             m = length(poly)
             @test length(res.diagonals) == m - 3
             @test length(res.triangles) == m - 2
@@ -1407,138 +1406,155 @@ using BasicCompGeometry
             else
                 @test isapprox(tri_sum, twice_area(poly; kernel = kernel); rtol = 1e-8)
             end
-        end
+    end
 
-        @testset "Validation, dispatch, and edge cases" begin
-            @test_throws ArgumentError triangulate_ear_cut_kd_tree(Point2F[point(0.0, 0.0), point(1.0, 0.0)])
-            cw_sq = Point2F[point(0.0, 0.0), point(0.0, 1.0), point(1.0, 1.0), point(1.0, 0.0)]
-            @test_throws ArgumentError triangulate_ear_cut_kd_tree(cw_sq)
-            @test_throws ArgumentError triangulate_polygon(cw_sq; algorithm = :ear_cut_kd_tree)
+    for (ts_name, alg_sym, alg_fn) in (
+        ("Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_kd_tree)", :ear_cut_kd_tree, triangulate_ear_cut_kd_tree),
+        ("Unshrunk Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_u_kd_tree)", :ear_cut_u_kd_tree, triangulate_ear_cut_u_kd_tree),
+    )
+        @testset "$ts_name" begin
+            @testset "Validation, dispatch, and edge cases" begin
+                @test_throws ArgumentError alg_fn(Point2F[point(0.0, 0.0), point(1.0, 0.0)])
+                cw_sq = Point2F[point(0.0, 0.0), point(0.0, 1.0), point(1.0, 1.0), point(1.0, 0.0)]
+                @test_throws ArgumentError alg_fn(cw_sq)
+                @test_throws ArgumentError triangulate_polygon(cw_sq; algorithm = alg_sym)
 
-            tri3 = Point2F[point(0.0, 0.0), point(2.0, 0.0), point(0.5, 1.5)]
-            res3 = triangulate_ear_cut_kd_tree(tri3)
-            @test isempty(res3.diagonals)
-            @test res3.triangles == [(1, 2, 3)]
+                tri3 = Point2F[point(0.0, 0.0), point(2.0, 0.0), point(0.5, 1.5)]
+                res3 = alg_fn(tri3)
+                @test isempty(res3.diagonals)
+                @test res3.triangles == [(1, 2, 3)]
 
-            u_poly = Point2F[
-                point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
-                point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
-            ]
-            res_kd = triangulate_ear_cut_kd_tree(u_poly)
-            @test triangulate_polygon(u_poly; algorithm = :ear_cut_kd_tree).diagonals == res_kd.diagonals
-            @test triangulate_polygon(PntSeq(u_poly); algorithm = :ear_cut_kd_tree).diagonals == res_kd.diagonals
-            @test polygon_diagonals(u_poly; algorithm = :ear_cut_kd_tree) == res_kd.diagonals
-            _verify_ear_cut_kd_tree_result(u_poly, res_kd)
-        end
-
-        @testset "ExactKernel, extreme scales, and collinear chains" begin
-            exact = ExactKernel()
-            collinear_poly = [
-                point(big(0) // 1, big(0) // 1), point(big(1) // 1, big(0) // 1),
-                point(big(2) // 1, big(0) // 1), point(big(3) // 1, big(0) // 1),
-                point(big(5) // 2, big(1) // 1), point(big(2) // 1, big(2) // 1),
-                point(big(3) // 2, big(3) // 1), point(big(1) // 1, big(2) // 1),
-                point(big(1) // 2, big(1) // 1),
-            ]
-            _verify_ear_cut_kd_tree_result(collinear_poly, triangulate_ear_cut_kd_tree(collinear_poly; kernel = exact); kernel = exact)
-
-            exact_comb = Point{2,Rational{BigInt}}[]
-            for i in 1:25
-                y0 = Rational{BigInt}(2 * (i - 1))
-                push!(exact_comb, point(big(10) // 1, y0))
-                push!(exact_comb, point(big(10) // 1, y0 + 1))
-                push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 6 // 5))
-                push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 9 // 5))
+                u_poly = Point2F[
+                    point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
+                    point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
+                ]
+                res_kd = alg_fn(u_poly)
+                @test triangulate_polygon(u_poly; algorithm = alg_sym).diagonals == res_kd.diagonals
+                @test triangulate_polygon(PntSeq(u_poly); algorithm = alg_sym).diagonals == res_kd.diagonals
+                @test polygon_diagonals(u_poly; algorithm = alg_sym) == res_kd.diagonals
+                _verify_ear_cut_kd_tree_result(u_poly, res_kd)
             end
-            pushfirst!(exact_comb, point(big(0) // 1, big(0) // 1))
-            push!(exact_comb, point(big(10) // 1, big(50) // 1), point(big(0) // 1, big(50) // 1))
-            _verify_ear_cut_kd_tree_result(exact_comb, triangulate_ear_cut_kd_tree(exact_comb; kernel = exact); kernel = exact)
 
-            huge = big(10)^320
-            huge_comb = [Point{2,Rational{BigInt}}(p.x * huge, p.y * huge) for p in exact_comb]
-            _verify_ear_cut_kd_tree_result(huge_comb, triangulate_ear_cut_kd_tree(huge_comb; kernel = exact); kernel = exact)
+            @testset "ExactKernel, extreme scales, and collinear chains" begin
+                exact = ExactKernel()
+                collinear_poly = [
+                    point(big(0) // 1, big(0) // 1), point(big(1) // 1, big(0) // 1),
+                    point(big(2) // 1, big(0) // 1), point(big(3) // 1, big(0) // 1),
+                    point(big(5) // 2, big(1) // 1), point(big(2) // 1, big(2) // 1),
+                    point(big(3) // 2, big(3) // 1), point(big(1) // 1, big(2) // 1),
+                    point(big(1) // 2, big(1) // 1),
+                ]
+                _verify_ear_cut_kd_tree_result(collinear_poly, alg_fn(collinear_poly; kernel = exact); kernel = exact)
 
-            for s in (1e-12, 1e12)
-                comb_s = [point(Float64(p.x) * s, Float64(p.y) * s) for p in exact_comb]
-                _verify_ear_cut_kd_tree_result(comb_s, triangulate_ear_cut_kd_tree(comb_s))
-            end
-        end
-
-        @testset "Subquadratic practical performance vs ear_cut" begin
-            poly_conv = Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
-            kc = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
-            res_conv = triangulate_polygon(poly_conv; kernel = kc, algorithm = :ear_cut_kd_tree)
-            @test length(res_conv.triangles) == length(poly_conv) - 2
-            @test kc.orients / length(poly_conv) < 5.0
-
-            poly_lowr = Point2F[
-                point((i == 1000 || i == 3000 ? 0.995 : 1.0) * cos(2pi * i / 4000),
-                      (i == 1000 || i == 3000 ? 0.995 : 1.0) * sin(2pi * i / 4000))
-                for i in 0:3999
-            ]
-            klr = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
-            res_lr = triangulate_polygon(poly_lowr; kernel = klr, algorithm = :ear_cut_kd_tree)
-            @test length(res_lr.triangles) == 3998
-            @test klr.orients / length(poly_lowr) < 20.0
-
-            function _hcomb_kd(m_prongs::Int)
-                pts = Point2F[point(0.0, 0.0)]
-                for i in 1:m_prongs
-                    yb = 2.0 * (i - 1)
-                    xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
-                    push!(pts, point(10.0, yb), point(10.0, yb + 1.0), point(xn, yb + 1.2), point(xn, yb + 1.8))
+                exact_comb = Point{2,Rational{BigInt}}[]
+                for i in 1:25
+                    y0 = Rational{BigInt}(2 * (i - 1))
+                    push!(exact_comb, point(big(10) // 1, y0))
+                    push!(exact_comb, point(big(10) // 1, y0 + 1))
+                    push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 6 // 5))
+                    push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 9 // 5))
                 end
-                push!(pts, point(10.0, 2.0 * m_prongs), point(0.0, 2.0 * m_prongs))
-                return pts
-            end
-            comb_1k = _hcomb_kd(300)
-            comb_5k = _hcomb_kd(1200)
-            kec1 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
-            kec5 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
-            kcl1 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+                pushfirst!(exact_comb, point(big(0) // 1, big(0) // 1))
+                push!(exact_comb, point(big(10) // 1, big(50) // 1), point(big(0) // 1, big(50) // 1))
+                _verify_ear_cut_kd_tree_result(exact_comb, alg_fn(exact_comb; kernel = exact); kernel = exact)
 
-            r_ec1 = triangulate_polygon(comb_1k; kernel = kec1, algorithm = :ear_cut_kd_tree)
-            r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = :ear_cut_kd_tree)
-            triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
+                huge = big(10)^320
+                huge_comb = [Point{2,Rational{BigInt}}(p.x * huge, p.y * huge) for p in exact_comb]
+                _verify_ear_cut_kd_tree_result(huge_comb, alg_fn(huge_comb; kernel = exact); kernel = exact)
 
-            _verify_ear_cut_kd_tree_result(comb_1k, r_ec1)
-            @test length(r_ec5.triangles) == length(comb_5k) - 2
-            @test isapprox(
-                twice_area(comb_5k),
-                sum(twice_area([comb_5k[a], comb_5k[b], comb_5k[c]]) for (a, b, c) in r_ec5.triangles);
-                rtol = 1e-8,
-            )
-            @test kec1.orients / length(comb_1k) < 35.0
-            @test kec5.orients / length(comb_5k) < 35.0
-            @test (kec5.orients / length(comb_5k)) - (kec1.orients / length(comb_1k)) < 8.0
-            @test kec1.orients * 20 < kcl1.orients
-
-            rng_s = Xoshiro(77)
-            star = [
-                let r = iseven(i) ? 10.0 : 1.5 + 1.5 * rand(rng_s)
-                    point(r * cos(2pi * i / 1000), r * sin(2pi * i / 1000))
+                if alg_sym == :ear_cut_u_kd_tree
+                    int_comb = Point{2,Int}[point(0, 0)]
+                    for i in 1:30
+                        y0 = 10 * (i - 1)
+                        xn = 2 + (i % 4)
+                        push!(int_comb, point(20, y0), point(20, y0 + 4), point(xn, y0 + 5), point(xn, y0 + 9))
+                    end
+                    push!(int_comb, point(20, 300), point(0, 300))
+                    _verify_ear_cut_kd_tree_result(int_comb, alg_fn(int_comb; kernel = exact); kernel = exact)
                 end
-                for i in 0:999
-            ]
-            spiral = Point2F[]
-            for k in 0:512
-                r = 1.0 + 0.5 * k / 32
-                push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
-            end
-            for k in 512:-1:0
-                r = 0.7 + 0.5 * k / 32
-                push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
-            end
-            coast = [
-                let th = 2pi * i / 2000
-                    r = 10.0 + 2.0 * sin(13 * th) + 1.1 * cos(31 * th) + 0.6 * sin(73 * th)
-                    point(r * cos(th), r * sin(th))
+
+                for s in (1e-12, 1e12)
+                    comb_s = [point(Float64(p.x) * s, Float64(p.y) * s) for p in exact_comb]
+                    _verify_ear_cut_kd_tree_result(comb_s, alg_fn(comb_s))
                 end
-                for i in 0:1999
-            ]
-            _verify_ear_cut_kd_tree_result(star, triangulate_polygon(star; algorithm = :ear_cut_kd_tree))
-            _verify_ear_cut_kd_tree_result(spiral, triangulate_polygon(spiral; algorithm = :ear_cut_kd_tree))
-            _verify_ear_cut_kd_tree_result(coast, triangulate_polygon(coast; algorithm = :ear_cut_kd_tree))
+            end
+
+            @testset "Subquadratic practical performance vs ear_cut" begin
+                poly_conv = Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
+                kc = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+                res_conv = triangulate_polygon(poly_conv; kernel = kc, algorithm = alg_sym)
+                @test length(res_conv.triangles) == length(poly_conv) - 2
+                @test kc.orients / length(poly_conv) < 5.0
+
+                poly_lowr = Point2F[
+                    point((i == 1000 || i == 3000 ? 0.995 : 1.0) * cos(2pi * i / 4000),
+                          (i == 1000 || i == 3000 ? 0.995 : 1.0) * sin(2pi * i / 4000))
+                    for i in 0:3999
+                ]
+                klr = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+                res_lr = triangulate_polygon(poly_lowr; kernel = klr, algorithm = alg_sym)
+                @test length(res_lr.triangles) == 3998
+                @test klr.orients / length(poly_lowr) < 20.0
+
+                function _hcomb_kd(m_prongs::Int)
+                    pts = Point2F[point(0.0, 0.0)]
+                    for i in 1:m_prongs
+                        yb = 2.0 * (i - 1)
+                        xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
+                        push!(pts, point(10.0, yb), point(10.0, yb + 1.0), point(xn, yb + 1.2), point(xn, yb + 1.8))
+                    end
+                    push!(pts, point(10.0, 2.0 * m_prongs), point(0.0, 2.0 * m_prongs))
+                    return pts
+                end
+                comb_1k = _hcomb_kd(300)
+                comb_5k = _hcomb_kd(1200)
+                kec1 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+                kec5 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+                kcl1 = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
+
+                r_ec1 = triangulate_polygon(comb_1k; kernel = kec1, algorithm = alg_sym)
+                r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = alg_sym)
+                triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
+
+                _verify_ear_cut_kd_tree_result(comb_1k, r_ec1)
+                @test length(r_ec5.triangles) == length(comb_5k) - 2
+                @test isapprox(
+                    twice_area(comb_5k),
+                    sum(twice_area([comb_5k[a], comb_5k[b], comb_5k[c]]) for (a, b, c) in r_ec5.triangles);
+                    rtol = 1e-8,
+                )
+                @test kec1.orients / length(comb_1k) < 35.0
+                @test kec5.orients / length(comb_5k) < 35.0
+                @test (kec5.orients / length(comb_5k)) - (kec1.orients / length(comb_1k)) < 8.0
+                @test kec1.orients * 20 < kcl1.orients
+
+                rng_s = Xoshiro(77)
+                star = [
+                    let r = iseven(i) ? 10.0 : 1.5 + 1.5 * rand(rng_s)
+                        point(r * cos(2pi * i / 1000), r * sin(2pi * i / 1000))
+                    end
+                    for i in 0:999
+                ]
+                spiral = Point2F[]
+                for k in 0:512
+                    r = 1.0 + 0.5 * k / 32
+                    push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
+                end
+                for k in 512:-1:0
+                    r = 0.7 + 0.5 * k / 32
+                    push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
+                end
+                coast = [
+                    let th = 2pi * i / 2000
+                        r = 10.0 + 2.0 * sin(13 * th) + 1.1 * cos(31 * th) + 0.6 * sin(73 * th)
+                        point(r * cos(th), r * sin(th))
+                    end
+                    for i in 0:1999
+                ]
+                _verify_ear_cut_kd_tree_result(star, triangulate_polygon(star; algorithm = alg_sym))
+                _verify_ear_cut_kd_tree_result(spiral, triangulate_polygon(spiral; algorithm = alg_sym))
+                _verify_ear_cut_kd_tree_result(coast, triangulate_polygon(coast; algorithm = alg_sym))
+            end
         end
     end
 end
