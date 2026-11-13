@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Ear clipping (`:ear_cut` and the Z-order / Kd-tree variants) now throws `ArgumentError` when no ear remains instead of silently returning a partial triangulation (e.g. on numerically degenerate Float64 input; use `ExactKernel()` or `:sweep`).
+- Polygon validation (`_validate_ccw_polygon`) rejects duplicate vertices for `:ear_cut`, `:seidel`, and the indexed ear cutters, which previously crashed, returned zero-area triangles, or truncated output.
+- `triangulate_seidel`: trapezoid walks throw a clear `ArgumentError` on inconsistent floating-point predicates instead of `BoundsError` / internal errors or a possible infinite loop; triangles are emitted CCW from the chain structure instead of being silently re-oriented; its docstring is attached again.
+- `BBT.Tree_init(...; leaf_size > 1)`: `approx_nn`, `silly_nn`, and min/max original-index queries scan every point of multi-point leaves (they returned wrong nearest neighbors). `leaf_size < 1` now throws.
+- Flat Kd-trees (`Tree_init_flat`, `Tree_init_flat_u`): construction no longer hangs on ±Inf/NaN coordinates (non-finite input is rejected), original ids are validated (out-of-range ids wrote out of bounds), and huge integer coordinate spans no longer overflow.
+- `BBT.Node` / `BBT.Tree` have compact `show` methods; the new `parent` field made printing any node dump the entire tree.
+
+### Changed
+- `triangulate_polygon(...; algorithm = :ear_clipping)` is accepted again as an alias of `:ear_cut`.
+- Corrected complexity claims for `:ear_cut_z_order` (degrades toward quadratic on long thin ears and far outliers) and the Kd-tree ear cutters (subquadratic in practice, `O(n r)` worst case).
+
+## [0.5.15] - 2026-11-13
+
+### Added
+- Z-order ear clipping (`triangulate_ear_cut_z_order`, `:ear_cut_z_order`) with a Morton index over active reflex vertices.
+- Kd-tree ear clipping (`triangulate_ear_cut_kd_tree`, `:ear_cut_kd_tree`) over the new flat array-backed `BBT.FlatTree2D` (`BBT.Tree_init_flat`), and the unshrunk-cell variant (`triangulate_ear_cut_u_kd_tree`, `:ear_cut_u_kd_tree`, `BBT.FlatUTree2D`, `BBT.Tree_init_flat_u`).
+- `Kd_tree` alias for `BBT`; `parent` navigation for `BBT.Node` and flat-tree node ids; `leaf_size` and `compute_diam` keywords for `BBT.Tree_init`.
+- `algorithm` keyword for `minkowski_sum_decomposition`; exported `triangulate_ear_cut`.
+- Example `examples/polygon_triangulation.jl` comparing all triangulation algorithms.
+
+### Changed
+- **Breaking:** the default `triangulate_polygon` / `polygon_diagonals` / `minkowski_sum_decomposition` algorithm is now `:sweep` (previously ear clipping). Results use different diagonals, and inputs that are not strictly simple (e.g. a vertex touching another edge) are rejected with `ArgumentError`.
+- **Breaking:** `:ear_clipping` was renamed `:ear_cut` (the old name is accepted again since the next release).
+
 ## [0.5.14] - 2026-11-13
 
 ### Added
@@ -14,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported `triangulate_sweep` (`src/BasicCompGeometry.jl`, `test/runtests.jl`), documented it in `docs/src/algorithms.md` and `docs/src/reference/algorithms.md`, and added invariant, degeneracy, and `O(n log n)` scaling tests in `test/test_monotone_triangulation.jl`.
 
 ### Fixed
-- `_ear_clipping_triangulate` (`src/MonotoneTriangulation.jl`) now tracks reflex vertices in a doubly-linked list (`_EarClipState`) and candidates in an ear queue so it runs in `O(n (r + 1))` time (`O(n)` for `r == 0`) rather than `Θ(n^2)`.
+- Ear clipping (`src/MonotoneTriangulation.jl`, now `_ear_clip_run!`) tracks reflex vertices in a doubly-linked list (`_EarClipState`) and candidates in an ear queue so it runs in `O(n r)` time (`O(n)` for `r == 0`) rather than `Θ(n^2)`.
 - `convex_hull_3d` (`src/ConvexHull3D.jl`) now maintains reverse conflict adjacency `point_conflicts` incrementally instead of scanning all faces per point, matching its expected `O(n log n)` runtime.
 - `discrete_hull_columns` (`src/DiscreteHull.jl`) now uses linear-time `_lattice_hull_sorted` on unit-step columns to achieve its documented `O(r)` runtime without `O(r log r)` sorting.
 - Added complexity and scaling regression tests in `test/test_convex_hull_3d.jl` and `test/test_monotone_triangulation.jl`.

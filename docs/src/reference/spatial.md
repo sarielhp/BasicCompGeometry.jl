@@ -8,7 +8,7 @@ submodules.
 
 | Call | Purpose |
 |:-----|:--------|
-| `BBT.Tree_init(points)` | Create a tree over an `AbsPntSeq` and initially expand its root |
+| `BBT.Tree_init(points; leaf_size=1, compute_diam=true)` | Create a tree over an `AbsPntSeq` and initially expand its root; leaves hold up to `leaf_size` points, and `compute_diam=false` skips node diameters (leaving `node.diam == 0`, unsuitable for WSPD/diameter code) |
 | `BBT.Tree_init_flat(points; leaf_size=16)` | Build a compact flat array-backed 2D Kd-tree ([`BBT.FlatTree2D`](@ref)) of 64-byte [`BBT.FlatNode2D`](@ref) nodes |
 | `BBT.Tree_init_flat_u(points; leaf_size=16)` | Build an unshrunk-cell flat array-backed 2D Kd-tree ([`BBT.FlatUTree2D`](@ref)) of 96-byte [`BBT.FlatUNode2D`](@ref) nodes |
 | `BBT.Tree_fully_expand(tree)` | Refine the entire tree |

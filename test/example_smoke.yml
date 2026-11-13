@@ -116,4 +116,4 @@
   program: polygon_triangulation.jl
   purpose: Benchmark plane-sweep, Seidel, Z-order ear-cut, Kd-tree ear-cut, unshrunk Kd-tree ear-cut, and ear-clipping triangulation and draw a side-by-side decomposition figure.
   files: {polygon_triangulation.pdf: 1, polygon_triangulation.ipe: null}
-  stdout: ['Polygon Triangulation Benchmark', 'Verified: all triangulation algorithms match area and Euler counts']
+  stdout: ['Polygon Triangulation Benchmark', 'Verified: every algorithm passed the Euler-count, orientation, and area checks']

@@ -57,19 +57,22 @@ end
 
 norm_diag(a::Int, b::Int) = a < b ? (a, b) : (b, a)
 
+# Check Euler counts, triangle orientation and area conservation; unlike `@assert`, these
+# checks are never compiled away.
 function verify_triangulation(poly, res)
     n = length(poly)
-    @assert length(res.diagonals) == n - 3
-    @assert length(res.triangles) == n - 2
+    length(res.diagonals) == n - 3 || error("expected $(n - 3) diagonals, got $(length(res.diagonals))")
+    length(res.triangles) == n - 2 || error("expected $(n - 2) triangles, got $(length(res.triangles))")
     poly_area = twice_area(poly)
-    @assert poly_area > 0
+    poly_area > 0 || error("polygon is not counterclockwise")
     tri_area = 0.0
     for (i, j, k) in res.triangles
         a = twice_area([poly[i], poly[j], poly[k]])
-        @assert a > 0
+        a > 0 || error("triangle ($i, $j, $k) is not counterclockwise")
         tri_area += a
     end
-    @assert isapprox(tri_area, poly_area; rtol = 1e-8)
+    isapprox(tri_area, poly_area; rtol = 1e-8) || error("triangle areas do not sum to the polygon area")
+    return nothing
 end
 
 function run_benchmarks()
@@ -141,7 +144,7 @@ function run_benchmarks()
             "pass",
         )
     end
-    println("Verified: all triangulation algorithms match area and Euler counts")
+    println("Verified: every algorithm passed the Euler-count, orientation, and area checks")
 end
 
 function draw_panel!(fig, poly, part_diags, all_diags, theme, shift_x::Float64, caption_tex::String)
