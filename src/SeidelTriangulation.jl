@@ -41,6 +41,22 @@ struct _SeidelMap{K<:AbstractKernel,V}
     vertex_inserted::BitVector
 end
 
+@noinline function _seidel_inconsistent(what::AbstractString)
+    throw(
+        ArgumentError(
+            "Seidel triangulation: inconsistent predicate results ($what); the polygon is not simple, " *
+            "or is numerically degenerate for the kernel (try kernel = ExactKernel() or algorithm = :sweep)",
+        ),
+    )
+end
+
+# Advance a trapezoid walk to `nxt`, failing loudly on a missing neighbor or a runaway walk.
+@inline function _seidel_step(nxt::Int, steps::Int, limit::Int)::Int
+    nxt == 0 && _seidel_inconsistent("walk left the trapezoidal map")
+    steps > limit && _seidel_inconsistent("walk did not terminate")
+    return nxt
+end
+
 # Compare vertex indices where 0 = -∞ and -1 = +∞ under the symbolic shear
 # (x', y') = (x + εy, y) for infinitesimal ε > 0 (exact compare_xy order).
 @inline function _seidel_cmp_pt(kernel::AbstractKernel, pts, a::Int, b::Int)::Int
@@ -162,6 +178,7 @@ function _seidel_collect_hit!(m::_SeidelMap, hit::Vector{Int}, t0::Int, p::Int, 
     traps = m.traps
 
     cur = t0
+    limit = length(traps)
     while true
         t = traps[cur]
         rp = t.rightp
@@ -172,6 +189,7 @@ function _seidel_collect_hit!(m::_SeidelMap, hit::Vector{Int}, t0::Int, p::Int, 
         else
             cur = t.r0 != 0 ? t.r0 : t.r1
         end
+        cur = _seidel_step(cur, length(hit), limit)
         push!(hit, cur)
     end
     return hit
@@ -404,6 +422,8 @@ function _seidel_walk_uninserted(m::_SeidelMap, start_tr::Int, v::Int, nxt::Int)
     pts = m.pts
     traps = m.traps
     cur = start_tr
+    steps = 0
+    limit = length(traps)
 
     if compare_xy(kernel, pts[v], pts[nxt]) < 0
         while _seidel_cmp_pt(kernel, pts, nxt, traps[cur].rightp) > 0
@@ -413,6 +433,7 @@ function _seidel_walk_uninserted(m::_SeidelMap, start_tr::Int, v::Int, nxt::Int)
             else
                 cur = t.r0 != 0 ? t.r0 : t.r1
             end
+            cur = _seidel_step(cur, steps += 1, limit)
         end
     else
         while _seidel_cmp_pt(kernel, pts, nxt, traps[cur].leftp) < 0
@@ -422,6 +443,7 @@ function _seidel_walk_uninserted(m::_SeidelMap, start_tr::Int, v::Int, nxt::Int)
             else
                 cur = t.l0 != 0 ? t.l0 : t.l1
             end
+            cur = _seidel_step(cur, steps += 1, limit)
         end
     end
     return cur
@@ -445,20 +467,24 @@ function _seidel_find_edge_trap_at_vertex(m::_SeidelMap, tr::Int, v::Int, e::Int
             (t2.bot == e || t2.top == e) && return nb2
         end
     end
-    error("internal error: no trapezoid adjacent to inserted edge $e at vertex $v")
+    _seidel_inconsistent("no trapezoid adjacent to inserted edge $e at vertex $v")
 end
 
 function _seidel_walk_inserted(m::_SeidelMap, tr::Int, v::Int, nxt::Int, e::Int)::Int
     traps = m.traps
     cur = _seidel_find_edge_trap_at_vertex(m, tr, v, e)
     on_bot = (traps[cur].bot == e)
+    steps = 0
+    limit = length(traps)
     if compare_xy(m.kernel, m.pts[v], m.pts[nxt]) < 0
         while traps[cur].rightp != nxt
             t = traps[cur]
             if on_bot
                 cur = (t.r0 != 0 && traps[t.r0].bot == e) ? t.r0 : t.r1
+                cur = _seidel_step(cur, steps += 1, limit)
             else
                 cur = (t.r0 != 0 && traps[t.r0].top == e) ? t.r0 : t.r1
+                cur = _seidel_step(cur, steps += 1, limit)
             end
         end
     else
@@ -466,8 +492,10 @@ function _seidel_walk_inserted(m::_SeidelMap, tr::Int, v::Int, nxt::Int, e::Int)
             t = traps[cur]
             if on_bot
                 cur = (t.l0 != 0 && traps[t.l0].bot == e) ? t.l0 : t.l1
+                cur = _seidel_step(cur, steps += 1, limit)
             else
                 cur = (t.l0 != 0 && traps[t.l0].top == e) ? t.l0 : t.l1
+                cur = _seidel_step(cur, steps += 1, limit)
             end
         end
     end
@@ -747,14 +775,10 @@ function _seidel_triangulate_monotone_piece!(
         end
     end
 
-    @inline function emit_tri!(a::Int, b::Int, c::Int)
-        oa, ob, oc = pc[a], pc[b], pc[c]
-        if orient_sign(kernel, pts[oa], pts[ob], pts[oc]) < 0
-            push!(all_triangles, (oa, oc, ob))
-        else
-            push!(all_triangles, (oa, ob, oc))
-        end
-    end
+    # The orientation of every emitted triangle follows from the chain structure (the lower
+    # chain runs left-to-right and the upper chain right-to-left in CCW order), so callers pass
+    # the vertices already in counterclockwise order and no predicate is re-evaluated here.
+    @inline emit_tri!(a::Int, b::Int, c::Int) = push!(all_triangles, (pc[a], pc[b], pc[c]))
 
     stack = Int[order[1], order[2]]
     for idx in 3:k-1
@@ -763,7 +787,7 @@ function _seidel_triangulate_monotone_piece!(
             while length(stack) >= 2
                 s_top = pop!(stack)
                 s_next = last(stack)
-                emit_tri!(v, s_top, s_next)
+                is_upper[v] ? emit_tri!(v, s_next, s_top) : emit_tri!(v, s_top, s_next)
                 emit_diag!(v, s_top)
             end
             pop!(stack)
@@ -774,7 +798,7 @@ function _seidel_triangulate_monotone_piece!(
                 a = last(stack)
                 turn = orient_sign(kernel, pts[pc[a]], pts[pc[q]], pts[pc[v]])
                 (is_upper[v] ? turn < 0 : turn > 0) || break
-                emit_tri!(a, q, v)
+                is_upper[v] ? emit_tri!(a, v, q) : emit_tri!(a, q, v)
                 emit_diag!(a, v)
                 q = pop!(stack)
             end
@@ -786,37 +810,10 @@ function _seidel_triangulate_monotone_piece!(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        emit_tri!(v_last, s_top, s_next)
+        is_upper[s_top] ? emit_tri!(v_last, s_top, s_next) : emit_tri!(v_last, s_next, s_top)
         emit_diag!(v_last, s_top)
     end
     return nothing
-end
-
-"""
-    triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng()) -> PolygonTriangulation
-
-Triangulate a simple counterclockwise polygon using Seidel's randomized incremental algorithm
-in expected `O(n log* n)` time.
-
-Builds the trapezoidal decomposition of the polygon edges incrementally in `O(log* n)`
-phases interleaved with `O(n)` polygon boundary tracing, decomposes the interior into
-monotone pieces via trapezoid diagonals in `O(n)` time, and triangulates each piece in
-linear time `O(k)`.
-
-# Preconditions
-- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
-"""
-function _validate_ccw_polygon(kernel::AbstractKernel, vertices)
-    n = length(vertices)
-    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
-
-    area2 = twice_area(vertices; kernel = kernel)
-    area2 > 0 || throw(
-        ArgumentError(
-            "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
-        ),
-    )
-    return n
 end
 
 function _triangulate_from_partition(
@@ -839,6 +836,20 @@ function _triangulate_from_partition(
     return PolygonTriangulation(all_diagonals, all_triangles)
 end
 
+"""
+    triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng()) -> PolygonTriangulation
+
+Triangulate a simple counterclockwise polygon using Seidel's randomized incremental algorithm
+in expected `O(n log* n)` time.
+
+Builds the trapezoidal decomposition of the polygon edges incrementally in `O(log* n)`
+phases interleaved with `O(n)` polygon boundary tracing, decomposes the interior into
+monotone pieces via trapezoid diagonals in `O(n)` time, and triangulates each piece in
+linear time `O(k)`.
+
+# Preconditions
+- `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+"""
 function triangulate_seidel(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),

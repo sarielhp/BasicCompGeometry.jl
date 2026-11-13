@@ -400,6 +400,46 @@ function _find_fallback_ear(st::_EarClipState, hint::Int)::Int
     end
 end
 
+# Validate a simple-polygon input: `n >= 3`, positive (counterclockwise) signed area and,
+# when `check_duplicates`, pairwise distinct vertices (O(n log n) sort). Returns `n`.
+function _validate_ccw_polygon(kernel::AbstractKernel, vertices; check_duplicates::Bool = true)
+    n = length(vertices)
+    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
+
+    area2 = twice_area(vertices; kernel = kernel)
+    area2 > 0 || throw(
+        ArgumentError(
+            "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
+        ),
+    )
+    check_duplicates && _check_distinct_vertices(kernel, vertices)
+    return n
+end
+
+# Duplicate detection compares raw coordinates (exact equality), independent of the kernel,
+# so it adds no predicate calls.
+function _check_distinct_vertices(kernel::AbstractKernel, vertices)
+    n = length(vertices)
+    order = sortperm([(vertices[i][1], vertices[i][2]) for i in 1:n]; alg = MergeSort)
+    for i in 1:n-1
+        a = vertices[order[i]]
+        b = vertices[order[i + 1]]
+        (a[1] == b[1] && a[2] == b[2]) && throw(
+            ArgumentError("polygon contains duplicate vertex $(order[i + 1]) (equal to vertex $(order[i]))"),
+        )
+    end
+    return nothing
+end
+
+@noinline function _throw_no_ear(active_count::Int)
+    throw(
+        ArgumentError(
+            "ear clipping found no ear with $active_count vertices remaining; the polygon is not " *
+            "simple, or is numerically degenerate for the kernel (try kernel = ExactKernel() or algorithm = :sweep)",
+        ),
+    )
+end
+
 function _ear_clip_run!(st::_EarClipState)
     n = length(st.poly)
     ear_queue = Int[]
@@ -425,7 +465,7 @@ function _ear_clip_run!(st::_EarClipState)
     while active_count > 3
         if q_pos > length(ear_queue)
             fb = _find_fallback_ear(st, active_hint)
-            fb == 0 && break
+            fb == 0 && _throw_no_ear(active_count)
             push!(ear_queue, fb)
             in_queue_ver[fb] = vert_ver[fb]
         end
@@ -518,11 +558,7 @@ function triangulate_ear_cut(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
 )
-    n = length(vertices)
-    n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
-
-    area2 = twice_area(vertices; kernel = kernel)
-    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
+    n = _validate_ccw_polygon(kernel, vertices)
 
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
@@ -553,7 +589,7 @@ Supported `algorithm` options:
 - `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
 - `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n log r)` typical, `O(n r)` worst case).
 - `:ear_cut_u_kd_tree`: Ear clipping indexing active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) spatial tree with uncapped upward cell-containment climbing (`O(n log r)` typical, `O(n r)` worst case).
-- `:ear_cut`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
+- `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
@@ -574,7 +610,7 @@ function triangulate_polygon(
         return triangulate_ear_cut_kd_tree(vertices; kernel = kernel)
     elseif algorithm == :ear_cut_u_kd_tree
         return triangulate_ear_cut_u_kd_tree(vertices; kernel = kernel)
-    elseif algorithm == :ear_cut
+    elseif algorithm == :ear_cut || algorithm == :ear_clipping
         return triangulate_ear_cut(vertices; kernel = kernel)
     else
         throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)"))

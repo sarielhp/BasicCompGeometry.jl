@@ -119,10 +119,8 @@ end
 )::Bool
     q_new = next_v[e_new]
     q_old = next_v[e_old]
-    if e_old == v
-        return orient_sign(kernel, pts[v], pts[q_old], pts[q_new]) > 0
-    end
-    o = orient_sign(kernel, pts[e_old], pts[q_old], pts[v])
+    # `e_old != v` always holds: `_avl_insert!` rejects an edge that is already in the tree.
+    o =orient_sign(kernel, pts[e_old], pts[q_old], pts[v])
     o != 0 && return o > 0
     return orient_sign(kernel, pts[e_old], pts[q_old], pts[q_new]) > 0
 end
@@ -357,7 +355,7 @@ function triangulate_sweep(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
 )
-    n = _validate_ccw_polygon(kernel, vertices)
+    n = _validate_ccw_polygon(kernel, vertices; check_duplicates = false)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
     end
