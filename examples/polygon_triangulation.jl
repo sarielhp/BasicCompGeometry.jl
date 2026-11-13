@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
-# Compare O(n log n) plane-sweep, expected O(n log* n) Seidel, and O(n r) ear-clipping
-# polygon triangulation, and draw a side-by-side partition + triangulation Ipe figure.
+# Compare O(n log n) plane-sweep, expected O(n log* n) Seidel, :ear_cut_z_order, and O(n r)
+# ear-clipping polygon triangulation, and draw a side-by-side partition + triangulation Ipe figure.
 include(joinpath(@__DIR__, "support/runtime.jl"))
 
 using QuickEnv
@@ -74,16 +74,25 @@ end
 
 function run_benchmarks()
     prongs_list = example_size([50, 200, 600, 1200], [8, 20, 40])
-    # Warm up all three algorithms before timing
-    warm = make_comb_polygon(6)
-    for alg in (:sweep, :seidel, :ear_clipping)
+    # Warm up all four algorithms (with > 16 reflex vertices to exercise the Z-order index)
+    warm = make_comb_polygon(12)
+    for alg in (:sweep, :seidel, :ear_cut_z_order, :ear_clipping)
         triangulate_polygon(warm; algorithm = alg, rng = MersenneTwister(1))
     end
 
-    println("Polygon Triangulation Benchmark (:sweep, :seidel, :ear_clipping)")
+    println("Polygon Triangulation Benchmark (:sweep, :seidel, :ear_cut_z_order, :ear_clipping)")
     println("  Monotone?: false for all test combs (2m reflex vertices)")
-    @printf("%-8s | %-11s | %-11s | %-11s | %-10s\n", "n", ":sweep (ms)", ":seidel (ms)", ":ear (ms)", "Area OK")
-    println("-"^62)
+    @printf(
+        "%-8s | %-11s | %-11s | %-21s | %-11s | %-8s | %-7s\n",
+        "n",
+        ":sweep (ms)",
+        ":seidel (ms)",
+        ":ear_cut_z_order (ms)",
+        ":ear (ms)",
+        "ear/zord",
+        "Area OK",
+    )
+    println("-"^95)
 
     for m in prongs_list
         poly = make_comb_polygon(m)
@@ -92,18 +101,23 @@ function run_benchmarks()
 
         t_sweep = @elapsed res_sweep = triangulate_polygon(poly)
         t_seidel = @elapsed res_seidel = triangulate_polygon(poly; algorithm = :seidel, rng = MersenneTwister(42))
+        t_zorder = @elapsed res_zorder = triangulate_polygon(poly; algorithm = :ear_cut_z_order)
         t_ear = @elapsed res_ear = triangulate_polygon(poly; algorithm = :ear_clipping)
 
         verify_triangulation(poly, res_sweep)
         verify_triangulation(poly, res_seidel)
+        verify_triangulation(poly, res_zorder)
         verify_triangulation(poly, res_ear)
 
+        speedup = t_ear / max(t_zorder, 1e-9)
         @printf(
-            "%-8d | %11.3f | %11.3f | %11.3f | %-10s\n",
+            "%-8d | %11.3f | %11.3f | %21.3f | %11.3f | %7.2fx | %-7s\n",
             n,
             1e3 * t_sweep,
             1e3 * t_seidel,
+            1e3 * t_zorder,
             1e3 * t_ear,
+            speedup,
             "pass",
         )
     end

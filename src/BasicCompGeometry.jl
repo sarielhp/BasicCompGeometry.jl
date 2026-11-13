@@ -164,6 +164,7 @@ include("Arrangements.jl")
 include("MonotoneTriangulation.jl")
 include("SeidelTriangulation.jl")
 include("SweepTriangulation.jl")
+include("EarCutZOrderTriangulation.jl")
 include("VisibilityPolygon.jl")
 include("MinkowskiSum.jl")
 include("RMQ.jl")
@@ -231,6 +232,7 @@ export PolygonTriangulation,
     MonotoneTriangulation,
     triangulate_polygon,
     triangulate_monotone,
+    triangulate_ear_cut_z_order,
     triangulate_seidel,
     triangulate_sweep,
     is_x_monotone,

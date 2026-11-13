@@ -280,71 +280,228 @@ end
            orient_sign(kernel, c, a, p) >= 0
 end
 
-mutable struct _EarClipState{K<:AbstractKernel,P}
-    kernel::K
-    poly::P
-    prev_v::Vector{Int}
-    next_v::Vector{Int}
-    is_active::BitVector
+abstract type _AbstractReflexIndex end
+
+mutable struct _PlainReflexIndex <: _AbstractReflexIndex
     is_reflex::BitVector
     r_prev::Vector{Int}
     r_next::Vector{Int}
     r_head::Int
 end
 
-@inline function _add_reflex!(st::_EarClipState, i::Int)
-    st.is_reflex[i] && return nothing
-    st.is_reflex[i] = true
-    st.r_prev[i] = 0
-    st.r_next[i] = st.r_head
-    st.r_head != 0 && (st.r_prev[st.r_head] = i)
-    st.r_head = i
+function _build_plain_reflex_index(is_reflex::BitVector)
+    n = length(is_reflex)
+    r_prev = zeros(Int, n)
+    r_next = zeros(Int, n)
+    r_head = 0
+    @inbounds for i in n:-1:1
+        if is_reflex[i]
+            r_next[i] = r_head
+            r_head != 0 && (r_prev[r_head] = i)
+            r_head = i
+        end
+    end
+    return _PlainReflexIndex(is_reflex, r_prev, r_next, r_head)
+end
+
+@inline _is_reflex_vertex(idx::_AbstractReflexIndex, i::Int)::Bool = idx.is_reflex[i]
+
+@inline function _add_reflex!(idx::_PlainReflexIndex, i::Int)
+    idx.is_reflex[i] && return nothing
+    idx.is_reflex[i] = true
+    idx.r_prev[i] = 0
+    idx.r_next[i] = idx.r_head
+    idx.r_head != 0 && (idx.r_prev[idx.r_head] = i)
+    idx.r_head = i
     return nothing
 end
 
-@inline function _remove_reflex!(st::_EarClipState, i::Int)
-    st.is_reflex[i] || return nothing
-    st.is_reflex[i] = false
-    rp = st.r_prev[i]
-    rn = st.r_next[i]
+@inline function _remove_reflex!(idx::_PlainReflexIndex, i::Int)
+    idx.is_reflex[i] || return nothing
+    idx.is_reflex[i] = false
+    rp = idx.r_prev[i]
+    rn = idx.r_next[i]
     if rp != 0
-        st.r_next[rp] = rn
+        idx.r_next[rp] = rn
     else
-        st.r_head = rn
+        idx.r_head = rn
     end
-    rn != 0 && (st.r_prev[rn] = rp)
-    st.r_prev[i] = 0
-    st.r_next[i] = 0
+    rn != 0 && (idx.r_prev[rn] = rp)
+    idx.r_prev[i] = 0
+    idx.r_next[i] = 0
     return nothing
+end
+
+function _ear_blocked(
+    idx::_PlainReflexIndex,
+    poly,
+    kernel::AbstractKernel,
+    pr::Int,
+    ear::Int,
+    nx::Int,
+    a::Point,
+    b::Point,
+    c::Point,
+)::Bool
+    curr = idx.r_head
+    while curr != 0
+        if curr != pr && curr != ear && curr != nx
+            _point_in_ccw_triangle(kernel, poly[curr], a, b, c) && return true
+        end
+        curr = idx.r_next[curr]
+    end
+    return false
+end
+
+mutable struct _EarClipState{K<:AbstractKernel,P,R<:_AbstractReflexIndex}
+    kernel::K
+    poly::P
+    prev_v::Vector{Int}
+    next_v::Vector{Int}
+    is_active::BitVector
+    rindex::R
+end
+
+@inline function _init_ear_clip_ring(n::Int)
+    prev_v = Vector{Int}(undef, n)
+    next_v = Vector{Int}(undef, n)
+    @inbounds for i in 1:n
+        prev_v[i] = i == 1 ? n : i - 1
+        next_v[i] = i == n ? 1 : i + 1
+    end
+    return prev_v, next_v, trues(n)
 end
 
 @inline function _update_reflex!(st::_EarClipState, i::Int)
     if orient_sign(st.kernel, st.poly[st.prev_v[i]], st.poly[i], st.poly[st.next_v[i]]) <= 0
-        _add_reflex!(st, i)
+        _add_reflex!(st.rindex, i)
     else
-        _remove_reflex!(st, i)
+        _remove_reflex!(st.rindex, i)
     end
     return nothing
 end
 
-function _is_ear_vertex(st::_EarClipState, i::Int)
+@inline function _is_ear_vertex(st::_EarClipState, i::Int)::Bool
+    _is_reflex_vertex(st.rindex, i) && return false
     pr = st.prev_v[i]
     nx = st.next_v[i]
-    orient_sign(st.kernel, st.poly[pr], st.poly[i], st.poly[nx]) > 0 || return false
-
     poly = st.poly
-    kernel = st.kernel
-    a = poly[pr]
-    b = poly[i]
-    c = poly[nx]
-    curr = st.r_head
-    while curr != 0
-        if curr != pr && curr != i && curr != nx
-            _point_in_ccw_triangle(kernel, poly[curr], a, b, c) && return false
-        end
-        curr = st.r_next[curr]
+    return !_ear_blocked(st.rindex, poly, st.kernel, pr, i, nx, poly[pr], poly[i], poly[nx])
+end
+
+function _find_fallback_ear(st::_EarClipState, hint::Int)::Int
+    start_v = st.is_active[hint] ? hint : findfirst(st.is_active)
+    start_v === nothing && return 0
+    curr = start_v
+    while true
+        _is_ear_vertex(st, curr) && return curr
+        curr = st.next_v[curr]
+        curr == start_v && return 0
     end
-    return true
+end
+
+function _ear_clip_run!(st::_EarClipState)
+    n = length(st.poly)
+    ear_queue = Int[]
+    sizehint!(ear_queue, 3n)
+    vert_ver = ones(Int, n)
+    in_queue_ver = zeros(Int, n)
+    for i in 1:n
+        if _is_ear_vertex(st, i)
+            push!(ear_queue, i)
+            in_queue_ver[i] = 1
+        end
+    end
+
+    diagonals = Tuple{Int,Int}[]
+    sizehint!(diagonals, n - 3)
+    triangles = NTuple{3,Int}[]
+    sizehint!(triangles, n - 2)
+
+    active_count = n
+    active_hint = 1
+    q_pos = 1
+
+    while active_count > 3
+        if q_pos > length(ear_queue)
+            fb = _find_fallback_ear(st, active_hint)
+            fb == 0 && break
+            push!(ear_queue, fb)
+            in_queue_ver[fb] = vert_ver[fb]
+        end
+
+        ear = ear_queue[q_pos]
+        q_pos += 1
+        qv = in_queue_ver[ear]
+        if qv == 0 || !st.is_active[ear]
+            in_queue_ver[ear] = 0
+            continue
+        end
+        if qv != vert_ver[ear] && !_is_ear_vertex(st, ear)
+            in_queue_ver[ear] = 0
+            continue
+        end
+        in_queue_ver[ear] = 0
+
+        pr = st.prev_v[ear]
+        nx = st.next_v[ear]
+
+        push!(triangles, (pr, ear, nx))
+        d = abs(pr - nx)
+        if d != 1 && d != n - 1
+            push!(diagonals, pr < nx ? (pr, nx) : (nx, pr))
+        end
+
+        _remove_reflex!(st.rindex, ear)
+        st.next_v[pr] = nx
+        st.prev_v[nx] = pr
+        st.is_active[ear] = false
+        active_count -= 1
+        active_hint = nx
+
+        vert_ver[pr] += 1
+        vert_ver[nx] += 1
+        _update_reflex!(st, pr)
+        _update_reflex!(st, nx)
+
+        for nb in (pr, nx)
+            if _is_ear_vertex(st, nb)
+                if in_queue_ver[nb] == 0
+                    push!(ear_queue, nb)
+                end
+                in_queue_ver[nb] = vert_ver[nb]
+            else
+                in_queue_ver[nb] = 0
+            end
+        end
+    end
+
+    if active_count == 3
+        v1 = st.is_active[active_hint] ? active_hint : findfirst(st.is_active)
+        if v1 !== nothing
+            v2 = st.next_v[v1]
+            v3 = st.next_v[v2]
+            push!(triangles, (v1, v2, v3))
+        end
+    end
+
+    return PolygonTriangulation(diagonals, triangles)
+end
+
+function _ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = FloatingKernel())
+    if n == 3
+        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
+    end
+
+    prev_v, next_v, is_active = _init_ear_clip_ring(n)
+    is_reflex = falses(n)
+    @inbounds for i in 1:n
+        if orient_sign(kernel, poly[prev_v[i]], poly[i], poly[next_v[i]]) <= 0
+            is_reflex[i] = true
+        end
+    end
+    st = _EarClipState(kernel, poly, prev_v, next_v, is_active, _build_plain_reflex_index(is_reflex))
+    return _ear_clip_run!(st)
 end
 
 function _ear_clipping_triangulate(
@@ -357,115 +514,7 @@ function _ear_clipping_triangulate(
     area2 = twice_area(poly; kernel = kernel)
     area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
 
-    if n == 3
-        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
-    end
-
-    st = _EarClipState(
-        kernel,
-        poly,
-        [mod1(i - 1, n) for i in 1:n],
-        [mod1(i + 1, n) for i in 1:n],
-        trues(n),
-        falses(n),
-        zeros(Int, n),
-        zeros(Int, n),
-        0,
-    )
-
-    for i in 1:n
-        _update_reflex!(st, i)
-    end
-
-    ear_queue = Int[]
-    sizehint!(ear_queue, 3n)
-    in_queue = falses(n)
-    for i in 1:n
-        if !st.is_reflex[i] && _is_ear_vertex(st, i)
-            push!(ear_queue, i)
-            in_queue[i] = true
-        end
-    end
-
-    diagonals = Tuple{Int,Int}[]
-    sizehint!(diagonals, n - 3)
-    triangles = NTuple{3,Int}[]
-    sizehint!(triangles, n - 2)
-
-    @inline function emit_diagonal!(u::Int, v::Int)
-        d = abs(u - v)
-        if d != 1 && d != n - 1
-            push!(diagonals, u < v ? (u, v) : (v, u))
-        end
-    end
-
-    active_count = n
-    q_pos = 1
-
-    while active_count > 3
-        if q_pos > length(ear_queue)
-            curr = findfirst(st.is_active)
-            curr === nothing && break
-            start_v = curr
-            found = false
-            while true
-                if _is_ear_vertex(st, curr)
-                    push!(ear_queue, curr)
-                    in_queue[curr] = true
-                    found = true
-                    break
-                end
-                curr = st.next_v[curr]
-                curr == start_v && break
-            end
-            found || break
-        end
-
-        ear = ear_queue[q_pos]
-        q_pos += 1
-        if !in_queue[ear] || !st.is_active[ear] || !_is_ear_vertex(st, ear)
-            in_queue[ear] = false
-            continue
-        end
-        in_queue[ear] = false
-
-        pr = st.prev_v[ear]
-        nx = st.next_v[ear]
-
-        push!(triangles, (pr, ear, nx))
-        emit_diagonal!(pr, nx)
-
-        _remove_reflex!(st, ear)
-        st.next_v[pr] = nx
-        st.prev_v[nx] = pr
-        st.is_active[ear] = false
-        active_count -= 1
-
-        _update_reflex!(st, pr)
-        _update_reflex!(st, nx)
-
-        for nb in (pr, nx)
-            if _is_ear_vertex(st, nb)
-                if !in_queue[nb]
-                    push!(ear_queue, nb)
-                    in_queue[nb] = true
-                end
-            else
-                in_queue[nb] = false
-            end
-        end
-    end
-
-    if active_count == 3
-        v1 = findfirst(st.is_active)
-        if v1 !== nothing
-            v2 = st.next_v[v1]
-            v3 = st.next_v[v2]
-            push!(triangles, (v1, v2, v3))
-        end
-    end
-
-    return PolygonTriangulation(diagonals, triangles)
+    return _ear_clipping_from_valid(poly, n; kernel = kernel)
 end
 
 """
@@ -479,6 +528,7 @@ Returns a `PolygonTriangulation` with:
 Supported `algorithm` options:
 - `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
+- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n log r)` typical, `O(n r)` worst case).
 - `:ear_clipping`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions
@@ -494,8 +544,10 @@ function triangulate_polygon(
         return triangulate_sweep(vertices; kernel = kernel)
     elseif algorithm == :seidel
         return triangulate_seidel(vertices; kernel = kernel, rng = rng)
+    elseif algorithm == :ear_cut_z_order
+        return triangulate_ear_cut_z_order(vertices; kernel = kernel)
     elseif algorithm != :ear_clipping
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_clipping)"))
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_clipping)"))
     end
 
     n = length(vertices)
@@ -515,7 +567,7 @@ function triangulate_polygon(
         res = triangulate_monotone(rotated; kernel = kernel)
         return PolygonTriangulation(res.diagonals, res.triangles)
     else
-        return _ear_clipping_triangulate(vertices; kernel = kernel)
+        return _ear_clipping_from_valid(vertices, n; kernel = kernel)
     end
 end
 

@@ -114,6 +114,6 @@
   stdout: ['Verified: identical to the naive hull']
 - name: polygon_triangulation
   program: polygon_triangulation.jl
-  purpose: Benchmark plane-sweep, Seidel, and ear-clipping triangulation and draw a side-by-side decomposition figure.
+  purpose: Benchmark plane-sweep, Seidel, Z-order ear-cut, and ear-clipping triangulation and draw a side-by-side decomposition figure.
   files: {polygon_triangulation.pdf: 1, polygon_triangulation.ipe: null}
   stdout: ['Polygon Triangulation Benchmark', 'Verified: all triangulation algorithms match area and Euler counts']

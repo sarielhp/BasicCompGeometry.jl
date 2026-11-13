@@ -72,9 +72,9 @@ using .CG, .CG.Extras
 
 ---
 
-## `polygon_triangulation.jl` — Plane-Sweep, Seidel, and Ear-Clipping Triangulation
+## `polygon_triangulation.jl` — Plane-Sweep, Seidel, Z-Order Ear Cut, and Ear-Clipping Triangulation
 
-Benchmarks and verifies all three polygon triangulation algorithms (`:sweep` in worst-case $O(n \log n)$ time, `:seidel` in expected $O(n \log^* n)$ time, and `:ear_clipping` in $O(n r)$ time) on non-monotone comb polygons with $\Theta(n)$ reflex notches, checking Euler triangle/diagonal counts, positive triangle orientations, and exact area conservation. Renders a side-by-side Ipe/PDF comparison on a 22-vertex non-monotone fjord polygon contrasting plane-sweep monotone-partition diagonals + stack completion against Seidel's randomized trapezoidal split + mountain triangulation.
+Benchmarks and verifies all four polygon triangulation options (`:sweep` in worst-case $O(n \log n)$ time, `:seidel` in expected $O(n \log^* n)$ time, `:ear_cut_z_order` using Morton Z-order indexing over active reflex vertices in typical $O(n \log r)$ time, and `:ear_clipping` in $O(n r)$ time) on non-monotone comb polygons with $\Theta(n)$ reflex notches, checking Euler triangle/diagonal counts, positive triangle orientations, and exact area conservation. Renders a side-by-side Ipe/PDF comparison on a 22-vertex non-monotone fjord polygon contrasting plane-sweep monotone-partition diagonals + stack completion against Seidel's randomized trapezoidal split + mountain triangulation.
 
 **Usage:**
 ```bash

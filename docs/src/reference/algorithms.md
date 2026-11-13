@@ -20,7 +20,7 @@ diameter routines use ordinary distance arithmetic.
 
 ```@autodocs
 Modules = [BasicCompGeometry]
-Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "SweepTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
+Pages = ["ConvexHull.jl", "Diameter.jl", "MonotoneTriangulation.jl", "SeidelTriangulation.jl", "SweepTriangulation.jl", "EarCutZOrderTriangulation.jl", "VisibilityPolygon.jl", "MinkowskiSum.jl"]
 Filter = obj -> obj in Main.documented_api
 ```
 
@@ -76,9 +76,10 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, or `:ear_clipping`) |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, `:ear_cut_z_order`, or `:ear_clipping`) |
 | `triangulate_sweep(vertices; kernel=FloatingKernel())` | Plane-sweep monotone partitioning and triangulation in worst-case `O(n log n)` time |
 | `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
+| `triangulate_ear_cut_z_order(vertices; kernel=FloatingKernel())` | Z-order ear clipping with a Morton spatial index over reflex vertices (`O(n log r)` typical, `O(n r)` worst case) |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
 | `is_x_monotone(vertices)` | Return `true` if polygon is strictly x-monotone |
 | `is_y_monotone(vertices)` | Return `true` if polygon is strictly y-monotone |
