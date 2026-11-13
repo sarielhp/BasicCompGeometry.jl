@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BBT.Node` / `BBT.Tree` have compact `show` methods; the new `parent` field made printing any node dump the entire tree.
 
 ### Changed
+- Ear clipping (`:ear_cut`, `:ear_cut_z_order`, `:ear_cut_kd_tree`, `:ear_cut_u_kd_tree`) uses a lazy re-testing ear queue: neighbors of a clipped ear are re-queued at the back and tested only when dequeued. Measured new/old time: u_kd and kd about 0.55-0.8x on star, coast and spiral inputs (neutral on altstar and combs), Z-order 0.13x on spirals. **The ear order changed, so `:ear_cut` and the indexed ear cutters return different diagonals than before** (they still agree with each other).
+- `:ear_cut_kd_tree` / `:ear_cut_u_kd_tree`: Float64 queries pre-scan each Kd-tree leaf with a branch-free loop and run the exact scan only on a possible hit (0.70x on random stars, 0.78x on coastlines; up to ~10% slower on inputs with sparse leaves).
 - `triangulate_seidel` is about 2.5x faster and allocates about 2.6x less memory (isbits `Int32` trapezoid/DAG records, flat piece storage, reused scratch buffers); output is unchanged for a given `rng`. Inputs above `typemax(Int32) ÷ 16` vertices now throw `ArgumentError` (use `:sweep`).
 - `triangulate_polygon(...; algorithm = :ear_clipping)` is accepted again as an alias of `:ear_cut`.
 - Corrected complexity claims for `:ear_cut_z_order` (degrades toward quadratic on long thin ears and far outliers) and the Kd-tree ear cutters (subquadratic in practice, `O(n r)` worst case).

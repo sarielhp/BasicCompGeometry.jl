@@ -69,7 +69,42 @@ comb performance thresholds); exact-arithmetic fuzz (`fuzz_exact.jl`, seeds 11, 
 all six algorithms. Pending at time of writing: full `Pkg.test()`, exact fuzz seeds 21/22, and
 the Float64 fuzz for `ear_cut`, `ear_cut_u_kd_tree`, `ear_cut_z_order`.
 
-## Next steps (on a quiet machine)
+## Re-measured on a quiet machine (2026-11-13): confirmed, kept
+
+Correctness: full `Pkg.test()` passes (156,337 tests); exact fuzz seeds 11, 12, 21, 22, 31
+(400 polygons each) clean for all six algorithms; Float64 fuzz (4,500 cases each) for
+`ear_cut`, `ear_cut_u_kd_tree`, `ear_cut_z_order`: 0 wrong results, 9 `ArgumentError`s each
+(previously 6 for `ear_cut`).
+
+New vs old queue (`ab.jl`, new/old time):
+
+| index | star | altstar | coast | spiral | comb |
+|---|---|---|---|---|---|
+| u_kd | 0.81 | 1.04 | 0.77 | 0.54 | 0.99 |
+| kd | 0.80 | 0.88 | 0.80 | 0.61 | 1.02 |
+| z-order | – | 0.83 | 0.72 | 0.13 | 0.91 |
+
+Leaf pre-scan (`ab2.jl`, with/without): star 0.70, altstar 1.12, coast 0.78, spiral 1.03.
+It costs ~10% on altstar, where a query touches only ~4 points per leaf.
+
+Comb: ~2.4 ear tests per vertex for all three ear cutters, no fallbacks.
+
+Absolute times (ms) vs `:sweep`:
+
+| input | 2^16 sweep | 2^16 u_kd | 2^18 sweep | 2^18 u_kd |
+|---|---|---|---|---|
+| star | 29.2 | 54.2 | 138 | 356 |
+| altstar | 16.9 | 8.0 | 70 | 41 |
+| coast | 21.9 | 24.8 | 104 | 135 |
+| spiral | 7.9 | 10.9 | 41 | 55 |
+
+u_kd beats sweep only on altstar; the star stays ~2.5x slower (line-like queries on radial
+slivers). Accepted as good enough. Follow-ups tried and dropped: a sliding window of recently
+visited nodes (high reuse but little work saved) and a diagonal-split algorithm
+(`plans/diagonal_split.md`). A u_kd → sweep hand-off on a work budget was discussed but not
+built. CHANGELOG entry added under [Unreleased].
+
+## Next steps (on a quiet machine) — done, see above
 
 1. Re-run correctness:
    - `julia --project=. -e 'using Pkg; Pkg.test()'`
