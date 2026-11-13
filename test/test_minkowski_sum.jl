@@ -177,13 +177,31 @@ using Random
         @test length(decomp_conv[1]) == 4
         @test twice_area(decomp_conv[1]) ≈ 8.0 # [0, 2] x [0, 2]
 
-        # ExactKernel support
+        # ExactKernel support and explicit triangulation algorithm selection
         exact = ExactKernel()
         l_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in l_shape]
         sq_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in sq]
-        decomp_ex = minkowski_sum_decomposition(l_ex, sq_ex; kernel = exact)
-        @test length(decomp_ex) == 4
-        @test eltype(eltype(decomp_ex[1])) <: Rational
+        for alg in (:sweep, :seidel, :ear_clipping)
+            decomp_alg = minkowski_sum_decomposition(l_shape, sq; algorithm = alg)
+            @test length(decomp_alg) == 4
+            @test all(p -> is_convex(p) && twice_area(p) > 0, decomp_alg)
+
+            decomp_ex = minkowski_sum_decomposition(l_ex, sq_ex; kernel = exact, algorithm = alg)
+            @test length(decomp_ex) == 4
+            @test eltype(eltype(decomp_ex[1])) <: Rational
+            @test all(p -> is_convex(p; kernel = exact) && twice_area(p) > 0, decomp_ex)
+        end
+
+        # Non-monotone polygon via PntSeq wrapper and default :sweep decomposition
+        u_poly = [
+            point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
+            point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
+        ]
+        decomp_u = minkowski_sum_decomposition(PntSeq(u_poly), sq)
+        @test length(decomp_u) == length(u_poly) - 2
+        @test all(is_convex, decomp_u)
+        hull_from_decomp = convex_hull(reduce(vcat, decomp_u))
+        @test twice_area(hull_from_decomp) ≈ twice_area(minkowski_sum(u_poly, sq; hull = true))
     end
 
     @testset "Randomized validation against convex_hull of pairwise sums" begin

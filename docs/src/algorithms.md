@@ -101,12 +101,12 @@ It returns a `PolygonTriangulation` (`MonotoneTriangulation` is a compatibility 
 `n - 3` internal diagonals and `n - 2` counterclockwise triangles.
 
 Supported algorithm options via keyword `algorithm`:
-- `:ear_clipping` (default): Fast ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices.
-- `:sweep`: Deterministic plane-sweep monotone partitioning and triangulation running in worst-case $O(n \log n)$ time, also available via `triangulate_sweep(vertices; kernel=FloatingKernel())`.
+- `:sweep` (default): Deterministic plane-sweep monotone partitioning and triangulation running in worst-case $O(n \log n)$ time, also available via `triangulate_sweep(vertices; kernel=FloatingKernel())`.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected $O(n \log^* n)$ time, also available via `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())`.
+- `:ear_clipping`: Fast ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices (using an $O(n)$ linear-time fast path when `is_x_monotone` or `is_y_monotone` holds).
 
-For strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`),
-triangulation executes in linear time `O(n)`.
+When calling `triangulate_polygon(...; algorithm = :ear_clipping)`, strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`)
+use a linear-time `O(n)` fast path; `triangulate_monotone` also runs directly in $O(n)$ time.
 
 ```@example algorithms
 # Non-monotone U-shaped polygon
@@ -206,7 +206,7 @@ For two convex polygons with $n$ and $m$ vertices, `minkowski_sum(poly1, poly2)`
 
 Convexity is verified by `is_convex(poly)`. For non-convex polygons:
 - `minkowski_sum(poly1, poly2; hull=true)` computes the convex hull $\mathrm{CH}(P \oplus Q) = \mathrm{CH}(P) \oplus \mathrm{CH}(Q)$ in $O(n \log n + m \log m)$ time.
-- `minkowski_sum_decomposition(poly1, poly2)` decomposes non-convex polygons into convex pieces (triangles) via triangulation, returning a vector of convex polygons whose union is $P \oplus Q$.
+- `minkowski_sum_decomposition(poly1, poly2; algorithm=:sweep)` decomposes non-convex polygons into convex pieces (triangles) via [`triangulate_polygon`](@ref) (defaulting to deterministic $O(n \log n)$ `:sweep` triangulation), returning a vector of convex polygons whose union is $P \oplus Q$.
 
 ```@example algorithms
 # Minkowski sum of a square and a triangle:

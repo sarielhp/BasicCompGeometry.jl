@@ -402,11 +402,18 @@ using BasicCompGeometry
             for i in 0:n-1
         ]
         res100 = triangulate_polygon(star100)
+        @test res100.diagonals == triangulate_sweep(star100).diagonals
         @test length(res100.diagonals) == n - 3
         @test length(res100.triangles) == n - 2
         poly_area100 = twice_area(star100)
         tri_sum100 = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100.triangles)
         @test isapprox(poly_area100, tri_sum100; rtol = 1e-10)
+
+        res100_ear = triangulate_polygon(star100; algorithm = :ear_clipping)
+        @test length(res100_ear.diagonals) == n - 3
+        @test length(res100_ear.triangles) == n - 2
+        tri_sum100_ear = sum(twice_area([star100[t[1]], star100[t[2]], star100[t[3]]]) for t in res100_ear.triangles)
+        @test isapprox(poly_area100, tri_sum100_ear; rtol = 1e-10)
 
         # Invalid algorithm argument throws ArgumentError
         @test_throws ArgumentError triangulate_polygon(star100; algorithm = :bogus)

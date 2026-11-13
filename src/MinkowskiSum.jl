@@ -330,11 +330,13 @@ minkowski_sum(poly1, poly2; kernel::AbstractKernel = FloatingKernel(), kwargs...
     minkowski_sum(collect(poly1), collect(poly2); kernel = kernel, kwargs...)
 
 """
-    minkowski_sum_decomposition(poly1, poly2; kernel=FloatingKernel())
+    minkowski_sum_decomposition(poly1, poly2; kernel=FloatingKernel(), algorithm=:sweep)
 
 Compute the Minkowski sum decomposition of two simple polygons into convex pieces.
 
-If either polygon is non-convex, it is triangulated into convex triangles using [`triangulate_polygon`](@ref).
+If either polygon is non-convex, it is triangulated into convex triangles using [`triangulate_polygon`](@ref)
+with the selected `algorithm` (`:sweep` by default for deterministic ``O(n \\log n + m \\log m)`` worst-case
+triangulation; also supports `:seidel` and `:ear_clipping`).
 The Minkowski sum of each pair of convex pieces is computed in linear time.
 Returns a `Vector{Vector{Point{2, R}}}` containing all convex pieces whose union is the Minkowski sum
 ``P \\oplus Q = \\bigcup_{i, j} (P_i \\oplus Q_j)``.
@@ -345,6 +347,7 @@ function minkowski_sum_decomposition(
     poly1::AbstractVector{<:Point{2}},
     poly2::AbstractVector{<:Point{2}};
     kernel::AbstractKernel = FloatingKernel(),
+    algorithm::Symbol = :sweep,
 )
     R = promote_type(_scalar_type(poly1), _scalar_type(poly2))
     if kernel isa ExactKernel && !(R <: Rational)
@@ -358,7 +361,7 @@ function minkowski_sum_decomposition(
     pieces1 = if length(p1) <= 3 || is_convex(p1; kernel = kernel)
         Vector{Point{2, R}}[p1]
     else
-        t1 = triangulate_polygon(p1; kernel = kernel)
+        t1 = triangulate_polygon(p1; kernel = kernel, algorithm = algorithm)
         Vector{Point{2, R}}[[p1[i], p1[j], p1[m]] for (i, j, m) in t1.triangles]
     end
 
@@ -366,7 +369,7 @@ function minkowski_sum_decomposition(
     pieces2 = if length(p2) <= 3 || is_convex(p2; kernel = kernel)
         Vector{Point{2, R}}[p2]
     else
-        t2 = triangulate_polygon(p2; kernel = kernel)
+        t2 = triangulate_polygon(p2; kernel = kernel, algorithm = algorithm)
         Vector{Point{2, R}}[[p2[i], p2[j], p2[m]] for (i, j, m) in t2.triangles]
     end
 
@@ -379,14 +382,14 @@ function minkowski_sum_decomposition(
     return results
 end
 
-minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel()) =
-    minkowski_sum_decomposition(Points(p1), Points(p2); kernel = kernel)
+minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
+    minkowski_sum_decomposition(Points(p1), Points(p2); kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2; kernel::AbstractKernel = FloatingKernel()) =
-    minkowski_sum_decomposition(Points(p1), p2; kernel = kernel)
+minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
+    minkowski_sum_decomposition(Points(p1), p2; kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(p1, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel()) =
-    minkowski_sum_decomposition(p1, Points(p2); kernel = kernel)
+minkowski_sum_decomposition(p1, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
+    minkowski_sum_decomposition(p1, Points(p2); kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(poly1, poly2; kernel::AbstractKernel = FloatingKernel()) =
-    minkowski_sum_decomposition(collect(poly1), collect(poly2); kernel = kernel)
+minkowski_sum_decomposition(poly1, poly2; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
+    minkowski_sum_decomposition(collect(poly1), collect(poly2); kernel = kernel, kwargs...)

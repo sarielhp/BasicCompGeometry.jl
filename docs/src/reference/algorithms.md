@@ -60,7 +60,7 @@ Filter = obj -> obj in Main.documented_api
 | Call | Result |
 |:-----|:-------|
 | `minkowski_sum(poly1, poly2; kernel=FloatingKernel(), hull=false)` | Compute the Minkowski sum $P \oplus Q$ in optimal $O(n + m)$ time for convex polygons, or its convex hull with `hull=true` |
-| `minkowski_sum_decomposition(poly1, poly2; kernel=FloatingKernel())` | Compute convex pieces whose union forms the Minkowski sum of simple polygons via triangulation |
+| `minkowski_sum_decomposition(poly1, poly2; kernel=FloatingKernel(), algorithm=:sweep)` | Compute convex pieces whose union forms the Minkowski sum of simple polygons via triangulation |
 | `is_convex(poly; kernel=FloatingKernel())` | Test whether polygon `poly` is convex |
 
 ## Visibility polygons and kernels
@@ -76,7 +76,7 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:ear_clipping`, `:sweep`, or `:seidel`) |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, or `:ear_clipping`) |
 | `triangulate_sweep(vertices; kernel=FloatingKernel())` | Plane-sweep monotone partitioning and triangulation in worst-case `O(n log n)` time |
 | `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
 | `triangulate_monotone(vertices; kernel=FloatingKernel())` | Linear-time triangulation returning `k-3` internal diagonals and `k-2` CCW triangles |
@@ -85,7 +85,7 @@ Filter = obj -> obj in Main.documented_api
 | `monotone_chains(vertices; kernel=FloatingKernel())` | Upper and lower chains strictly increasing in x |
 | `merge_chains(upper, lower)` | Linear-time merge of two chains sorted by x |
 | `stack_diagonals(vertices; kernel=FloatingKernel())` | List of `k-3` internal diagonals for x-monotone polygon |
-| `polygon_diagonals(vertices; kernel=FloatingKernel())` | List of `n-3` internal diagonals for any simple polygon |
+| `polygon_diagonals(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | List of `n-3` internal diagonals for any simple polygon |
 
 ## Range minima, chain indexes, and exact incidence predicates
 

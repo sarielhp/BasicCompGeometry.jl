@@ -469,7 +469,7 @@ function _ear_clipping_triangulate(
 end
 
 """
-    triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping, rng=Random.default_rng()) -> PolygonTriangulation
+    triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep, rng=Random.default_rng()) -> PolygonTriangulation
 
 Triangulate a simple counterclockwise polygon with `n >= 3` vertices.
 Returns a `PolygonTriangulation` with:
@@ -477,11 +477,9 @@ Returns a `PolygonTriangulation` with:
 - `result.triangles`: `n - 2` counterclockwise triangles as index triples `(i, j, m)`.
 
 Supported `algorithm` options:
-- `:ear_clipping` (default): Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time.
-- `:sweep`: Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
+- `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
-
-For x-monotone or y-monotone polygons, triangulates in linear time `O(n)`.
+- `:ear_clipping`: Fast ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
@@ -489,15 +487,15 @@ For x-monotone or y-monotone polygons, triangulates in linear time `O(n)`.
 function triangulate_polygon(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
-    algorithm::Symbol = :ear_clipping,
+    algorithm::Symbol = :sweep,
     rng::AbstractRNG = Random.default_rng(),
 )
-    if algorithm == :seidel
-        return triangulate_seidel(vertices; kernel = kernel, rng = rng)
-    elseif algorithm == :sweep
+    if algorithm == :sweep
         return triangulate_sweep(vertices; kernel = kernel)
+    elseif algorithm == :seidel
+        return triangulate_seidel(vertices; kernel = kernel, rng = rng)
     elseif algorithm != :ear_clipping
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :ear_clipping, :sweep, :seidel)"))
+        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_clipping)"))
     end
 
     n = length(vertices)
@@ -522,14 +520,14 @@ function triangulate_polygon(
 end
 
 """
-    polygon_diagonals(vertices; kernel=FloatingKernel(), algorithm=:ear_clipping, rng=Random.default_rng())
+    polygon_diagonals(vertices; kernel=FloatingKernel(), algorithm=:sweep, rng=Random.default_rng())
 
 Return the internal diagonals of a counterclockwise simple polygon as index pairs `(i, j)` with `i < j`.
 """
 @inline function polygon_diagonals(
     vertices;
     kernel::AbstractKernel = FloatingKernel(),
-    algorithm::Symbol = :ear_clipping,
+    algorithm::Symbol = :sweep,
     rng::AbstractRNG = Random.default_rng(),
 )
     return triangulate_polygon(vertices; kernel = kernel, algorithm = algorithm, rng = rng).diagonals
