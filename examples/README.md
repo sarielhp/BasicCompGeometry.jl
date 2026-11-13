@@ -72,6 +72,21 @@ using .CG, .CG.Extras
 
 ---
 
+## `polygon_triangulation.jl` — Plane-Sweep, Seidel, and Ear-Clipping Triangulation
+
+Benchmarks and verifies all three polygon triangulation algorithms (`:sweep` in worst-case $O(n \log n)$ time, `:seidel` in expected $O(n \log^* n)$ time, and `:ear_clipping` in $O(n r)$ time) on non-monotone comb polygons with $\Theta(n)$ reflex notches, checking Euler triangle/diagonal counts, positive triangle orientations, and exact area conservation. Renders a side-by-side Ipe/PDF comparison on a 22-vertex non-monotone fjord polygon contrasting plane-sweep monotone-partition diagonals + stack completion against Seidel's randomized trapezoidal split + mountain triangulation.
+
+**Usage:**
+```bash
+julia --project=examples examples/polygon_triangulation.jl
+# or open in Ipe after generating:
+julia --project=examples examples/polygon_triangulation.jl --preview
+```
+
+**Output:** `output/polygon_triangulation.ipe`, `output/polygon_triangulation.pdf`
+
+---
+
 ## `convex_hull_figure.jl` — AI-Generated Standalone Convex Hull & Diameter Figure
 
 Demonstrates a standalone figure script using `QuickEnv`, `BasicCompGeometry`, and `IpeDraw`.
