@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.13] - 2026-11-13
+
+### Changed
+- Replaced the previous `O(n^3)` placeholder in `triangulate_seidel` with Raimund Seidel's (1991) expected `O(n log* n)` randomized incremental polygon triangulation algorithm (`src/SeidelTriangulation.jl`), using symbolic shear `(x + εy, y)` via `AbstractKernel` predicates (`compare_xy` / `orient_sign`), `O(log* n)` phases interleaved with `O(n)` polygon boundary tracing, linear-time monotone piece extraction, and linear-time monotone piece triangulation.
+- Updated `triangulate_seidel` tests (`test/test_monotone_triangulation.jl`) to check trapezoidal-map and DAG invariants, degenerate inputs (vertical/horizontal edges and collinear vertices), `log* n` phase bounds, and linear predicate-count scaling.
+
 ## [0.5.12] - 2026-11-01
 
 ### Added
