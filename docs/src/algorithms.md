@@ -110,6 +110,14 @@ Supported algorithm options via keyword `algorithm`:
 - `:ear_cut_u_kd_tree`: Unshrunk-cell Kd-tree ear clipping using a flat array-backed 2D `Kd_tree` (`BBT.FlatUTree2D`) spatial index over active reflex vertices with uncapped cell-containment parent climbing (worst case $O(n r)$, subquadratic in practice (about $n^{1.2}$ on random star polygons)), also available via `triangulate_ear_cut_u_kd_tree(vertices; kernel=FloatingKernel())`.
 - `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping with reflex-vertex acceleration running in $O(n r)$ time where $r$ is the count of reflex vertices (using an $O(n)$ linear-time fast path when `is_x_monotone` or `is_y_monotone` holds), also available via `triangulate_ear_cut(vertices; kernel=FloatingKernel())`.
 
+Every returned triangle has non-negative orientation under the given kernel, and with
+`ExactKernel()` the triangles tile the polygon exactly; input that cannot be triangulated
+that way (zero area, crossing edges, or a polygon numerically degenerate for the kernel)
+raises an `ArgumentError` instead of returning clockwise or overlapping triangles. Weakly
+simple polygons (a vertex touching another edge) are triangulated by the four ear-cutting
+algorithms; `:sweep` and `:seidel` may reject some of them with an `ArgumentError`. For
+numerically delicate input, use `kernel = ExactKernel()`.
+
 When calling `triangulate_polygon(...; algorithm = :ear_cut)`, strictly $x$-monotone or $y$-monotone polygons (checked via `is_x_monotone` and `is_y_monotone`)
 use a linear-time `O(n)` fast path; `triangulate_monotone` also runs directly in $O(n)$ time.
 
@@ -151,7 +159,11 @@ chains in `O(k)` time. See [the algorithm reference](reference/algorithms.md).
 
 ## Visibility polygons
 
-`visibility_polygon` computes the star-shaped visibility polygon ``\mathrm{Vis}(q, P)`` consisting of all points inside a counterclockwise simple polygon ``P`` visible from a vantage point ``q \in P``.
+`visibility_polygon` computes the star-shaped visibility polygon ``\mathrm{Vis}(q, P)`` consisting of all points inside a counterclockwise simple polygon ``P`` visible from a vantage point ``q \in P``. Under floating-point kernels a vantage point within
+`1e-10` times the polygon's bounding-box extent of a vertex (or else an edge) is treated as
+lying on it, and the visibility polygon of that boundary point is returned; near a reflex
+vertex that can differ substantially from the exact answer for the unsnapped point. Use
+`ExactKernel()` when the exact vantage point matters.
 
 ```@example algorithms
 p_u = [

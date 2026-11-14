@@ -71,6 +71,16 @@ function _block_masks(keys::V, less::F, block_size::Int) where {V,F}
     return masks, minima
 end
 
+@inline function _build_rmq(keys::V, less::F, ::Val{:blocked}) where {V,F}
+    block_size = max(1, _floor_log2(max(1, length(keys))))
+    masks, minima = _block_masks(keys, less, block_size)
+    return BlockRMQ(keys, less, block_size, masks, _sparse_levels(keys, less, minima))
+end
+
+@inline function _build_rmq(keys::V, less::F, ::Val{:sparse}) where {V,F}
+    return SparseRMQ(keys, less, _sparse_levels(keys, less, collect(eachindex(keys))))
+end
+
 """
     build_rmq(keys; less=isless, backend=:blocked)
 
@@ -89,16 +99,6 @@ The keys are borrowed, not copied: the caller must keep them (and the order
 `less`) unchanged for the lifetime of the index. The index is never mutated by
 queries.
 """
-@inline function _build_rmq(keys::V, less::F, ::Val{:blocked}) where {V,F}
-    block_size = max(1, _floor_log2(max(1, length(keys))))
-    masks, minima = _block_masks(keys, less, block_size)
-    return BlockRMQ(keys, less, block_size, masks, _sparse_levels(keys, less, minima))
-end
-
-@inline function _build_rmq(keys::V, less::F, ::Val{:sparse}) where {V,F}
-    return SparseRMQ(keys, less, _sparse_levels(keys, less, collect(eachindex(keys))))
-end
-
 Base.@constprop :aggressive function build_rmq(
     keys::V;
     less::F = isless,

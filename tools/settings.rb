@@ -20,12 +20,17 @@ module ToolSettings
   # - property/reference tests on seeded random inputs (test/properties);
   # - allocation baselines of the hot entry points (test/alloc);
   # - JET runtime-dispatch check, in its own environment (test/jet) so
-  #   Pkg.test, CI and package users never install JET.
+  #   Pkg.test, CI and package users never install JET;
+  # - the Documenter build (docs/).
   FULL_CHECKS = [
     ['julia', '--project=.', '--startup-file=no', '-e', 'using Test; include("test/properties/properties.jl")'],
     ['julia', '--project=.', '--startup-file=no', 'test/alloc/alloc_check.jl'],
     ['julia', '--project=test/jet', '--startup-file=no', '-e', 'using Pkg; Pkg.instantiate()'],
-    ['julia', '--project=test/jet', '--startup-file=no', 'test/jet/jet_opt.jl']
+    ['julia', '--project=test/jet', '--startup-file=no', 'test/jet/jet_opt.jl'],
+    # Documenter build: catches broken @ref links, failing @example blocks, and
+    # docstrings detached from their function.
+    ['julia', '--project=docs', '--startup-file=no', '-e', 'using Pkg; Pkg.instantiate()'],
+    ['julia', '--project=docs', '--startup-file=no', 'docs/make.jl']
   ].freeze
   VERIFICATION_INPUTS = ['test/Project.toml', 'docs/Project.toml', 'test/jet/Project.toml'].freeze
 end

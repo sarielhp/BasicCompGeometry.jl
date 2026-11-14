@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `build_rmq` has its docstring again (`?build_rmq`); since 0.5.17 it was attached to an internal helper.
+
 ## [0.5.18] - 2026-11-14
 
 ### Fixed
