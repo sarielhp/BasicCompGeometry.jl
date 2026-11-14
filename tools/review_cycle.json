@@ -1,6 +1,6 @@
 {
   "target": "src ext",
-  "gate_cmd": "tools/gate",
+  "gate_cmd": "tools/gate --full",
   "build_cmd": "tools/build",
   "gate_includes_build": false,
   "guidelines": "Follow AGENTS.md and ~/prog/standards/julia/GUIDELINES.md. Preserve performance of hot loops (triangulation, Kd-trees, hulls); do not trade speed for style. Keep public APIs and exported names unchanged; record user-visible changes in CHANGELOG.md under [Unreleased].",

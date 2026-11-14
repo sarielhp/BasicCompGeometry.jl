@@ -17,3 +17,4 @@ reviews/logs/
 .bws/config.jsonc.bak
 .bws/tmp/
 .review-cycle/
+test/jet/Manifest.toml

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 # Usage: tools/release [--minor | --major] [--dry-run]
-# Release from a clean, pushed main: run the tests, then bump and push (tools/bump).
+# Release from a clean, pushed main: run the full gate, then bump and push (tools/bump).
 # Registration is a separate step: see tools/publish.
 
 require 'optparse'
@@ -14,8 +14,9 @@ OptionParser.new do |o|
   o.banner = <<~TEXT
     Usage: tools/release [--minor | --major] [--dry-run]
 
-    Release from a clean main that matches GitHub: run the test suite
-    (Pkg.test), then bump the version in Project.toml (patch by default),
+    Release from a clean main that matches GitHub: run the full gate
+    (tools/gate --full: Pkg.test plus the JET runtime-dispatch check),
+    then bump the version in Project.toml (patch by default),
     commit "Bump version to X.Y.Z" and push main, verified (tools/bump).
 
     This pushes to GitHub but does not register the package; registration
@@ -35,5 +36,5 @@ end
 
 abort 'Release from main.' unless `git branch --show-current`.strip == 'main'
 abort 'Commit all changes before releasing.' unless `git status --porcelain`.strip.empty?
-abort 'Tests failed; release stopped.' unless system('julia', '--project=.', '-e', 'using Pkg; Pkg.test()')
+abort 'Gate failed; release stopped.' unless system('tools/gate', '--full')
 abort 'Release stopped at bump/push; inspect the local state before retrying.' unless system('ruby', 'tools/bump', *bump_args)
