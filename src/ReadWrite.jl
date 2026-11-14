@@ -9,7 +9,7 @@ Supports .fbin, .ibin, and .fvecs formats, and text files of planar curves
 module ReadWrite
 
 using LinearAlgebra
-import ..BasicCompGeometry: Point, PntSeq, PntSeq2F, point, push_distinct!
+import ..BasicCompGeometry: MVector, Point, PntSeq, PntSeq2F, point, push_distinct!
 
 export read_fbin, read_fbin_n, read_ibin
 export write_fbin, write_ibin
@@ -105,22 +105,35 @@ function read_ibin(
     return reshape(arr, (dim, nvecs_to_read))'
 end
 
+function _write_bin(filename::String, vecs::Matrix{T}) where {T<:Union{Float32,Int32}}
+    open(filename, "w") do f
+        nvecs, dim = size(vecs)
+        write(f, Int32(nvecs))
+        write(f, Int32(dim))
+        (nvecs == 0 || dim == 0) && return
+        # Transpose into a <=1 MiB chunk buffer so bulk `unsafe_write` avoids scalar IO and full-matrix duplication.
+        chunk_rows = clamp(div(262144, dim), 1, nvecs)
+        buf = Matrix{T}(undef, dim, chunk_rows)
+        r = 1
+        while r <= nvecs
+            count = min(chunk_rows, nvecs - r + 1)
+            @inbounds for j = 1:dim, i = 1:count
+                buf[j, i] = vecs[r + i - 1, j]
+            end
+            write(f, @view(buf[:, 1:count]))
+            r += count
+        end
+        return
+    end
+end
+
 """
     write_fbin(filename::String, vecs::Matrix{Float32})
 
 Write a matrix of Float32 vectors to an .fbin file. 
 `vecs` is expected to have vectors as rows (to match `read_fbin`'s metadata logic).
 """
-function write_fbin(filename::String, vecs::Matrix{Float32})
-    f = open(filename, "w")
-    nvecs, dim = size(vecs)
-
-    write(f, Int32(nvecs))
-    write(f, Int32(dim))
-    write(f, vecs')
-
-    close(f)
-end
+write_fbin(filename::String, vecs::Matrix{Float32}) = _write_bin(filename, vecs)
 
 """
     write_ibin(filename::String, vecs::Matrix{Int32})
@@ -128,16 +141,7 @@ end
 Write a matrix of Int32 vectors to an .ibin file.
 `vecs` is expected to have vectors as rows.
 """
-function write_ibin(filename::String, vecs::Matrix{Int32})
-    f = open(filename, "w")
-    nvecs, dim = size(vecs)
-
-    write(f, Int32(nvecs))
-    write(f, Int32(dim))
-    write(f, vecs')
-
-    close(f)
-end
+write_ibin(filename::String, vecs::Matrix{Int32}) = _write_bin(filename, vecs)
 
 """
     read_fvecs(filename::String)
@@ -200,8 +204,48 @@ function read_fvecs(filename::String)
     end
 end
 
-_parse_numbers(line::AbstractString) =
-    [parse(Float64, piece) for piece in split(line, r"[,\s]+"; keepempty = false)]
+@inline function _parse_next_float(
+    text::AbstractString,
+    idx::Int,
+    last_idx::Int,
+    dim::Int,
+    raw_line::AbstractString,
+)
+    while idx <= last_idx && (text[idx] == ',' || isspace(text[idx]))
+        idx = nextind(text, idx)
+    end
+    idx > last_idx && error("expected at least $dim numbers in line \"$raw_line\"")
+    start_idx = idx
+    while idx <= last_idx && text[idx] != ',' && !isspace(text[idx])
+        idx = nextind(text, idx)
+    end
+    val = parse(Float64, SubString(text, start_idx, prevind(text, idx)))
+    return val, idx
+end
+
+function _parse_point(
+    text::AbstractString,
+    ::Val{D},
+    raw_line::AbstractString,
+) where {D}
+    buf = MVector{D,Float64}(undef)
+    idx = firstindex(text)
+    last_idx = lastindex(text)
+    @inbounds for i = 1:D
+        buf[i], idx = _parse_next_float(text, idx, last_idx, D, raw_line)
+    end
+    return Point{D,Float64}(buf)
+end
+
+function _read_plt(filename::AbstractString, ::Val{D}) where {D}
+    P = PntSeq{D,Float64}()
+    for line in eachline(filename)
+        text = strip(line)
+        (isempty(text) || startswith(text, '#') || text == "x y k tid") && continue
+        push_distinct!(P, _parse_point(text, Val(D), line))
+    end
+    return P
+end
 
 """
     read_plt(filename; dim = 2)
@@ -212,16 +256,9 @@ numbers of each line are used. Blank lines, lines starting with `#`, and the
 header `x y k tid` (used by some datasets) are skipped, and consecutive repeated
 points are dropped.
 """
-function read_plt(filename::AbstractString; dim::Int = 2)
-    P = PntSeq{dim,Float64}()
-    for line in readlines(filename)
-        text = strip(line)
-        (isempty(text) || startswith(text, '#') || text == "x y k tid") && continue
-        pieces = _parse_numbers(text)
-        length(pieces) >= dim || error("expected at least $dim numbers in line \"$line\"")
-        push_distinct!(P, Point{dim,Float64}(ntuple(i -> pieces[i], dim)))
-    end
-    return P
+Base.@constprop :aggressive function read_plt(filename::AbstractString; dim::Int = 2)
+    dim < 1 && throw(ArgumentError("dim must be >= 1, got $dim"))
+    return _read_plt(filename, Val(dim))
 end
 
 """
@@ -233,10 +270,16 @@ consecutive repeated points are dropped.
 """
 function read_geolife_plt(filename::AbstractString)
     P = PntSeq2F()
-    for line in Iterators.drop(readlines(filename), 6)
+    for line in Iterators.drop(eachline(filename), 6)
         isempty(strip(line)) && continue
-        parts = split(line, ",")
-        push_distinct!(P, point(parse(Float64, parts[1]), parse(Float64, parts[2])))
+        c1 = findfirst(',', line)
+        c1 === nothing && error("malformed GeoLife record: \"$line\"")
+        y_start = nextind(line, c1)
+        c2 = findnext(',', line, y_start)
+        y_end = c2 === nothing ? lastindex(line) : prevind(line, c2)
+        x = parse(Float64, SubString(line, firstindex(line), prevind(line, c1)))
+        y = parse(Float64, SubString(line, y_start, y_end))
+        push_distinct!(P, point(x, y))
     end
     return P
 end

@@ -148,3 +148,26 @@ using Cairo
         rm(temp_dir, recursive = true, force = true)
     end
 end
+
+if Base.find_package("Colors") !== nothing
+    @eval using Colors
+    @testset "BBT.Tree_draw (BBTCairoExt)" begin
+        mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
+            pnts = [point(Float64(i), Float64((i * 7) % 13)) for i = 1:32]
+            tree = BBT.Tree_init(PntSeq(pnts))
+            BBT.Tree_fully_expand(tree)
+
+            pdf_path = joinpath(dir, "bbt_tree.pdf")
+            BBT.Tree_draw(tree, pdf_path)
+            @test isfile(pdf_path)
+            @test filesize(pdf_path) > 0
+
+            # Single-point (depth 1) tree should also draw cleanly.
+            leaf_tree = BBT.Tree_init(PntSeq([point(1.0, 2.0)]))
+            leaf_pdf = joinpath(dir, "bbt_leaf.pdf")
+            BBT.Tree_draw(leaf_tree, leaf_pdf)
+            @test isfile(leaf_pdf)
+            @test filesize(leaf_pdf) > 0
+        end
+    end
+end

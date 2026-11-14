@@ -63,6 +63,27 @@ using Test
             @test read_plt(m).pnts == [point(1.0, 2.0), point(3.0, 4.0), point(5.0, 6.0)]
             @test length(read_plt(joinpath(dir, "empty.txt") |> f -> (write(f, ""); f))) ==
                   0
+
+            # Type stability across dimensions, UTF-8 whitespace, trailing commas, and dim validation.
+            @test (@inferred read_plt(f)).pnts == Q.pnts
+            read_plt_3d(p) = read_plt(p; dim = 3)
+            @test (@inferred read_plt_3d(h)).pnts == [point(1.0, 2.0, 3.0), point(4.0, 5.0, 6.0)]
+            @test (@inferred BasicCompGeometry.ReadWrite._read_plt(h, Val(3))).pnts ==
+                  [point(1.0, 2.0, 3.0), point(4.0, 5.0, 6.0)]
+            @test_throws ArgumentError read_plt(f; dim = 0)
+
+            extra = joinpath(dir, "extra.txt")
+            write(extra, "1.0, 2.0,\n3.0,\u00a04.0 tag\n")
+            @test read_plt(extra).pnts == [point(1.0, 2.0), point(3.0, 4.0)]
+
+            # Zero-allocation per-line point parsing.
+            @test BasicCompGeometry.ReadWrite._parse_point("1.0, 2.0", Val(2), "1.0, 2.0") ==
+                  point(1.0, 2.0)
+            @test (@allocated BasicCompGeometry.ReadWrite._parse_point(
+                "1.0, 2.0",
+                Val(2),
+                "1.0, 2.0",
+            )) == 0
         end
     end
 
@@ -85,6 +106,14 @@ Reserved 3
             @test read_geolife_plt(f).pnts == [point(39.9, 116.3), point(39.95, 116.4)]
             write(f, readchomp(f) * "\n\n")      # trailing blank lines are ignored
             @test length(read_geolife_plt(f)) == 2
+
+            two_col = joinpath(dir, "two_col.plt")
+            write(two_col, "h1\nh2\nh3\nh4\nh5\nh6\n10.5,20.5\n30.5,40.5\n")
+            @test read_geolife_plt(two_col).pnts == [point(10.5, 20.5), point(30.5, 40.5)]
+
+            bad = joinpath(dir, "bad.plt")
+            write(bad, "h1\nh2\nh3\nh4\nh5\nh6\n10.5\n")
+            @test_throws ErrorException read_geolife_plt(bad)
         end
     end
 end

@@ -81,5 +81,20 @@ end
         end
         @test_throws ErrorException read_fvecs(malformed)
         @test_throws ErrorException read_fvecs(joinpath(dir, "missing.fvecs"))
+
+        # Multi-chunk bulk write (> 262144 total elements) and empty-matrix round-trips.
+        large_f = reshape(Float32.(1:(5000*64)), 5000, 64)
+        large_fbin = joinpath(dir, "large.fbin")
+        write_fbin(large_fbin, large_f)
+        @test read_fbin_n(large_fbin) == large_f'
+
+        large_i = reshape(Int32.(1:(5000*64)), 5000, 64)
+        large_ibin = joinpath(dir, "large.ibin")
+        write_ibin(large_ibin, large_i)
+        @test read_ibin(large_ibin) == large_i
+
+        empty_fbin = joinpath(dir, "empty.fbin")
+        write_fbin(empty_fbin, zeros(Float32, 0, 3))
+        @test size(read_fbin_n(empty_fbin)) == (3, 0)
     end
 end
