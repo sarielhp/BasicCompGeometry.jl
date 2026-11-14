@@ -3,7 +3,6 @@
 - **Review Document**: `reviews/007_performance.md`
 - **Plan Document**: `reviews/007_performance_plan.md`
 - **Focus Area**: `performance`
-- **Status**: Completed & Verified
 
 ---
 
@@ -23,7 +22,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 1: Union Return Type in `dist_subspace(p, q, dir)`
 - **Location**: `src/Points.jl:56-62` (`dist_subspace`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Replaced `d_sq > 0 ? sqrt(d_sq) : zero(T)` with `sqrt(max(zero(d_sq), d_sq))` so both nonpositive and positive cases return `typeof(sqrt(d_sq))`.
 - **Verification**:
@@ -31,7 +29,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 2: Uninferred `D` and Heap Allocation in `rand_gaussian` / `rand_point`
 - **Location**: `src/Points.jl:194-216` (`rand_gaussian`, `rand_point`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Added `rand_gaussian(::Val{D}, ::Type{T} = Float64)` using `Point{D,T}(ntuple(_ -> randn(T), Val(D)))` and `rand_point(::Val{D}, ::Type{T} = Float64) = rand(Point{D,T})`.
   - Retained `D::Int` overloads for API compatibility, delegating `rand_gaussian(D::Int, ::Type{T})` to `rand_gaussian(Val(D), T)` and specializing on `::Type{T}`.
@@ -40,7 +37,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 3: Value-Dependent Union Return Type in `nn_point(s_p, s_q, qr)`
 - **Location**: `src/Segments.jl:122-135` (`nn_point`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Converted endpoints and query to `Point{D,R}` with `R = typeof(one(T) / one(T))`, used `iszero(d_sq) && return p`, and clamped with `clamp(t, zero(t), one(t))`.
 - **Verification**:
@@ -48,7 +44,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 4: Union Return Type in `bisection_point(seg, p, q)`
 - **Location**: `src/Segments.jl:219-236` (`bisection_point`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Promoted segment and bisector points to `Point{D,R}` (`R = typeof(one(T) / one(T))`), returned `(false, zero(R), sp)` on parallel segments, and used `R <: AbstractFloat ? abs(denom) < R(1e-12) : iszero(denom)` to avoid converting `1e-12` into a large-denominator `Rational`.
 - **Verification**:
@@ -56,7 +51,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 5: Heap Matrix/Vector Allocations in `dist_segment_segment`
 - **Location**: `src/Segments.jl:144-198` (`_min_endpoint_segment_dist`, `dist_segment_segment`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Replaced `c`, `m`, and `m \ c` with scalar Cramer's rule over promoted `Point{D,R}` coordinates, extracted `_min_endpoint_segment_dist`, and checked `Δ <= tol * (A * C)` (`tol = R <: AbstractFloat ? max(R(1e-12), 4 * eps(R)) : zero(R)`).
 - **Verification**:
@@ -64,7 +58,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 6: Heap Allocations in `apply_transform(m, p)`
 - **Location**: `src/Transforms2D.jl:44-55` (`apply_transform`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Widened `m::Matrix{T}` to `m::AbstractMatrix{T}`, checked `size(m) == (3, 3)`, and evaluated `x` and `y` inline via `muladd` using `p.x` and `p.y`.
 - **Verification**:
@@ -72,7 +65,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 
 ### Finding 7: Vector Splatting and `O(n)` Allocations in `union_bbox(objects::AbstractVector)`
 - **Location**: `src/BBoxes.jl:73-105, 418` (`_union_bbox_iter`, `union_bbox`, `bound!`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Implemented `union_bbox(objects::AbstractVector)` as a single-pass streaming reduction via `_union_bbox_iter` (calling `bbox` once per element and promoting `BBox{D,T}` only if a wider coordinate type is encountered) and generalized `bound!(bb::BBox{D,T}, other::BBox{D})`.
 - **Verification**:
@@ -86,3 +78,6 @@ All 7 findings in `reviews/007_performance.md` were triaged, confirmed as genuin
 - **Full Test Suite (`tools/gate`, `Pkg.test()`)**: Passed (`156,449 / 156,449` assertions in `BasicCompGeometry.jl`, plus all 8 `Aqua` testsets).
 - **Sizing & Nesting**: All new and modified functions are concise with nesting depth `<= 2` (within the `<= 4` limit).
 - **Scope & Anti-Oscillation**: All unrelated modules and prior review remediations (rounds 004–006) remain untouched; public APIs and exported names are unchanged; changes are documented in `CHANGELOG.md` under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 9 files changed, 397 insertions(+), 62 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
