@@ -16,3 +16,4 @@ reviews/logs/
 .bws/.write.lock
 .bws/config.jsonc.bak
 .bws/tmp/
+.review-cycle/
