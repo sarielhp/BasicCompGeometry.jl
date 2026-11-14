@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.18] - 2026-11-14
+
 ### Fixed
 - `interpolate_natural_spline(pts; closed = true)` (and `draw_spline!(...; method = :natural, closed = true)`) returned an open spline for three or more points, ignoring `closed`. It now builds a periodic C² spline with a closing segment.
 - `visibility_polygon` with a vantage point within rounding distance of a polygon vertex or edge (e.g. a vertex returned by `polygon_kernel`) returned a region larger than the polygon or threw "vantage point must lie inside". Under floating kernels such a point is now snapped onto the vertex or edge (tolerance `1e-10` times the bounding-box extent), and the edge containing a boundary vantage point is ignored as an occluder. Two further floating-point defects found while fixing it: a ray cast towards a vertex could miss that vertex on an edge nearly parallel to the ray (the side test used the rounded point `q + u`; the hit is now taken at the vertex itself), and collinear-vertex pruning used an absolute threshold that dropped genuine corners next to short edges, cutting chords across the result (now a scale-free angle test, also used by `polygon_kernel`). `ExactKernel` results are unchanged.
