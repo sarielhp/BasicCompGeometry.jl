@@ -4,7 +4,6 @@
 - **Architectural Plan**: `reviews/004_performance_plan.md`
 - **Date**: 2026-11-13
 - **Focus Area**: Performance Audit (`VisibilityPolygon.jl` and `MinkowskiSum.jl`)
-- **Status**: Complete & Verified
 
 ---
 
@@ -28,7 +27,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 1: `Core.Box` Captures & Untyped Dispatch in `visibility_polygon`
 - **Location**: `src/VisibilityPolygon.jl` (`visibility_polygon`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Resolved coordinate type `R` via `_vis_coord_type(kernel, _scalar_type(poly), eltype(q))` and dispatched to function barrier `_visibility_polygon_impl(poly, q, kernel, R)`.
   - Eliminated `u_start` / `u_end` closure captures using `_find_ray_index` and `_sector_ray_range`.
@@ -38,7 +36,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 2: `Core.Box` Capture & Per-Iteration Allocations in `polygon_kernel`
 - **Location**: `src/VisibilityPolygon.jl` (`polygon_kernel`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Resolved `R` via `_vis_coord_type` and dispatched to function barrier `_polygon_kernel_impl(poly, kernel, R)`.
   - Extracted `_bounding_rect`, `_clip_polygon_halfplane!`, `_halfplane_edge_intersect`, `_halfplane_thresh`, and `_halfplane_inside` (evaluating `turn_sign` once per vertex).
@@ -48,7 +45,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 3: Return-Type Instability in `_ray_edge_intersect` & `InexactError` on Integer Inputs
 - **Location**: `src/VisibilityPolygon.jl` (`visibility_polygon`, `polygon_kernel`, `_ray_edge_intersect`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - `_vis_coord_type` promotes non-`ExactKernel` coordinate types via `float(promote_type(T1, T2))` so integer inputs compute intersections in `Float64` without throwing `InexactError`.
   - Initialized `best_t1` / `best_t2` in `_closest_sector_hit` using `kernel isa ExactKernel ? typemax(R) : R(Inf)`.
@@ -58,7 +54,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 4: `Core.Box` Captures & Excessive Allocations in `_minkowski_convex` and `minkowski_sum_decomposition`
 - **Location**: `src/MinkowskiSum.jl` (`_minkowski_convex`, `minkowski_sum_decomposition`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Added `_minkowski_coord_type` and function barriers `_minkowski_convex_impl` and `_minkowski_sum_decomposition_impl`.
   - Eliminated `v1`, `v2`, `edges1`, and `edges2` allocations by cyclically indexing `p1`/`p2` directly in `_minkowski_merge_ccw!`.
@@ -68,7 +63,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 5: Three `Core.Box` Captures & Redundant Allocations in `is_convex`
 - **Location**: `src/MinkowskiSum.jl` (`is_convex`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Dispatched `is_convex` into `_is_convex_impl(poly, kernel, R)`, deduplicating in one pass via `_collect_deduped_points!` and reversing in-place (`reverse!(deduped)`).
   - Extracted `_has_all_ccw_turns`, `_lowest_left_index`, and `_edges_angle_monotone` to verify angular monotonicity without allocating `edges` or `nz_edges`.
@@ -77,7 +71,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 
 ### Finding 6: Abstract `Point{2}[...]` Containers in `minkowski_sum` Overloads
 - **Location**: `src/MinkowskiSum.jl` (`minkowski_sum` overloads for `Point{2}` and `Segment{2}`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Added `@inline _pts_vec(s::Segment{2, T}) where {T} = Point{2, T}[s.p, s.q]` and `@inline _pts_vec(p::Point{2, T}) where {T} = Point{2, T}[p]` and replaced all `Point{2}[...]` calls in the five `Point{2}`/`Segment{2}` overloads.
 - **Verification**:
@@ -91,3 +84,6 @@ All 6 issues reported in `reviews/004_performance.md` were triaged, reproduced, 
 - **Full Test Suite (`tools/gate`, `Pkg.test()`)**: Passed (`156,383 / 156,383` assertions in `BasicCompGeometry.jl`, plus all `Aqua` package checks).
 - **Sizing & Nesting**: All new and modified functions in `src/VisibilityPolygon.jl` and `src/MinkowskiSum.jl` are `<= 43` lines with maximum nesting depth `<= 3` (`<= 4` threshold).
 - **Scope & Anti-Oscillation**: Unrelated modules (`src/MonotoneTriangulation.jl`, `src/SweepTriangulation.jl`, etc.) were left untouched. Public APIs and exports are unchanged. User-visible changes are recorded in `CHANGELOG.md` under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 7 files changed, 864 insertions(+), 466 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
