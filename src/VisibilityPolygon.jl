@@ -26,7 +26,9 @@ intersect the exterior of ``P`` or any boundary edge of ``P``.
 - `poly` must have at least 3 vertices and be oriented counterclockwise with positive area
   (as verified by [`twice_area`](@ref)).
 - `q` must lie strictly in the interior or on the boundary of `poly`. An `ArgumentError`
-  is thrown if `q` is outside `poly`.
+  is thrown if `q` is outside `poly`. Under floating kernels, a `q` within `1e-10` times the
+  polygon's bounding-box extent of a vertex (or else an edge) is treated as lying on it, and
+  the visibility polygon of that boundary point is returned.
 
 # Examples
 ```julia
@@ -69,9 +71,7 @@ function _visibility_polygon_impl(
     ::Type{R},
 ) where {R}
     poly_conv = _to_point2_vec(poly, R)
-    q_conv = point(R(q.x), R(q.y))
-
-    loc_type, loc_idx = _point_in_polygon(kernel, q_conv, poly_conv)
+    loc_type, loc_idx, q_conv = _locate_vantage(kernel, point(R(q.x), R(q.y)), poly_conv)
     loc_type != :exterior || throw(
         ArgumentError(
             "vantage point q = $q must lie inside or on the boundary of the polygon",
@@ -94,6 +94,7 @@ function _visibility_polygon_impl(
             unique_rays[curr_ray_idx],
             unique_rays[next_ray_idx],
             poly_conv,
+            loc_type == :edge ? loc_idx : 0,
             R,
         )
         if hit
@@ -319,7 +320,10 @@ function _prune_collinear(
             orient_sign(kernel, pr, cu, nx) != 0
         else
             cross = (cu.x - pr.x) * (nx.y - pr.y) - (cu.y - pr.y) * (nx.x - pr.x)
-            abs(cross) > tol * max(dist(pr, cu) * dist(cu, nx), 1.0)
+            # Scale-free test (sine of the turn angle above `tol`). An absolute floor would
+            # drop genuine corners next to short edges, and a run of such drops cuts a chord
+            # across the polygon (e.g. near a vantage point close to a vertex).
+            abs(cross) > tol * dist(pr, cu) * dist(cu, nx)
         end
         keep && push!(out, cu)
     end
@@ -413,6 +417,7 @@ function _closest_sector_hit(
     u1::Point{2,R},
     u2::Point{2,R},
     poly_conv::Vector{Point{2,R}},
+    skip_edge::Int,
     ::Type{R},
 ) where {R}
     n = length(poly_conv)
@@ -423,6 +428,8 @@ function _closest_sector_hit(
     best_pt2 = q_conv
 
     for e_idx in 1:n
+        # The edge containing a boundary vantage point never blocks it.
+        e_idx == skip_edge && continue
         a = poly_conv[e_idx]
         b = poly_conv[e_idx == n ? 1 : e_idx + 1]
         hit1, t1, pt1 = _ray_edge_intersect(kernel, q_conv, u1, a, b, R)
@@ -512,6 +519,24 @@ function _clip_polygon_halfplane!(
     return next_poly
 end
 
+# Hit of the ray `q + t u` with a point `v` known to lie on its supporting line.
+@inline function _ray_vertex_hit(
+    kernel::AbstractKernel,
+    q::Point{2,R},
+    u::Point{2,R},
+    v::Point{2,R},
+    ::Type{R},
+) where {R}
+    num = (v.x - q.x) * u.x + (v.y - q.y) * u.y
+    den = u.x * u.x + u.y * u.y
+    if kernel isa ExactKernel
+        t = num // den
+        return t > 0 ? (true, R(t), v) : (false, zero(R), q)
+    end
+    t = num / den
+    return t > 1e-11 ? (true, R(t), v) : (false, zero(R), q)
+end
+
 @inline function _ray_edge_intersect(
     kernel::AbstractKernel,
     q::Point{2,R},
@@ -520,12 +545,22 @@ end
     b::Point{2,R},
     ::Type{R},
 ) where {R}
-    s_a = orient_sign(kernel, q, q + u, a)
-    s_b = orient_sign(kernel, q, q + u, b)
+    # Side tests against the ray direction `u` itself rather than the rounded point `q + u`:
+    # rays are cast towards vertices (`u = p - q`), and `p - q` crossed with itself is exactly
+    # zero, so the vertex defining a ray always lies on it.
+    o = zero(u)
+    s_a = orient_sign(kernel, o, u, a - q)
+    s_b = orient_sign(kernel, o, u, b - q)
 
     if (s_a > 0 && s_b > 0) || (s_a < 0 && s_b < 0)
         return (false, zero(R), q)
     end
+    # An edge collinear with the ray never bounds a sector. An endpoint on the ray is hit
+    # exactly there: the generic formula below is ill-conditioned when the edge is nearly
+    # parallel to the ray (a vantage point close to the edge's supporting line).
+    (s_a == 0 && s_b == 0) && return (false, zero(R), q)
+    s_a == 0 && return _ray_vertex_hit(kernel, q, u, a, R)
+    s_b == 0 && return _ray_vertex_hit(kernel, q, u, b, R)
 
     ba_x = b.x - a.x
     ba_y = b.y - a.y
@@ -554,6 +589,99 @@ end
         end
     end
     return (false, zero(R), q)
+end
+
+# Relative distance (to the polygon's bounding-box extent) under which a floating vantage
+# point is snapped onto a polygon vertex or edge. Must exceed the ray parameter cutoff of
+# `_ray_edge_intersect` (1e-11) by a margin, so that the edges incident to an unsnapped
+# vantage point are hit at parameters above that cutoff.
+const _VIS_SNAP_RTOL = 1e-10
+
+"""
+    _locate_vantage(kernel, q, poly) -> (loc_type, loc_idx, q_snapped)
+
+Classify vantage point `q` as `:vertex`, `:edge`, `:interior` or `:exterior` of `poly`. Under
+exact kernels this is `_point_in_polygon`. Under floating kernels, a point within
+`_VIS_SNAP_RTOL` times the bounding-box extent of a vertex (or else an edge) is first snapped
+onto it: directions from `q` to a vertex that close are pure rounding noise, and the edges
+through that vertex would be hit at ray parameters below the cutoff of `_ray_edge_intersect`,
+so the sweep would see through them.
+"""
+@inline function _locate_vantage(
+    kernel::ExactKernel,
+    q::Point{2,R},
+    poly::Vector{Point{2,R}},
+) where {R}
+    loc_type, loc_idx = _point_in_polygon(kernel, q, poly)
+    return (loc_type, loc_idx, q)
+end
+
+function _locate_vantage(
+    kernel::AbstractKernel,
+    q::Point{2,R},
+    poly::Vector{Point{2,R}},
+) where {R}
+    min_x, max_x, min_y, max_y = _bounding_rect(poly)
+    tol = R(_VIS_SNAP_RTOL) * max(max_x - min_x, max_y - min_y)
+    v_idx = _near_vertex(q, poly, tol)
+    v_idx != 0 && return (:vertex, v_idx, poly[v_idx])
+    e_idx, q_proj = _near_edge(q, poly, tol)
+    if e_idx != 0
+        # Rounding may land the projection on an endpoint; that is the vertex case.
+        n = length(poly)
+        q_proj == poly[e_idx] && return (:vertex, e_idx, q_proj)
+        nx = e_idx == n ? 1 : e_idx + 1
+        q_proj == poly[nx] && return (:vertex, nx, q_proj)
+        return (:edge, e_idx, q_proj)
+    end
+    loc_type, loc_idx = _point_in_polygon(kernel, q, poly)
+    return (loc_type, loc_idx, q)
+end
+
+# Index of the vertex nearest to `q` if within distance `tol`, else 0.
+function _near_vertex(q::Point{2,R}, poly::Vector{Point{2,R}}, tol::R) where {R}
+    best_idx = 0
+    best_d2 = tol * tol
+    for (i, p) in enumerate(poly)
+        d2 = (p.x - q.x)^2 + (p.y - q.y)^2
+        if d2 <= best_d2
+            best_idx = i
+            best_d2 = d2
+        end
+    end
+    return best_idx
+end
+
+# Index of the edge nearest to `q` if within distance `tol` (else 0), with the projection
+# of `q` onto it.
+function _near_edge(q::Point{2,R}, poly::Vector{Point{2,R}}, tol::R) where {R}
+    n = length(poly)
+    best_idx = 0
+    best_d2 = tol * tol
+    best_pt = q
+    for i in 1:n
+        pt = _project_onto_segment(q, poly[i], poly[i == n ? 1 : i + 1])
+        d2 = (pt.x - q.x)^2 + (pt.y - q.y)^2
+        if d2 <= best_d2
+            best_idx = i
+            best_d2 = d2
+            best_pt = pt
+        end
+    end
+    return (best_idx, best_pt)
+end
+
+@inline function _project_onto_segment(
+    q::Point{2,R},
+    a::Point{2,R},
+    b::Point{2,R},
+) where {R}
+    ab_x = b.x - a.x
+    ab_y = b.y - a.y
+    len2 = ab_x * ab_x + ab_y * ab_y
+    iszero(len2) && return a
+    t = clamp(((q.x - a.x) * ab_x + (q.y - a.y) * ab_y) / len2, zero(R), one(R))
+    return point(a.x + t * ab_x, a.y + t * ab_y)
 end
 
 @inline function _point_in_polygon(kernel::AbstractKernel, q::Point{2}, poly)

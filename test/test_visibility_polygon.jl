@@ -220,6 +220,63 @@ using BasicCompGeometry
         @test_throws ArgumentError visibility_polygon(tri, [1.0, 1.0, 1.0])
     end
 
+    # 9b. Vantage points within rounding distance of a vertex or an edge
+    @testset "Near-vertex and near-edge vantage points" begin
+        near_bd(v, P) =
+            minimum(
+                BasicCompGeometry.dist_point_segment(v, P[i], P[mod1(i + 1, length(P))]) for
+                i in eachindex(P)
+            ) <= 1e-9
+        inside_p(V, P) = all(is_inside(v, P) || near_bd(v, P) for v in V)
+
+        # Regression: a kernel vertex one ulp off the reflex vertex P[7] used to
+        # see past the edges through P[7] (twice-area 2.61 > 2.13 of P).
+        P = [
+            point(-0.14906678641215848, -0.21386971228658577),
+            point(0.1933292193742291, -0.780057608580121),
+            point(0.21417178328047168, -0.3277410291682997),
+            point(0.834060972879189, -0.2748949833825546),
+            point(0.4489924475442709, 0.008136599455512365),
+            point(0.5546880821518115, 0.8058826354690696),
+            point(0.007679344380308622, 0.3045892312763587),
+            point(-0.5526334484435932, 0.6710596152929873),
+            point(-0.6096767452069599, 0.359235976593314),
+            point(-0.9109573256065367, -0.21459331489368902),
+        ]
+        A = twice_area(P)
+        for q in (point(0.00767934438030855, 0.30458923127635873), P[7])
+            V = visibility_polygon(P, q)
+            @test twice_area(V) ≈ A rtol = 1e-12
+            @test inside_p(V, P)
+        end
+        for q in polygon_kernel(P)
+            @test twice_area(visibility_polygon(P, q)) ≈ A rtol = 1e-9
+        end
+
+        # Seeded random star-shaped polygons (with reflex vertices) probed at
+        # tiny offsets from every vertex and every edge, on both sides.
+        for k in 1:15
+            rng = Xoshiro(2024 + k)
+            n = rand(rng, 5:14)
+            angs = sort(2π .* rand(rng, n))
+            Q = [(r = 0.25 + 0.75 * rand(rng); point(r * cos(a), r * sin(a))) for a in angs]
+            twice_area(Q) > 0 || continue
+            AQ = twice_area(Q)
+            for i in 1:n, s in (1e-16, 1e-14, 1e-12)
+                a, b = Q[i], Q[mod1(i + 1, n)]
+                nrm = point(a.y - b.y, b.x - a.x)
+                for q in (
+                    a + s * point(randn(rng), randn(rng)),
+                    a + rand(rng) * (b - a) + (s * randn(rng)) * nrm,
+                )
+                    V = visibility_polygon(Q, q)
+                    @test 0 < twice_area(V) <= AQ * (1 + 1e-12)
+                    @test inside_p(V, Q)
+                end
+            end
+        end
+    end
+
     # 10. Polygon Kernel and Star-Shapedness
     @testset "Polygon Kernel & is_star_shaped" begin
         # Convex polygons (kernel is the polygon itself)

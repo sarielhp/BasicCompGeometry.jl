@@ -483,11 +483,19 @@ using BasicCompGeometry.LongestConvexSubset: compute_largest_convex_subset
                 @test twice_area(V) ≈ A rtol = 1e-9
             end
             # From polygon vertices lying in the kernel (boundary vantage
-            # points). Kernel vertices themselves are not used: they can sit
-            # one ulp off a polygon vertex, see the report.
+            # points), and from points within rounding distance of them.
             for i in 1:n
                 q = P[i]
                 all(cross2(P[j], P[mod1(j + 1, n)], q) >= 0 for j in 1:n) || continue
+                @test twice_area(visibility_polygon(P, q)) ≈ A rtol = 1e-9
+                for s in (1e-16, 1e-13)
+                    qs = q + s * point(randn(rng), randn(rng))
+                    @test twice_area(visibility_polygon(P, qs)) ≈ A rtol = 1e-9
+                end
+            end
+            # From the kernel vertices, which often sit within an ulp of a
+            # polygon vertex or edge.
+            for q in Ker
                 @test twice_area(visibility_polygon(P, q)) ≈ A rtol = 1e-9
             end
         end
