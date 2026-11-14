@@ -21,6 +21,24 @@ using BasicCompGeometry.IpeDraw
         add_view!(canvas, ["background", "foreground"])
         @test "background" in canvas.layers
         @test "foreground" in canvas.layers
+        @test !("VIEWBBOX" in canvas.layers)
+
+        # Per-view cropping through Ipe's special VIEWBBOX layer
+        crop = IpeCanvas()
+        add_layer!(crop, "beta")
+        add_view!(crop, ["alpha"]; autocrop = true)
+        add_view!(crop, ["alpha", "beta", "VIEWBBOX"]; active = "beta", autocrop = true)
+        add_view!(crop, ["beta"])
+        @test crop.layers == ["alpha", "beta", "VIEWBBOX"]
+        @test crop.views == [
+            "<view layers=\"alpha VIEWBBOX\" active=\"alpha\"/>",
+            "<view layers=\"alpha beta VIEWBBOX\" active=\"beta\"/>",
+            "<view layers=\"beta\" active=\"beta\"/>",
+        ]
+        explicit = IpeCanvas()
+        add_view!(explicit, ["alpha", "VIEWBBOX"]; active = "alpha")
+        @test "VIEWBBOX" in explicit.layers
+        @test_throws ArgumentError add_view!(explicit, String[])
 
         # 3. Preamble management
         add_preamble!(canvas, raw"\newcommand{\eps}{\varepsilon}")

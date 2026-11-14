@@ -23,6 +23,11 @@
   program: ipe_conceptual_figure.jl
   purpose: Generate a layered inverse-estimation diagram and its LaTeX wrapper.
   files: {inverse_estimation_demo.pdf: 1, inverse_estimation_demo.ipe: null, inverse_estimation_demo_fig.tex: null}
+- name: ipe_view_autocrop
+  program: ipe_view_autocrop.jl
+  purpose: Crop each view of a three-view Ipe page to its own objects through the VIEWBBOX layer.
+  files: {ipe_view_autocrop.pdf: 3, ipe_view_nocrop.pdf: 3, ipe_view_autocrop.ipe: null}
+  stdout: ["ipe_view_autocrop", "ipe_view_nocrop"]
 - name: longest_convex_subset
   program: longest_convex_subset.jl
   purpose: Compute and draw largest convex subsets for two random point sets.

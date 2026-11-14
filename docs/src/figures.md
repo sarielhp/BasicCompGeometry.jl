@@ -85,6 +85,44 @@ open_ipe("output/interval_demo"; caption="Interval estimation", label="fig:demo"
 end
 ```
 
+## Layers, views, and per-view cropping
+
+An Ipe page can hold several views, each showing a subset of the page's layers;
+`ipetoipe -pdf` writes every view as a separate PDF page, which suits
+step-by-step slides and figure sequences. By default Ipe crops all views of a
+page to the bounding box of the whole page, so an early view showing a small
+part of the figure carries the blank space of the later ones.
+
+Ipe crops a view that contains the special `VIEWBBOX` layer to its own visible
+objects instead. The layer may stay empty. Add it to each view that should be
+cropped independently, either explicitly:
+
+```julia
+add_layer!(fig, "VIEWBBOX")
+add_view!(fig, ["alpha", "VIEWBBOX"]; active="alpha")
+```
+
+or with the `autocrop` flag, which registers the layer and appends it to the
+view:
+
+```julia
+figure("output/views.pdf"; fit=[outer]) do fig
+    layer(fig, "triangle") do f
+        draw!(f, [a, b, c])
+    end
+    layer(fig, "circumcircle") do f
+        draw!(f, outer)
+    end
+    add_view!(fig, ["triangle"]; autocrop=true)                  # tight around the triangle
+    add_view!(fig, ["triangle", "circumcircle"]; autocrop=true)  # tight around the circle
+end
+```
+
+When a page has no explicit views, IpeDraw emits a single view of all layers.
+The [view autocrop example](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/examples/ipe_view_autocrop.jl)
+writes the same three-view page with and without cropping and prints the PDF
+page sizes of both.
+
 ## Complete examples
 
 The [convex hull figure](https://github.com/sarielhp/BasicCompGeometry.jl/blob/main/examples/convex_hull_figure.jl)

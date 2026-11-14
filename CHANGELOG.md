@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `add_view!(canvas, layers; autocrop=true)` adds Ipe's special `VIEWBBOX` layer to the view, so that each view of a page (each page of the compiled PDF) is cropped to its own visible objects rather than to the whole page. A `"VIEWBBOX"` listed in `layers` is registered on the canvas automatically. Example `examples/ipe_view_autocrop.jl` and a section in the vector-figures guide.
+
 ## [0.6.0] - 2026-11-14
 
 ### Changed

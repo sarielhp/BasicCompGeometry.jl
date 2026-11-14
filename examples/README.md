@@ -187,6 +187,29 @@ Automatically produces:
 ```
 
 
+## `ipe_view_autocrop.jl` — Independent Cropping of Ipe Views
+
+Draws a triangle, its incircle, and its circumcircle on separate layers of one
+Ipe page, with three views that reveal them one after the other; `ipetoipe -pdf`
+writes each view as a PDF page. By default Ipe crops all views to the whole
+page. `add_view!(fig, layers; autocrop=true)` adds Ipe's special `VIEWBBOX`
+layer to the view, so that each view is cropped to its own visible objects —
+the same as
+
+```julia
+add_layer!(fig, "VIEWBBOX")
+add_view!(fig, ["alpha", "VIEWBBOX"]; active="alpha")
+```
+
+The script writes the page with and without cropping and prints the PDF page
+sizes of both (e.g. the triangle-only page shrinks from 482×482 to 481×243 pt).
+
+**Usage:** `julia --project=. examples/ipe_view_autocrop.jl`
+
+**Output:** `output/ipe_view_autocrop.{ipe,pdf}`, `output/ipe_view_nocrop.{ipe,pdf}`
+
+---
+
 ## `misc/monte_carlo_area.jl` — Monte Carlo Area Estimation of Curved Voronoi Cell
 
 Constructs the Voronoi cell of a query point with respect to the 4 boundary lines

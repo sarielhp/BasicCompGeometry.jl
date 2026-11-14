@@ -240,14 +240,33 @@ function set_layer!(canvas::IpeCanvas, name::String)
     return canvas
 end
 
-"""
-    add_view!(canvas, layers; active=nothing)
+# Ipe special layer: a view containing it is cropped to its own visible objects.
+const VIEWBBOX_LAYER = "VIEWBBOX"
 
-Add a view containing the specified list of layers.
 """
-function add_view!(canvas::IpeCanvas, layers::Vector{String}; active = nothing)
+    add_view!(canvas, layers; active=nothing, autocrop=false)
+
+Add a view containing the specified list of layers. `active` names the view's
+active layer and defaults to the first layer.
+
+Ipe crops every view of a page to the bounding box of the whole page. With
+`autocrop=true`, Ipe's special (empty) `"VIEWBBOX"` layer is registered on
+the canvas and added to the view, so that Ipe crops this view (one page of the
+compiled PDF) to the objects visible in it. Listing `"VIEWBBOX"` in `layers`
+explicitly has the same effect.
+"""
+function add_view!(
+    canvas::IpeCanvas,
+    layers::Vector{String};
+    active = nothing,
+    autocrop::Bool = false,
+)
+    isempty(layers) && throw(ArgumentError("a view needs at least one layer"))
     act = active === nothing ? layers[1] : string(active)
-    push!(canvas.views, "<view layers=\"$(join(layers, " "))\" active=\"$act\"/>")
+    view_layers = copy(layers)
+    autocrop && !(VIEWBBOX_LAYER in view_layers) && push!(view_layers, VIEWBBOX_LAYER)
+    VIEWBBOX_LAYER in view_layers && add_layer!(canvas, VIEWBBOX_LAYER)
+    push!(canvas.views, "<view layers=\"$(join(view_layers, " "))\" active=\"$act\"/>")
     return canvas
 end
 
