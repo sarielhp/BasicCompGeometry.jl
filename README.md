@@ -14,7 +14,7 @@ The core keeps a small dependency set, with optional Cairo and LaTeX extensions.
 
 ## Installation
 
-Requires Julia 1.9 or newer. Install the development version described here:
+Requires Julia 1.10 or newer. Install the development version described here:
 
 ```julia
 using Pkg

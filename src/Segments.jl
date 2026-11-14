@@ -179,6 +179,9 @@ function dist_segment_segment(
     return _dist_segment_segment_nd(ap, aq, bp, bq)
 end
 
+@inline _cross2(o::Point{2}, p::Point{2}, q::Point{2}) =
+    (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x)
+
 # Exact characterization in the plane: two segments are at distance zero iff
 # they cross; otherwise the closest pair has an endpoint on one side. Solving
 # the normal equations instead loses accuracy like eps/θ² for nearly parallel
@@ -189,7 +192,6 @@ function _dist_segment_segment_2d(
     bp::Point{2,R},
     bq::Point{2,R},
 ) where {R}
-    _cross2(o, p, q) = (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x)
     o1 = _cross2(ap, aq, bp)
     o2 = _cross2(ap, aq, bq)
     o3 = _cross2(bp, bq, ap)

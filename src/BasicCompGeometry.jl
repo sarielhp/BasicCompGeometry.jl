@@ -44,6 +44,11 @@ include("CairoDraw.jl")
 include("ConvexHull3D.jl")
 include("VirtArray.jl")
 include("BBT.jl")
+"""
+    Kd_tree
+
+Alias for the [`BBT`](@ref) module (bounding-box trees).
+"""
 const Kd_tree = BBT
 include("WSPD.jl")
 include("Diameter.jl")

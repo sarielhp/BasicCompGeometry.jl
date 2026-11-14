@@ -11,7 +11,7 @@ QuickEnv = "b4c4897f-8d96-4155-9008-62d2948bbcdb"
 BasicCompGeometry = {path = ".."}
 
 [compat]
-BasicCompGeometry = "0.5"
+BasicCompGeometry = "0.6"
 Cairo = "1"
 Colors = "0.12, 0.13"
 DataFrames = "1"

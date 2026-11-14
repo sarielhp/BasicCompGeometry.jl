@@ -181,6 +181,11 @@ struct ParabolaArc{T} <: AbsCurve2D{T}
     t2::T
 end
 
+"""
+    ParabolaArc2F
+
+Alias for `ParabolaArc{Float64}`.
+"""
 const ParabolaArc2F = ParabolaArc{Float64}
 
 """

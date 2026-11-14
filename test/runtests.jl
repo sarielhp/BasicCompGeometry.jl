@@ -19,6 +19,15 @@ using BasicCompGeometry:
     width
 
 using Aqua
+
+# Bytes allocated by `f(args...)`: the minimum of three measurements inside a
+# function after a warm-up call. A single `@allocated` at test-set scope, or the
+# first one after a warm-up on Julia 1.10, also counts the measurement's own
+# overhead, so zero-allocation tests use this.
+function allocs(f, args...)
+    f(args...)
+    return minimum(@allocated(f(args...)) for _ in 1:3)
+end
 Random.seed!(0xBADC0DE)
 Aqua.test_all(BasicCompGeometry)
 
@@ -452,8 +461,7 @@ Aqua.test_all(BasicCompGeometry)
         @test (@inferred rand_gaussian(Val(2), Float32)) isa Point{2,Float32}
         let sample_points =
                 () -> (rand_point(Val(3)), rand_gaussian(Val(3)), rand_gaussian(3))
-            sample_points()
-            @test (@allocated sample_points()) == 0
+            @test allocs(sample_points) == 0
         end
 
         # dist_subspace type stability across Int, Float32, Rational
@@ -502,8 +510,7 @@ Aqua.test_all(BasicCompGeometry)
         @test dist(seg, seg2) == 2.0
         let seg_dist_bench =
                 (a, b) -> BasicCompGeometry.dist_segment_segment(a.p, a.q, b.p, b.q)
-            seg_dist_bench(seg, seg2)
-            @test (@allocated seg_dist_bench(seg, seg2)) == 0
+            @test allocs(seg_dist_bench, seg, seg2) == 0
         end
         @test dist(
             Segment(point(0.0, 0.0), point(1e-4, 0.0)),
@@ -717,8 +724,7 @@ Aqua.test_all(BasicCompGeometry)
 
         # Zero-allocation transform & AbstractMatrix support
         let tf_bench = (m, pt) -> BasicCompGeometry.apply_transform(m, pt)
-            tf_bench(m_trans, p)
-            @test (@allocated tf_bench(m_trans, p)) == 0
+            @test allocs(tf_bench, m_trans, p) == 0
         end
         m_static = SMatrix{3,3,Float64}(m_trans)
         @test (@inferred apply_transform(m_static, p)) == point(3.0, 3.0)

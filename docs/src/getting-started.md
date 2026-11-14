@@ -2,7 +2,7 @@
 
 ## Installation
 
-Requires Julia 1.9 or newer. Install the development version described by these
+Requires Julia 1.10 or newer. Install the development version described by these
 docs directly from GitHub:
 
 ```julia

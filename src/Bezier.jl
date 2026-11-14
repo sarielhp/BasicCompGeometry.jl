@@ -13,7 +13,18 @@ struct CubicBezier{D,T}
     p3::Point{D,T}
 end
 
+"""
+    CubicBezier2F
+
+Alias for `CubicBezier{2,Float64}`.
+"""
 const CubicBezier2F = CubicBezier{2,Float64}
+
+"""
+    CubicBezier3F
+
+Alias for `CubicBezier{3,Float64}`.
+"""
 const CubicBezier3F = CubicBezier{3,Float64}
 
 function CubicBezier(

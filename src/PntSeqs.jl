@@ -411,8 +411,23 @@ Alias for `MatPntSeq`.
 """
 const MatPolygon = MatPntSeq
 
+"""
+    Polygon2I
+
+Alias for `PntSeq2I` (the pre-0.5 name of point sequences).
+"""
 const Polygon2I = PntSeq2I
+"""
+    Polygon2F
+
+Alias for `PntSeq2F` (the pre-0.5 name of point sequences).
+"""
 const Polygon2F = PntSeq2F
+"""
+    Polygon3F
+
+Alias for `PntSeq3F` (the pre-0.5 name of point sequences).
+"""
 const Polygon3F = PntSeq3F
 
 """

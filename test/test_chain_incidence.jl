@@ -174,7 +174,7 @@ end
     span_segs = [((i, 0), (i + 1, 2), i) for i in 1:1000]
     _run_vc(s, q, d) = first_positive_vertical_contact(s, q, d)
     @test _run_vc(span_segs, (-10, -1), 1) === nothing
-    @test (@allocated _run_vc(span_segs, (-10, -1), 1)) == 0
+    @test allocs(_run_vc, span_segs, (-10, -1), 1) == 0
     @test _run_vc(span_segs, (500, -1), 1).t == 1
     @test (@allocated _run_vc(span_segs, (500, -1), 1)) < 20_000
     # huge rationals

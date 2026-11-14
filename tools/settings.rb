@@ -21,8 +21,11 @@ module ToolSettings
   # - allocation baselines of the hot entry points (test/alloc);
   # - JET runtime-dispatch check, in its own environment (test/jet) so
   #   Pkg.test, CI and package users never install JET;
+  # - the test suite on Julia 1.10, the oldest supported version (test/lts);
   # - the Documenter build (docs/).
   FULL_CHECKS = [
+    # Test suite on the oldest supported Julia (1.10 LTS) from a mirror tree.
+    ['test/lts/run.sh'],
     ['julia', '--project=.', '--startup-file=no', '-e', 'using Test; include("test/properties/properties.jl")'],
     ['julia', '--project=.', '--startup-file=no', 'test/alloc/alloc_check.jl'],
     ['julia', '--project=test/jet', '--startup-file=no', '-e', 'using Pkg; Pkg.instantiate()'],

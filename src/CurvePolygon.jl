@@ -27,6 +27,11 @@ function CurvePolygon2D(curves::AbstractVector)
     return CurvePolygon2D{Float64}(curves_vec)
 end
 
+"""
+    CurvePolygon2DF
+
+Alias for `CurvePolygon2D{Float64}`.
+"""
 const CurvePolygon2DF = CurvePolygon2D{Float64}
 
 # eltype for curves
@@ -307,7 +312,16 @@ end
 end
 
 # Explicit branches avoid 5-way Union{Curve2D} dynamic dispatch inside tight loops.
-@inline function _dispatch_line_curve_hits(line::Line{2,Float64}, c)
+# They take the curve vector and an index, not the curve: a call whose argument is a
+# 5-way union is not union-split by Julia 1.10 (limit 4) and dispatches dynamically,
+# boxing the curve and the result; narrowing by `isa` inside the callee keeps every
+# real call static on all supported versions.
+@inline function _dispatch_line_curve_hits(
+    line::Line{2,Float64},
+    curves::AbstractVector,
+    i::Int,
+)
+    c = @inbounds curves[i]
     if c isa Segment2F
         return _line_curve_hits(line, c)
     elseif c isa CircleArc2F
@@ -321,7 +335,8 @@ end
     end
 end
 
-@inline function _curve_length(c)
+@inline function _curve_length(curves::AbstractVector, i::Int)
+    c = @inbounds curves[i]
     if c isa Segment2F
         return geom_length(c)
     elseif c isa CircleArc2F
@@ -366,9 +381,10 @@ function tangent_intersections_cp(CP::CurvePolygon2D, Q, alpha::Real)
     max_t_neg = -Inf
 
     acc_len = 0.0
-    for curve in CP.curves
-        curve_len = Float64(_curve_length(curve))
-        hits = _dispatch_line_curve_hits(line, curve)
+    curves = CP.curves
+    for i in eachindex(curves)
+        curve_len = Float64(_curve_length(curves, i))
+        hits = _dispatch_line_curve_hits(line, curves, i)
         for k in 1:hits.n
             pt, local_t = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
             t_line = dot(pt - q, line.u) / u_norm_sq
@@ -421,8 +437,9 @@ function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
     ray = Line(Point{2,Float64}(q), Point{2,Float64}(0.0, -1.0))
     crossings = 0
     qy = Float64(q.y)
-    for c in cp.curves
-        hits = _dispatch_line_curve_hits(ray, c)
+    curves = cp.curves
+    for i in eachindex(curves)
+        hits = _dispatch_line_curve_hits(ray, curves, i)
         for k in 1:hits.n
             pt, s = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
             if pt.y < qy - 1e-11

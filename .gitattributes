@@ -1,0 +1,2 @@
+# Golden fixtures are compared byte for byte: no line-ending conversion.
+test/golden/** -text

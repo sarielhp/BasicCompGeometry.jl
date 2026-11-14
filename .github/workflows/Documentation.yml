@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Ubuntu is pinned: on ubuntu-latest (Ubuntu 26, from 2026-10-19) the Julia 1.9 binary
-  # does not start and lualatex cannot load its fonts.
+  # Ubuntu is pinned: on ubuntu-latest (Ubuntu 26, from 2026-10-19) lualatex cannot load
+  # its fonts. Julia 1.10 is the oldest supported version (the LTS).
   test:
     name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04]
-        julia-version: ['1.9', '1.10', '1']
+        julia-version: ['1.10', '1']
         include:
           - os: macos-latest
             julia-version: '1'

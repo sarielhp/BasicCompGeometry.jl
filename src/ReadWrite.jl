@@ -235,10 +235,14 @@ end
 
 function _read_plt(filename::AbstractString, ::Val{D}) where {D}
     P = PntSeq{D,Float64}()
-    for line in eachline(filename)
-        text = strip(line)
-        (isempty(text) || startswith(text, '#') || text == "x y k tid") && continue
-        push_distinct!(P, _parse_point(text, Val(D), line))
+    # open/do closes the file even when a malformed line throws; a bare
+    # eachline(filename) would keep it open until GC (Windows cannot delete it).
+    open(filename) do io
+        for line in eachline(io)
+            text = strip(line)
+            (isempty(text) || startswith(text, '#') || text == "x y k tid") && continue
+            push_distinct!(P, _parse_point(text, Val(D), line))
+        end
     end
     return P
 end
@@ -266,7 +270,14 @@ consecutive repeated points are dropped.
 """
 function read_geolife_plt(filename::AbstractString)
     P = PntSeq2F()
-    for line in Iterators.drop(eachline(filename), 6)
+    open(filename) do io
+        _read_geolife_records!(P, io)
+    end
+    return P
+end
+
+function _read_geolife_records!(P::PntSeq2F, io::IO)
+    for line in Iterators.drop(eachline(io), 6)
         isempty(strip(line)) && continue
         c1 = findfirst(',', line)
         c1 === nothing && error("malformed GeoLife record: \"$line\"")
