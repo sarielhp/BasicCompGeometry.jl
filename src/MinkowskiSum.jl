@@ -1,36 +1,83 @@
 # Minkowski Sum of 2D Polygons and Shapes
 
-@inline _scalar_type(p::Point) = typeof(p.x)
-@inline _scalar_type(s::Segment) = typeof(s.p.x)
-function _scalar_type(poly)
-    for p in poly
-        return typeof(p.x)
-    end
-    return Float64
+@inline _minkowski_coord_type(::ExactKernel, ::Type{T}) where {T} =
+    T <: Rational ? T : Rational{BigInt}
+@inline _minkowski_coord_type(::AbstractKernel, ::Type{T}) where {T} = T
+@inline _minkowski_coord_type(kernel::AbstractKernel, ::Type{T1}, ::Type{T2}) where {T1, T2} =
+    _minkowski_coord_type(kernel, promote_type(T1, T2))
+
+@inline _pts_vec(s::Segment{2, T}) where {T} = Point{2, T}[s.p, s.q]
+@inline _pts_vec(p::Point{2, T}) where {T} = Point{2, T}[p]
+
+struct _TrianglePieces{R} <: AbstractVector{SVector{3, Point{2, R}}}
+    pts::Vector{Point{2, R}}
+    tris::Vector{NTuple{3, Int}}
 end
 
-function _dedup_consecutive(pts::Vector{Point{2, R}}, kernel::AbstractKernel) where {R}
-    n = length(pts)
-    n <= 1 && return pts
-    tol = 1e-11
-    res = Point{2, R}[]
-    for p in pts
-        if isempty(res)
-            push!(res, p)
-        else
-            is_dup = kernel isa ExactKernel ? (p == last(res)) : (dist(p, last(res)) < tol)
-            if !is_dup
-                push!(res, p)
-            end
+Base.size(tp::_TrianglePieces) = (length(tp.tris),)
+@inline function Base.getindex(tp::_TrianglePieces{R}, k::Int) where {R}
+    i, j, m = tp.tris[k]
+    return SVector{3, Point{2, R}}(tp.pts[i], tp.pts[j], tp.pts[m])
+end
+
+function _has_all_ccw_turns(
+    pts::Vector{Point{2, R}},
+    kernel::AbstractKernel,
+    tol::Float64,
+) where {R}
+    k = length(pts)
+    for i in 1:k
+        p = pts[i == 1 ? k : i - 1]
+        q = pts[i]
+        r = pts[i == k ? 1 : i + 1]
+        ts = orient_sign(kernel, p, q, r)
+        if kernel isa ExactKernel
+            ts < 0 && return false
+        elseif ts < 0
+            d1 = dist(p, q)
+            d2 = dist(q, r)
+            cross = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+            cross < -tol * max(d1 * d2, 1.0) && return false
         end
     end
-    if length(res) > 1
-        is_dup = kernel isa ExactKernel ? (first(res) == last(res)) : (dist(first(res), last(res)) < tol)
-        if is_dup
-            pop!(res)
+    return true
+end
+
+function _lowest_left_index(pts::AbstractVector{Point{2, R}}) where {R}
+    idx_min = 1
+    for i in 2:length(pts)
+        p = pts[i]
+        m = pts[idx_min]
+        if p.y < m.y || (p.y == m.y && p.x < m.x)
+            idx_min = i
         end
     end
-    return res
+    return idx_min
+end
+
+function _edges_angle_monotone(
+    pts::Vector{Point{2, R}},
+    idx_min::Int,
+    kernel::AbstractKernel,
+) where {R}
+    k = length(pts)
+    prev_edge = Point{2, R}(zero(R), zero(R))
+    has_prev = false
+    nz_count = 0
+    idx = idx_min
+    for _ in 1:k
+        nxt = idx == k ? 1 : idx + 1
+        e = pts[nxt] - pts[idx]
+        idx = nxt
+        (iszero(e.x) && iszero(e.y)) && continue
+        nz_count += 1
+        if has_prev && compare_angle(kernel, prev_edge, e) > 0
+            return false
+        end
+        prev_edge = e
+        has_prev = true
+    end
+    return nz_count >= 3
 end
 
 """
@@ -51,68 +98,24 @@ function is_convex(
     poly::AbstractVector{<:Point{2}};
     kernel::AbstractKernel = FloatingKernel(),
 )
-    n = length(poly)
-    n <= 2 && return true
+    length(poly) <= 2 && return true
+    R = _minkowski_coord_type(kernel, _scalar_type(poly))
+    return _is_convex_impl(poly, kernel, R)
+end
 
-    R = _scalar_type(poly)
-    if kernel isa ExactKernel && !(R <: Rational)
-        R = Rational{BigInt}
-    end
-    p_conv = [point(R(p.x), R(p.y)) for p in poly]
-    deduped = _dedup_consecutive(p_conv, kernel)
+function _is_convex_impl(poly, kernel::AbstractKernel, ::Type{R}) where {R}
+    deduped = Point{2, R}[]
+    sizehint!(deduped, length(poly))
+    _collect_deduped_points!(deduped, poly, kernel, 1e-11)
 
-    k = length(deduped)
-    k <= 2 && return true
-
+    length(deduped) <= 2 && return true
     area2 = twice_area(deduped; kernel = kernel)
-    if iszero(area2)
-        return false
-    end
+    iszero(area2) && return false
+    area2 < 0 && reverse!(deduped)
 
-    if area2 < 0
-        deduped = reverse(deduped)
-    end
-
-    tol = 1e-11
-    for i in 1:k
-        p = deduped[mod1(i - 1, k)]
-        q = deduped[i]
-        r = deduped[mod1(i + 1, k)]
-
-        ts = orient_sign(kernel, p, q, r)
-        if kernel isa ExactKernel
-            ts < 0 && return false
-        else
-            if ts < 0
-                d1 = dist(p, q)
-                d2 = dist(q, r)
-                cross = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
-                if cross < -tol * max(d1 * d2, 1.0)
-                    return false
-                end
-            end
-        end
-    end
-
-    idx_min = 1
-    for i in 2:k
-        if deduped[i].y < deduped[idx_min].y || (deduped[i].y == deduped[idx_min].y && deduped[i].x < deduped[idx_min].x)
-            idx_min = i
-        end
-    end
-
-    edges = [deduped[mod1(idx_min + idx, k)] - deduped[mod1(idx_min + idx - 1, k)] for idx in 1:k]
-    nz_edges = filter(e -> !(iszero(e.x) && iszero(e.y)), edges)
-    length(nz_edges) < 3 && return false
-
-    for idx in 1:(length(nz_edges) - 1)
-        cmp = compare_angle(kernel, nz_edges[idx], nz_edges[idx + 1])
-        if cmp > 0
-            return false
-        end
-    end
-
-    return true
+    _has_all_ccw_turns(deduped, kernel, 1e-11) || return false
+    idx_min = _lowest_left_index(deduped)
+    return _edges_angle_monotone(deduped, idx_min, kernel)
 end
 
 is_convex(poly::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel()) =
@@ -165,7 +168,7 @@ function minkowski_sum(
     if hull
         h1 = convex_hull(poly1; kernel = kernel)
         h2 = convex_hull(poly2; kernel = kernel)
-        return _minkowski_convex(h1, h2, kernel)
+        return _minkowski_convex(Points(h1), Points(h2), kernel)
     end
 
     if !is_convex(poly1; kernel = kernel)
@@ -178,117 +181,93 @@ function minkowski_sum(
     return _minkowski_convex(poly1, poly2, kernel)
 end
 
-function _minkowski_convex(
-    poly1,
-    poly2,
+function _minkowski_convex(poly1, poly2, kernel::AbstractKernel)
+    R = _minkowski_coord_type(kernel, _scalar_type(poly1), _scalar_type(poly2))
+    return _minkowski_convex_impl(poly1, poly2, kernel, R)
+end
+
+function _minkowski_convex_impl(poly1, poly2, kernel::AbstractKernel, ::Type{R}) where {R}
+    p1 = Point{2, R}[]
+    sizehint!(p1, length(poly1))
+    _collect_deduped_points!(p1, poly1, kernel, 1e-11)
+
+    p2 = Point{2, R}[]
+    sizehint!(p2, length(poly2))
+    _collect_deduped_points!(p2, poly2, kernel, 1e-11)
+
+    n, m = length(p1), length(p2)
+    (n == 0 || m == 0) && return Point{2, R}[]
+    n == 1 && m == 1 && return Point{2, R}[p1[1] + p2[1]]
+    n == 1 && return Point{2, R}[q + p1[1] for q in p2]
+    m == 1 && return Point{2, R}[p + p2[1] for p in p1]
+
+    n >= 3 && twice_area(p1; kernel = kernel) < 0 && reverse!(p1)
+    m >= 3 && twice_area(p2; kernel = kernel) < 0 && reverse!(p2)
+
+    scratch_raw = Point{2, R}[]
+    scratch_dedup = Point{2, R}[]
+    return _minkowski_convex_ccw(p1, p2, kernel, scratch_raw, scratch_dedup)
+end
+
+function _minkowski_merge_ccw!(
+    raw_out::Vector{Point{2, R}},
+    p1::AbstractVector{Point{2, R}},
+    p2::AbstractVector{Point{2, R}},
     kernel::AbstractKernel,
-)
-    R = promote_type(_scalar_type(poly1), _scalar_type(poly2))
-    if kernel isa ExactKernel && !(R <: Rational)
-        R = Rational{BigInt}
-    end
-
-    p1 = Point{2, R}[point(R(p.x), R(p.y)) for p in poly1]
-    p2 = Point{2, R}[point(R(p.x), R(p.y)) for p in poly2]
-
-    p1 = _dedup_consecutive(p1, kernel)
-    p2 = _dedup_consecutive(p2, kernel)
-
+) where {R}
     n = length(p1)
     m = length(p2)
+    empty!(raw_out)
+    sizehint!(raw_out, n + m)
 
-    if n == 0 || m == 0
-        return Point{2, R}[]
-    end
-
-    if n == 1 && m == 1
-        return Point{2, R}[p1[1] + p2[1]]
-    elseif n == 1
-        return Point{2, R}[q + p1[1] for q in p2]
-    elseif m == 1
-        return Point{2, R}[p + p2[1] for p in p1]
-    end
-
-    if n >= 3 && twice_area(p1; kernel = kernel) < 0
-        p1 = reverse(p1)
-    end
-    if m >= 3 && twice_area(p2; kernel = kernel) < 0
-        p2 = reverse(p2)
-    end
-
-    function find_start(pts)
-        idx = 1
-        for i in 2:length(pts)
-            if pts[i].y < pts[idx].y || (pts[i].y == pts[idx].y && pts[i].x < pts[idx].x)
-                idx = i
-            end
-        end
-        return idx
-    end
-
-    i0 = find_start(p1)
-    j0 = find_start(p2)
-
-    v1 = [p1[mod1(i0 + k - 1, n)] for k in 1:n]
-    v2 = [p2[mod1(j0 + k - 1, m)] for k in 1:m]
-
-    edges1 = [v1[mod1(k + 1, n)] - v1[k] for k in 1:n]
-    edges2 = [v2[mod1(k + 1, m)] - v2[k] for k in 1:m]
-
-    result = Point{2, R}[]
+    idx1 = _lowest_left_index(p1)
+    idx2 = _lowest_left_index(p2)
     i = 1
     j = 1
-
     while i <= n || j <= m
-        push!(result, v1[mod1(i, n)] + v2[mod1(j, m)])
-
+        push!(raw_out, p1[idx1] + p2[idx2])
         if i > n
             j += 1
+            idx2 = idx2 == m ? 1 : idx2 + 1
         elseif j > m
             i += 1
+            idx1 = idx1 == n ? 1 : idx1 + 1
         else
-            e1 = edges1[i]
-            e2 = edges2[j]
-
-            cmp = compare_angle(kernel, e1, e2)
-            if cmp < 0
+            nxt1 = idx1 == n ? 1 : idx1 + 1
+            nxt2 = idx2 == m ? 1 : idx2 + 1
+            cmp = compare_angle(kernel, p1[nxt1] - p1[idx1], p2[nxt2] - p2[idx2])
+            if cmp <= 0
                 i += 1
-            elseif cmp > 0
+                idx1 = nxt1
+            end
+            if cmp >= 0
                 j += 1
-            else
-                i += 1
-                j += 1
+                idx2 = nxt2
             end
         end
     end
+    return raw_out
+end
 
-    deduped = _dedup_consecutive(result, kernel)
-    k = length(deduped)
-    if k < 3
-        return deduped
-    end
+function _minkowski_convex_ccw(
+    p1::AbstractVector{Point{2, R}},
+    p2::AbstractVector{Point{2, R}},
+    kernel::AbstractKernel,
+    scratch_raw::Vector{Point{2, R}},
+    scratch_dedup::Vector{Point{2, R}},
+) where {R}
+    n, m = length(p1), length(p2)
+    (n == 0 || m == 0) && return Point{2, R}[]
+    n == 1 && m == 1 && return Point{2, R}[p1[1] + p2[1]]
+    n == 1 && return Point{2, R}[q + p1[1] for q in p2]
+    m == 1 && return Point{2, R}[p + p2[1] for p in p1]
 
-    tol = 1e-11
-    final_poly = Point{2, R}[]
-    for idx in 1:k
-        pr = deduped[mod1(idx - 1, k)]
-        cu = deduped[idx]
-        nx = deduped[mod1(idx + 1, k)]
-        if kernel isa ExactKernel
-            if orient_sign(kernel, pr, cu, nx) != 0
-                push!(final_poly, cu)
-            end
-        else
-            cross = (cu.x - pr.x) * (nx.y - pr.y) - (cu.y - pr.y) * (nx.x - pr.x)
-            d1 = dist(pr, cu)
-            d2 = dist(cu, nx)
-            if abs(cross) > tol * max(d1 * d2, 1.0)
-                push!(final_poly, cu)
-            end
-        end
-    end
+    _minkowski_merge_ccw!(scratch_raw, p1, p2, kernel)
+    _collect_deduped_points!(scratch_dedup, scratch_raw, kernel, 1e-11)
+    length(scratch_dedup) < 3 && return copy(scratch_dedup)
 
-    return isempty(final_poly) ? deduped : final_poly
+    final_poly = _prune_collinear(scratch_dedup, kernel, 1e-11)
+    return isempty(final_poly) ? copy(scratch_dedup) : final_poly
 end
 
 # Specialized Point and Segment overloads
@@ -302,19 +281,19 @@ minkowski_sum(s::Segment{2, T1}, p::Point{2, T2}; kernel::AbstractKernel = Float
     Segment(s.p + p, s.q + p)
 
 minkowski_sum(s1::Segment{2}, s2::Segment{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(Point{2}[s1.p, s1.q], Point{2}[s2.p, s2.q]; kernel = kernel, kwargs...)
+    minkowski_sum(_pts_vec(s1), _pts_vec(s2); kernel = kernel, kwargs...)
 
 minkowski_sum(p::Point{2}, poly::AbstractVector{<:Point{2}}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(Point{2}[p], poly; kernel = kernel, kwargs...)
+    minkowski_sum(_pts_vec(p), poly; kernel = kernel, kwargs...)
 
 minkowski_sum(poly::AbstractVector{<:Point{2}}, p::Point{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(poly, Point{2}[p]; kernel = kernel, kwargs...)
+    minkowski_sum(poly, _pts_vec(p); kernel = kernel, kwargs...)
 
 minkowski_sum(s::Segment{2}, poly::AbstractVector{<:Point{2}}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(Point{2}[s.p, s.q], poly; kernel = kernel, kwargs...)
+    minkowski_sum(_pts_vec(s), poly; kernel = kernel, kwargs...)
 
 minkowski_sum(poly::AbstractVector{<:Point{2}}, s::Segment{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(poly, Point{2}[s.p, s.q]; kernel = kernel, kwargs...)
+    minkowski_sum(poly, _pts_vec(s); kernel = kernel, kwargs...)
 
 # PntSeq and generic collections
 minkowski_sum(p1::AbsPntSeq{2}, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
@@ -349,34 +328,74 @@ function minkowski_sum_decomposition(
     kernel::AbstractKernel = FloatingKernel(),
     algorithm::Symbol = :sweep,
 )
-    R = promote_type(_scalar_type(poly1), _scalar_type(poly2))
-    if kernel isa ExactKernel && !(R <: Rational)
-        R = Rational{BigInt}
-    end
+    R = _minkowski_coord_type(kernel, _scalar_type(poly1), _scalar_type(poly2))
+    return _minkowski_sum_decomposition_impl(poly1, poly2, kernel, algorithm, R)
+end
 
-    p1 = [point(R(p.x), R(p.y)) for p in poly1]
-    p2 = [point(R(p.x), R(p.y)) for p in poly2]
+function _normalize_convex_copy(p::Vector{Point{2, R}}, kernel::AbstractKernel) where {R}
+    out = Point{2, R}[]
+    sizehint!(out, length(p))
+    _collect_deduped_points!(out, p, kernel, 1e-11)
+    length(out) >= 3 && twice_area(out; kernel = kernel) < 0 && reverse!(out)
+    return out
+end
 
-    # Decompose p1
-    pieces1 = if length(p1) <= 3 || is_convex(p1; kernel = kernel)
-        Vector{Point{2, R}}[p1]
-    else
-        t1 = triangulate_polygon(p1; kernel = kernel, algorithm = algorithm)
-        Vector{Point{2, R}}[[p1[i], p1[j], p1[m]] for (i, j, m) in t1.triangles]
+function _decompose_pieces(
+    p::Vector{Point{2, R}},
+    kernel::AbstractKernel,
+    algorithm::Symbol,
+) where {R}
+    if length(p) <= 3 || is_convex(p; kernel = kernel)
+        return (_normalize_convex_copy(p, kernel), NTuple{3, Int}[])
     end
+    t = triangulate_polygon(p; kernel = kernel, algorithm = algorithm)
+    return (p, t.triangles)
+end
 
-    # Decompose p2
-    pieces2 = if length(p2) <= 3 || is_convex(p2; kernel = kernel)
-        Vector{Point{2, R}}[p2]
-    else
-        t2 = triangulate_polygon(p2; kernel = kernel, algorithm = algorithm)
-        Vector{Point{2, R}}[[p2[i], p2[j], p2[m]] for (i, j, m) in t2.triangles]
-    end
+function _minkowski_sum_decomposition_impl(
+    poly1::AbstractVector{<:Point{2}},
+    poly2::AbstractVector{<:Point{2}},
+    kernel::AbstractKernel,
+    algorithm::Symbol,
+    ::Type{R},
+) where {R}
+    p1 = _to_point2_vec(poly1, R)
+    p2 = _to_point2_vec(poly2, R)
+    pts1, tris1 = _decompose_pieces(p1, kernel, algorithm)
+    pts2, tris2 = _decompose_pieces(p2, kernel, algorithm)
 
     results = Vector{Point{2, R}}[]
+    scratch_raw = Point{2, R}[]
+    scratch_dedup = Point{2, R}[]
+    return _dispatch_p1!(results, pts1, tris1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
+end
+
+function _dispatch_p1!(results, pts1, tris1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
+    if isempty(tris1)
+        return _dispatch_p2!(results, (pts1,), pts2, tris2, kernel, scratch_raw, scratch_dedup)
+    end
+    return _dispatch_p2!(results, _TrianglePieces(pts1, tris1), pts2, tris2, kernel, scratch_raw, scratch_dedup)
+end
+
+function _dispatch_p2!(results, pieces1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
+    if isempty(tris2)
+        return _minkowski_pair_loop!(results, pieces1, (pts2,), kernel, scratch_raw, scratch_dedup)
+    end
+    return _minkowski_pair_loop!(results, pieces1, _TrianglePieces(pts2, tris2), kernel, scratch_raw, scratch_dedup)
+end
+
+function _minkowski_pair_loop!(
+    results::Vector{Vector{Point{2, R}}},
+    pieces1,
+    pieces2,
+    kernel::AbstractKernel,
+    scratch_raw::Vector{Point{2, R}},
+    scratch_dedup::Vector{Point{2, R}},
+) where {R}
+    sizehint!(results, length(pieces1) * length(pieces2))
     for c1 in pieces1
         for c2 in pieces2
-            push!(results, _minkowski_convex(c1, c2, kernel))
+            push!(results, _minkowski_convex_ccw(c1, c2, kernel, scratch_raw, scratch_dedup))
         end
     end
     return results

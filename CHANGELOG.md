@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `visibility_polygon` and `polygon_kernel`: integer coordinate inputs under `FloatingKernel()` now promote to `Float64` instead of throwing `InexactError`, and `Float32` / `Rational{Int64}` coordinate types are preserved with homogeneous, type-stable return types (including `_ray_edge_intersect`).
+
 ### Changed
 - `triangulate_monotone`: eliminated inner-loop stack vector reallocations on alternating upper/lower chains by reusing the allocated buffer and pre-sizing capacity; eliminated redundant `orient_sign` predicate evaluations by emitting counterclockwise triangles directly from chain classifications (`is_upper`). Measured up to ~3x speedup under `FloatingKernel()` (4k allocations reduced to 38) and ~97x speedup under `ExactKernel()` (280k allocations reduced to 173).
 - `_check_distinct_vertices`: eliminated intermediate $O(n)$ tuple array allocation by sorting vertices directly by coordinate projection with `MergeSort`, reducing memory allocation by ~57% and eliminating GC stalls on large polygons.
 - `_sweep_partition_diagonals`: eliminated redundant $O(n)$ heap vector allocation for `prev_v` via inline cyclic index computation, and pre-sized `diags` with `sizehint!(diags, n - 3)`.
+- `visibility_polygon` and `polygon_kernel`: eliminated `Core.Box` closure captures via coordinate-type function barriers and helper extraction, avoided intermediate edge-tuple allocation, and reused Sutherland–Hodgman scratch buffers across clipping iterations (40-vertex star allocations reduced from 656 KB to 4.9 KB and 385 KB to 5.0 KB; 200-vertex star allocations reduced from 15.0 MB to 22.8 KB and 7.0 MB to 20.6 KB).
+- `is_convex`, `minkowski_sum`, and `minkowski_sum_decomposition`: eliminated `Core.Box` captures, concrete-typed `Point{2}` / `Segment{2}` wrapper vectors (`_pts_vec`), replaced intermediate rotated/edge vector allocations with direct cyclic indexing and zero-allocation `_TrianglePieces` views, and reused merge/deduplication scratch buffers across triangle pairs (`is_convex` 3.5 KB -> 128 B; `minkowski_sum` 10.8 KB -> 1.1 KB and 8.8 KB -> 960 B; 40-vertex star `minkowski_sum_decomposition` 5.1 MB -> 274 KB).
 
 ## [0.5.16] - 2026-11-13
 

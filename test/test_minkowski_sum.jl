@@ -227,4 +227,60 @@ using Random
             @test is_convex(res_fast)
         end
     end
+
+    @testset "Type stability & allocation regressions" begin
+        exact = ExactKernel()
+        sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+        seg1 = Segment(point(0.0, 0.0), point(2.0, 0.0))
+        seg2 = Segment(point(0.0, 0.0), point(0.0, 3.0))
+        pt = point(1.0, 2.0)
+
+        # Concrete return type inference across is_convex, minkowski_sum, and overloads
+        @test (@inferred is_convex(sq)) === true
+        @test (@inferred minkowski_sum(sq, sq)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum(seg1, seg2)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum(pt, sq)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum(sq, pt)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum(seg1, sq)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum(sq, seg1)) isa Vector{Point{2, Float64}}
+        @test (@inferred minkowski_sum_decomposition(sq, sq)) isa Vector{Vector{Point{2, Float64}}}
+
+        # Integer and Rational{Int64} coordinate preservation
+        sq_int = [point(0, 0), point(1, 0), point(1, 1), point(0, 1)]
+        m_int = @inferred minkowski_sum(sq_int, sq_int)
+        @test m_int isa Vector{Point{2, Int64}}
+        @test twice_area(m_int) == 8
+
+        sq_rat = [point(0//1, 0//1), point(1//1, 0//1), point(1//1, 1//1), point(0//1, 1//1)]
+        @test (@inferred is_convex(sq_rat; kernel = exact)) === true
+        m_rat = @inferred minkowski_sum(sq_rat, sq_rat; kernel = exact)
+        @test m_rat isa Vector{Point{2, Rational{Int64}}}
+        d_rat = @inferred minkowski_sum_decomposition(sq_rat, sq_rat; kernel = exact)
+        @test d_rat isa Vector{Vector{Point{2, Rational{Int64}}}}
+
+        # Allocation regression guards (previously ~3.5KB / ~10.7KB / ~8.8KB / ~5.1MB)
+        alloc_convex = let p = sq
+            @allocated is_convex(p)
+        end
+        alloc_sum = let p = sq
+            @allocated minkowski_sum(p, p)
+        end
+        alloc_segs = let a = seg1, b = seg2
+            @allocated minkowski_sum(a, b)
+        end
+        @test alloc_convex < 1024
+        @test alloc_sum < 4096
+        @test alloc_segs < 4096
+
+        star40 = [
+            point((iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40), (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40))
+            for i in 0:39
+        ]
+        d_star = @inferred minkowski_sum_decomposition(star40, star40)
+        @test length(d_star) == 38 * 38
+        alloc_decomp = let p = star40
+            @allocated minkowski_sum_decomposition(p, p)
+        end
+        @test alloc_decomp < 1_000_000
+    end
 end

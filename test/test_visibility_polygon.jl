@@ -288,4 +288,70 @@ using BasicCompGeometry
         @test_throws ArgumentError polygon_kernel(cw_poly)
         @test_throws ArgumentError polygon_kernel([point(0.0, 0.0), point(1.0, 1.0)])
     end
+
+    # 11. Type Stability, Coordinate Promotion, and Allocation Regression Tests
+    @testset "Type stability & coordinate types" begin
+        exact = ExactKernel()
+
+        # Integer coordinates under FloatingKernel promote cleanly to Float64 without InexactError
+        p_int = [point(0, 0), point(10, 0), point(10, 10), point(5, 3), point(0, 10)]
+        v_int = @inferred visibility_polygon(p_int, point(2, 1))
+        @test v_int isa Vector{Point{2, Float64}}
+        @test length(v_int) >= 3
+        @test twice_area(v_int) > 0
+
+        k_int = @inferred polygon_kernel(p_int)
+        @test k_int isa Vector{Point{2, Float64}}
+        @test twice_area(k_int) > 0
+
+        # Float32 homogeneous return types across _ray_edge_intersect, visibility_polygon, polygon_kernel
+        hit_res = @inferred BasicCompGeometry._ray_edge_intersect(
+            FloatingKernel(), point(0f0, 0f0), point(1f0, 0f0), point(1f0, -1f0), point(1f0, 1f0), Float32
+        )
+        @test hit_res isa Tuple{Bool, Float32, Point{2, Float32}}
+        miss_res = @inferred BasicCompGeometry._ray_edge_intersect(
+            FloatingKernel(), point(0f0, 0f0), point(1f0, 0f0), point(-1f0, -1f0), point(-1f0, 1f0), Float32
+        )
+        @test miss_res isa Tuple{Bool, Float32, Point{2, Float32}}
+
+        p_u32 = Point{2, Float32}[
+            point(0f0, 0f0), point(4f0, 0f0), point(4f0, 4f0), point(3f0, 4f0),
+            point(3f0, 1f0), point(1f0, 1f0), point(1f0, 4f0), point(0f0, 4f0),
+        ]
+        v_u32 = @inferred visibility_polygon(p_u32, point(2f0, 0.5f0))
+        @test v_u32 isa Vector{Point{2, Float32}}
+        @test twice_area(v_u32) ≈ 9.0
+
+        p_l32 = Point{2, Float32}[
+            point(0f0, 0f0), point(3f0, 0f0), point(3f0, 1f0),
+            point(1f0, 1f0), point(1f0, 3f0), point(0f0, 3f0),
+        ]
+        k_l32 = @inferred polygon_kernel(p_l32)
+        @test k_l32 isa Vector{Point{2, Float32}}
+        @test twice_area(k_l32) ≈ 2.0
+
+        # Rational{Int64} preserved under ExactKernel without Union{Rational{BigInt}, Rational{Int64}}
+        p_rat = [point(0//1, 0//1), point(10//1, 0//1), point(10//1, 10//1), point(5//1, 3//1), point(0//1, 10//1)]
+        v_rat = @inferred visibility_polygon(p_rat, point(2//1, 1//1); kernel = exact)
+        @test v_rat isa Vector{Point{2, Rational{Int64}}}
+        k_rat = @inferred polygon_kernel(p_rat; kernel = exact)
+        @test k_rat isa Vector{Point{2, Rational{Int64}}}
+
+        # Allocation regression guard on 40-vertex star polygon (previously >650KB / >380KB due to Core.Box)
+        star40 = [
+            point((iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40), (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40))
+            for i in 0:39
+        ]
+        q0 = point(0.0, 0.0)
+        @inferred visibility_polygon(star40, q0)
+        @inferred polygon_kernel(star40)
+        alloc_vis = let p = star40, q = q0
+            @allocated visibility_polygon(p, q)
+        end
+        alloc_ker = let p = star40
+            @allocated polygon_kernel(p)
+        end
+        @test alloc_vis < 32_768
+        @test alloc_ker < 32_768
+    end
 end
