@@ -18,3 +18,4 @@ reviews/logs/
 .bws/tmp/
 .review-cycle/
 test/jet/Manifest.toml
+.claude/worktrees/
