@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
 ### Fixed
 - Docstrings for every exported name. `convex_hull`, `exact_diameter`, `approx_diameter` and their subspace variants had theirs written as bare `raw"""..."""` strings, which Julia does not attach (now `@doc raw`); 28 other names (the `BBT`, `WSPD`, `MVBB` and `VirtArray` modules and their accessors, `Curve2DF`, ellipse and arrangement accessors, `subdivide`, `boundary_line`) had none.
 - `build_rmq` has its docstring again (`?build_rmq`); since 0.5.17 it was attached to an internal helper.
