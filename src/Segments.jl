@@ -161,8 +161,10 @@ end
     dist_segment_segment(a_p, a_q, b_p, b_q)
 
 Calculate the minimum distance between two segments defined by `[a_p, a_q]` and `[b_p, b_q]`.
-For non-parallel segments, it solves for the parameters `s, t` that minimize the distance.
-If segments are parallel, it falls back to point-segment distance calculations.
+In 2D the distance is zero when the segments cross and otherwise the smallest
+endpoint-to-segment distance, so no linear system is solved. In higher
+dimensions it solves for the parameters `s, t` that minimize the distance, and
+falls back to point-segment distances for parallel segments.
 """
 function dist_segment_segment(
     a_p::Point{D,T},
@@ -173,7 +175,38 @@ function dist_segment_segment(
     R = typeof(one(T) / one(T))
     ap, aq = Point{D,R}(a_p), Point{D,R}(a_q)
     bp, bq = Point{D,R}(b_p), Point{D,R}(b_q)
+    D == 2 && return _dist_segment_segment_2d(ap, aq, bp, bq)
+    return _dist_segment_segment_nd(ap, aq, bp, bq)
+end
 
+# Exact characterization in the plane: two segments are at distance zero iff
+# they cross; otherwise the closest pair has an endpoint on one side. Solving
+# the normal equations instead loses accuracy like eps/θ² for nearly parallel
+# crossing segments and depends on the endpoint order.
+function _dist_segment_segment_2d(
+    ap::Point{2,R},
+    aq::Point{2,R},
+    bp::Point{2,R},
+    bq::Point{2,R},
+) where {R}
+    _cross2(o, p, q) = (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x)
+    o1 = _cross2(ap, aq, bp)
+    o2 = _cross2(ap, aq, bq)
+    o3 = _cross2(bp, bq, ap)
+    o4 = _cross2(bp, bq, aq)
+    crosses =
+        ((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) &&
+        ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))
+    crosses && return zero(R)
+    return _min_endpoint_segment_dist(ap, aq, bp, bq)
+end
+
+function _dist_segment_segment_nd(
+    ap::Point{D,R},
+    aq::Point{D,R},
+    bp::Point{D,R},
+    bq::Point{D,R},
+) where {D,R}
     v_1 = ap - bp
     v_2 = aq - ap
     v_3 = bp - bq

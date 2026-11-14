@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `dist_segment_segment` in 2D: returns 0 for crossing segments and otherwise the smallest endpoint-to-segment distance, instead of solving the normal equations. Nearly parallel crossing segments gave errors of order eps/θ² (e.g. 3e-8 instead of 0 for length-200 segments), depended on the endpoint order, and below θ ≈ 1e-8 returned the endpoint distance.
+
 ## [0.5.17] - 2026-11-14
 
 ### Fixed
