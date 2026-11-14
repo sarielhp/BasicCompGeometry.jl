@@ -1,8 +1,5 @@
 {
-  "profiles": [
-    "git",
-    "agy"
-  ],
+  "profiles":["git","agy","julia"],
   "reviewed_profiles": {
     "agy": {
       "source": "embedded",

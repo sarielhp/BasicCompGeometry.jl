@@ -1,0 +1,26 @@
+{
+  "name": "julia",
+  "description": "Julia (juliaup) with the host package depot read-only; precompilation goes to a sandbox-local depot",
+  "binds_ro": [
+    ["~/.juliaup", "@@HOME@@/.juliaup"],
+    ["~/.julia", "@@HOME@@/.julia"]
+  ],
+  "path": [
+    "@@HOME@@/.juliaup/bin"
+  ],
+  "env": {
+    "JULIA_DEPOT_PATH": "@@HOME@@/.cache/julia-sandbox-depot:@@HOME@@/.julia:"
+  },
+  "pass_env": [
+    "JULIA_NUM_THREADS",
+    "JULIA_PKG_SERVER"
+  ],
+  "detect": {
+    "files": ["Project.toml", "JuliaProject.toml"],
+    "globs": ["*.jl"]
+  },
+  "tests": [
+    {"name": "Julia version", "cmd": ["julia", "--version"], "type": "version"},
+    {"name": "Julia depot is read-only, sandbox depot first", "cmd": ["julia", "-e", "d = DEPOT_PATH; @assert endswith(d[1], \"julia-sandbox-depot\") && endswith(d[2], \".julia\"); println(\"Julia OK\")"]}
+  ]
+}
