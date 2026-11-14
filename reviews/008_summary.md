@@ -23,3 +23,6 @@
 - **`tools/build`**: Passed (exit code 0, clean precompilation).
 - **`tools/gate`** (`JULIA_PKG_OFFLINE=true`): Passed all **156,479 / 156,479** assertions (including Aqua checks and all newly added regression tests) in 1m26.4s.
 - **`CHANGELOG.md`**: Recorded user-visible fixes and performance improvements under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 14 files changed, 407 insertions(+), 108 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
