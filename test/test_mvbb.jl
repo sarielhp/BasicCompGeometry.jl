@@ -1,4 +1,5 @@
 using Test
+using Random
 using BasicCompGeometry
 using BasicCompGeometry.MVBB:
     rotating_calipers_min_area, OBBox, volume, approx_diam, approx_mvbb
@@ -81,4 +82,24 @@ end
     empty_box = OBBox{3,Float64}()
     @test !empty_box.f_init
     @test volume(empty_box) == 0.0
+end
+
+@testset "MVBB PriorityQueue type stability" begin
+    rng = Xoshiro(17)
+    ps = PntSeq([point(rand(rng), rand(rng), rand(rng)) for _ in 1:120])
+    tree = BasicCompGeometry.BBT.Tree_init(ps)
+    pq = BasicCompGeometry.MVBB._init_node_pair_pq(tree.root, 0.0, Float64)
+    @test isconcretetype(keytype(pq))
+    @test isconcretetype(typeof(pq))
+
+    pp = @inferred approx_diam(ps, 0.05)
+    exact_d = exact_diameter(ps)
+    @test pp.distance <= exact_d + 1e-12
+    @test pp.distance * 1.05 >= exact_d - 1e-12
+
+    dir = point(0.0, 0.0, 1.0)
+    pp_sub = @inferred BasicCompGeometry.MVBB.approx_diam_subspace(ps, 0.05, dir)
+    exact_sub = exact_diameter_subspace(ps, dir)
+    @test pp_sub.distance <= exact_sub + 1e-12
+    @test pp_sub.distance * 1.05 >= exact_sub - 1e-12
 end

@@ -181,13 +181,15 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
     end
 
     # 3. Incremental add
+    seen_stamp = zeros(Int, n_in)
+    stamp = 0
     for p_idx in unclaimed
         visible = [f_idx for f_idx in point_conflicts[p_idx] if faces[f_idx].active]
         empty!(point_conflicts[p_idx])
         isempty(visible) && continue
 
         edges_count = _edge_counts(faces, visible)
-        new_faces_info = _replace_visible_faces!(
+        new_faces_info, stamp = _replace_visible_faces!(
             faces,
             edge_to_face,
             point_conflicts,
@@ -195,6 +197,8 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
             edges_count,
             p_idx,
             pnts_in,
+            seen_stamp,
+            stamp,
         )
         _update_edge_to_face!(edge_to_face, faces, visible, new_faces_info, p_idx)
     end
@@ -240,8 +244,35 @@ function _edge_counts(faces, visible)
     return edges_count
 end
 
+# Adds conflict candidates from incident faces `f` and `f_nonvis` to `new_f`
+# without duplicates using the reusable generation-counter `seen_stamp`.
+function _assign_face_conflicts!(
+    new_f,
+    nf_idx,
+    f,
+    f_nonvis,
+    point_conflicts,
+    p_idx,
+    pnts,
+    seen_stamp,
+    stamp,
+)
+    for list in (f.visible_points, f_nonvis.visible_points)
+        for pt in list
+            seen_stamp[pt] == stamp && continue
+            seen_stamp[pt] = stamp
+            if pt != p_idx && is_visible(new_f, pnts[pt])
+                push!(new_f.visible_points, pt)
+                push!(point_conflicts[pt], nf_idx)
+            end
+        end
+    end
+    return nothing
+end
+
 # Deactivates the visible faces and creates a new face from each horizon edge to
-# the point `p_idx`. Returns the vector of `(face index, u, v)` of the new faces.
+# the point `p_idx`. Returns `(new_faces_info, stamp)` where `new_faces_info` is
+# the vector of `(face index, u, v)` of the new faces.
 function _replace_visible_faces!(
     faces,
     edge_to_face,
@@ -250,6 +281,8 @@ function _replace_visible_faces!(
     edges_count,
     p_idx,
     pnts,
+    seen_stamp,
+    stamp,
 )
     new_faces_info = Tuple{Int,Int,Int}[]
     for f_idx in visible
@@ -267,20 +300,22 @@ function _replace_visible_faces!(
             push!(faces, new_f)
             nf_idx = length(faces)
 
-            # Conflict list candidates: points of the two faces sharing the
-            # horizon edge.
-            candidates = [f.visible_points; f_nonvis.visible_points]
-            unique!(candidates)
-            for pt in candidates
-                if pt != p_idx && is_visible(new_f, pnts[pt])
-                    push!(new_f.visible_points, pt)
-                    push!(point_conflicts[pt], nf_idx)
-                end
-            end
+            stamp += 1
+            _assign_face_conflicts!(
+                new_f,
+                nf_idx,
+                f,
+                f_nonvis,
+                point_conflicts,
+                p_idx,
+                pnts,
+                seen_stamp,
+                stamp,
+            )
             push!(new_faces_info, (nf_idx, u, v_e))
         end
     end
-    return new_faces_info
+    return new_faces_info, stamp
 end
 
 # Removes the edges of the deleted faces and registers the edges of the new ones.

@@ -243,10 +243,9 @@ function approx_diam(PS::AbsPntSeq{D,T}, ε::Real) where {D,T}
     # Priority Queue for pairs of nodes
     # We want to maximize the maximum possible distance between nodes
     # Max possible distance is max_dist(bb1, bb2)
-    pq = PriorityQueue{Tuple{Node,Node},T}(Base.Order.Reverse)
-
     root = tree.root
-    pq[(root, root)] = max_dist(root.bb, root.bb)
+    root === nothing && return pp
+    pq = _init_node_pair_pq(root, max_dist(root.bb, root.bb), T)
 
     # Initial diameter estimate from longest dimension of bounding box
     p_min, p_max = _extreme_points(PS, get_longest_dim(root.bb))
@@ -313,9 +312,16 @@ function _ensure_children!(tree, n)
     return nothing
 end
 
+# Initializes a max-priority queue over concrete node pairs `(N, N)`.
+function _init_node_pair_pq(root::N, d0, ::Type{T}) where {N<:Node,T}
+    pq = PriorityQueue{Tuple{N,N},T}(Base.Order.Reverse)
+    pq[(root, root)] = d0
+    return pq
+end
+
 # Splits the pair `(n1, n2)` (at most one of them a leaf) into child pairs and
 # queues those whose bound `max_dist_fn(bb1, bb2)` exceeds `threshold`.
-function _push_child_pairs!(pq, n1, n2, threshold, max_dist_fn)
+function _push_child_pairs!(pq, n1, n2, threshold, max_dist_fn::F) where {F}
     kids1 = n1.f_leaf ? (n1,) : (n1.left, n1.right)
     kids2 = n2.f_leaf ? (n2,) : (n2.left, n2.right)
     for c1 in kids1, c2 in kids2
@@ -349,9 +355,9 @@ function approx_diam_subspace(PS::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) whe
     pp = GPointPair(PS[1], PS[end], 0.0)
     update_diam_subspace!(pp, PS[1], PS[end], dir)
 
-    pq = PriorityQueue{Tuple{Node,Node},T}(Base.Order.Reverse)
     root = tree.root
-    pq[(root, root)] = max_dist_subspace(root.bb, root.bb, dir)
+    root === nothing && return pp
+    pq = _init_node_pair_pq(root, max_dist_subspace(root.bb, root.bb, dir), T)
 
     while !isempty(pq)
         (n1, n2), d_max_ub = first(pq)

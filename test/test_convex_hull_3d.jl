@@ -69,6 +69,19 @@ using LinearAlgebra
         @test length(faces) == 2n - 4
         @test ConvexHull3D.verify_convex_hull_3d(pnts, verts, faces) == (true, "Hull is valid")
     end
+
+    @testset "Conflict list deduplication allocations" begin
+        rng = Xoshiro(7)
+        pnts = [point(normalize(randn(rng, 3))...) for _ = 1:400]
+        convex_hull_3d(pnts)
+        alloc = @allocated begin
+            verts, faces = convex_hull_3d(pnts)
+            @test length(verts) == 400
+            @test ConvexHull3D.verify_convex_hull_3d(pnts, verts, faces) ==
+                  (true, "Hull is valid")
+        end
+        @test alloc < 3_500_000
+    end
 end
 
 @testset "3D hull validation diagnostics" begin

@@ -38,18 +38,18 @@ function PointTurn()
 end
 
 """
-    LCSContext{T}
+    LCSContext{T,P<:AbsPntSeq{2,T}}
 
 Main context for the Longest Convex Subset algorithm.
 """
-mutable struct LCSContext{T}
-    PS::AbsPntSeq{2,T}
+mutable struct LCSContext{T,P<:AbsPntSeq{2,T}}
+    PS::P
     turns::Vector{PointTurn}
     Lens::Vector{Int}
 end
 
-struct RotateOrder{T} <: Base.Order.Ordering
-    PS::AbsPntSeq{2,T}
+struct RotateOrder{T,P<:AbsPntSeq{2,T}} <: Base.Order.Ordering
+    PS::P
     base::Point{2,T}
 end
 
@@ -61,34 +61,42 @@ end
 # Initialization
 ################################################################################
 
-function pt_init(PS::AbsPntSeq{2,T}, loc::Int) where {T}
-    pt = PointTurn()
-
-    for j = (loc+1):length(PS)
-        push!(pt.tail, j)
-        push!(pt.tvals, -1)
-        push!(pt.jump, false)
+function pt_init(PS::P, loc::Int) where {T,P<:AbsPntSeq{2,T}}
+    m = length(PS) - loc
+    tail = Vector{Int}(undef, m)
+    @inbounds for k = 1:m
+        tail[k] = loc + k
     end
 
-    ro = RotateOrder(PS, PS[loc])
-    sort!(pt.tail, order = ro)
+    sort!(tail, order = RotateOrder(PS, PS[loc]))
 
-    return pt
+    return PointTurn(tail, fill(-1, m), fill(false, m), false)
 end
 
 function sort_points!(ps::PntSeq{2,T}) where {T}
     sort!(ps.pnts, lt = (p, q) -> p[1] < q[1] || (p[1] == q[1] && p[2] < q[2]))
 end
 
-function lcs_init(PS::AbsPntSeq{2,T}) where {T}
+function lcs_init(PS::P) where {T,P<:AbsPntSeq{2,T}}
     # PS should already be sorted
-    pt = [PointTurn() for _ = 1:length(PS)]
-    lct = LCSContext{T}(PS, pt, Int[])
+    n = length(PS)
+    pt = Vector{PointTurn}(undef, n)
 
-    for i = length(PS):-1:1
-        lct.turns[i] = pt_init(PS, i)
+    for i = n:-1:1
+        pt[i] = pt_init(PS, i)
     end
 
+    lens = Int[]
+    sizehint!(lens, n)
+    return LCSContext(PS, pt, lens)
+end
+
+# Reset per-target DP summary state while keeping the sorted tail topology.
+function _reset_context!(lct::LCSContext)
+    empty!(lct.Lens)
+    for pt in lct.turns
+        pt.f_terminal = false
+    end
     return lct
 end
 
@@ -331,12 +339,15 @@ function compute_largest_convex_subset(ps::AbsPntSeq{2,T}) where {T}
     max_sz = -1
     max_sol = Int[]
 
+    lct_upper = lcs_init(work_ps)
+    lct_lower = lcs_init(ps_reflected)
+
     # We iterate over every possible rightmost point (target)
     for target = 1:n
-        lct_upper = lcs_init(work_ps)
+        _reset_context!(lct_upper)
         compute_dp_table!(lct_upper, target)
 
-        lct_lower = lcs_init(ps_reflected)
+        _reset_context!(lct_lower)
         compute_dp_table!(lct_lower, target)
 
         best_start = _best_start(lct_upper, lct_lower)
