@@ -1,2 +1,4 @@
 # Golden fixtures are compared byte for byte: no line-ending conversion.
 test/golden/** -text
+# Embedded verbatim in generated Ipe files: keep LF on every platform.
+assets/*.ipe -text
