@@ -4,7 +4,6 @@
 - **Architectural Plan**: `reviews/001_performance_plan.md`
 - **Date**: 2026-11-13
 - **Focus Area**: Performance Audit (Monotone & Sweep Triangulation)
-- **Status**: Complete & Verified
 
 ---
 
@@ -29,7 +28,6 @@ All 4 issues reported in `reviews/001_performance.md` were evaluated and confirm
 
 ### Finding 1: Stack Buffer Reallocation in `triangulate_monotone`
 - **Location**: `src/MonotoneTriangulation.jl:163-176`
-- **Status**: **Mitigated**
 - **Root Cause**: When a sweep event transitioned between upper and lower boundary chains, `stack = Int[order[j-1], v]` discarded the previously allocated stack and allocated a new heap vector, triggering $O(k)$ allocations and buffer resizings on alternating polygons.
 - **Remediation**:
   - Pre-allocated stack capacity: `stack = Int[]; sizehint!(stack, k); push!(stack, order[1], order[2])`.
@@ -39,7 +37,6 @@ All 4 issues reported in `reviews/001_performance.md` were evaluated and confirm
 
 ### Finding 2: Redundant Geometric Predicate Evaluation via `make_ccw`
 - **Location**: `src/MonotoneTriangulation.jl:155-161, 178-185`
-- **Status**: **Mitigated**
 - **Root Cause**: `push!(triangles, make_ccw(...))` re-evaluated `orient_sign` on every triangle produced during same-chain reflex steps, cross-chain steps, and terminal steps. Because the orientation is deterministically known from chain classification (`is_upper`), calling `make_ccw` doubled predicate calculations in the inner triangulation loop.
 - **Remediation**:
   - Removed local closure `make_ccw`.
@@ -53,7 +50,6 @@ All 4 issues reported in `reviews/001_performance.md` were evaluated and confirm
 
 ### Finding 3: Intermediate Array Allocation in `_check_distinct_vertices`
 - **Location**: `src/MonotoneTriangulation.jl:421-432`
-- **Status**: **Mitigated**
 - **Root Cause**: `_check_distinct_vertices` created an intermediate `Vector{Tuple{T, T}}` via a comprehension `[(vertices[i][1], vertices[i][2]) for i in 1:n]` solely to pass to `sortperm`.
 - **Remediation**:
   - Extracted points vector if input is `AbsPntSeq` via `Points(vertices)`.
@@ -64,7 +60,6 @@ All 4 issues reported in `reviews/001_performance.md` were evaluated and confirm
 
 ### Finding 4: Heap-Allocated `prev_v` Vector and Unhinted `diags` in `_sweep_partition_diagonals`
 - **Location**: `src/SweepTriangulation.jl:268, 289`
-- **Status**: **Mitigated**
 - **Root Cause**: `prev_v = [mod1(i - 1, n) for i in 1:n]` allocated an $n$-element vector whose elements were accessed only once per event. `diags = Tuple{Int,Int}[]` was unhinted and reallocated repeatedly during diagonal insertion.
 - **Remediation**:
   - Replaced `prev_v[v]` with an inline cyclic index calculation `e_in = v == 1 ? n : v - 1`.
@@ -86,3 +81,6 @@ All 4 issues reported in `reviews/001_performance.md` were evaluated and confirm
   - Code size in `triangulate_monotone` was reduced by removing `make_ccw`.
   - Public APIs, exported names, and return contracts remain 100% stable and unchanged.
 - **Changelog**: Changes documented under `## [Unreleased]` in `CHANGELOG.md`.
+- **Status**: Remediated & Verified
+- **Footprint**: 6 files changed, 272 insertions(+), 16 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
