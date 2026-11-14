@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.16] - 2026-11-13
+
 ### Fixed
 - Ear clipping (`:ear_cut` and the Z-order / Kd-tree variants) now throws `ArgumentError` when no ear remains instead of silently returning a partial triangulation (e.g. on numerically degenerate Float64 input; use `ExactKernel()` or `:sweep`).
 - Polygon validation (`_validate_ccw_polygon`) rejects duplicate vertices for `:ear_cut`, `:seidel`, and the indexed ear cutters, which previously crashed, returned zero-area triangles, or truncated output.
