@@ -70,7 +70,39 @@ function union_bbox(objects...)
     return result
 end
 
-union_bbox(objects::AbstractVector) = union_bbox(objects...)
+function _union_bbox_iter(objects, result::BBox{D,T}, state) where {D,T}
+    next = iterate(objects, state)
+    while next !== nothing
+        object, next_state = next
+        bb = bbox(object)
+        length(bb.mini) == D ||
+            throw(DimensionMismatch("all objects must have the same dimension"))
+        T_new = promote_type(T, eltype(bb.mini))
+        if T_new !== T
+            promoted = BBox{D,T_new}(
+                result.f_init,
+                MVector{D,T_new}(result.mini),
+                MVector{D,T_new}(result.maxi),
+            )
+            bound!(promoted, bb)
+            return _union_bbox_iter(objects, promoted, next_state)
+        end
+        bound!(result, bb)
+        next = iterate(objects, next_state)
+    end
+    return result
+end
+
+function union_bbox(objects::AbstractVector)
+    first_iter = iterate(objects)
+    first_iter === nothing && throw(ArgumentError("union_bbox requires at least one object"))
+    first_obj, state = first_iter
+    first_box = bbox(first_obj)
+    D = length(first_box.mini)
+    T = eltype(first_box.mini)
+    result = bound!(BBox{D,T}(), first_box)
+    return _union_bbox_iter(objects, result, state)
+end
 
 """
     width(bb, dim=1)
@@ -383,7 +415,7 @@ end
 
 Update the bounding box `bb` in-place to include another bounding box `other`.
 """
-function bound!(bb::BBox{D,T}, other::BBox{D,T}) where {D,T}
+function bound!(bb::BBox{D,T}, other::BBox{D}) where {D,T}
     !other.f_init && return bb
     bound!(bb, Point{D,T}(other.mini))
     bound!(bb, Point{D,T}(other.maxi))

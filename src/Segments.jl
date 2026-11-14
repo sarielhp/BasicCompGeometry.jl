@@ -120,13 +120,18 @@ end
 Return the nearest point on the segment defined by endpoints `p` and `q` to the query point `qr`.
 """
 function nn_point(s_p::Point{D,T}, s_q::Point{D,T}, qr::Point{D,T}) where {D,T}
-    d_sq = dist_sq(s_p, s_q)
-    if d_sq == 0.0
-        return s_p
-    end
+    R = typeof(one(T) / one(T))
+    p = Point{D,R}(s_p)
+    q = Point{D,R}(s_q)
+    r = Point{D,R}(qr)
+
+    delta = q - p
+    d_sq = dot(delta, delta)
+    iszero(d_sq) && return p
+
     # Projection parameter calculation: t = <qr - p, q - p> / ||q - p||^2
-    t = dot(qr - s_p, s_q - s_p) / d_sq
-    return convex_comb(s_p, s_q, clamp(t, 0.0, 1.0))
+    t = dot(r - p, delta) / d_sq
+    return convex_comb(p, q, clamp(t, zero(t), one(t)))
 end
 
 """
@@ -135,6 +140,20 @@ end
 Return the nearest point on segment `seg` to query point `qr`.
 """
 @inline nn_point(s::Segment{D,T}, qr::Point{D,T}) where {D,T} = nn_point(s.p, s.q, qr)
+
+@inline function _min_endpoint_segment_dist(
+    a_p::Point{D,R},
+    a_q::Point{D,R},
+    b_p::Point{D,R},
+    b_q::Point{D,R},
+) where {D,R}
+    return min(
+        dist_point_segment(b_p, a_p, a_q),
+        dist_point_segment(b_q, a_p, a_q),
+        dist_point_segment(a_p, b_p, b_q),
+        dist_point_segment(a_q, b_p, b_q),
+    )
+end
 
 """
     dist_segment_segment(a_p, a_q, b_p, b_q)
@@ -149,42 +168,32 @@ function dist_segment_segment(
     b_p::Point{D,T},
     b_q::Point{D,T},
 ) where {D,T}
-    v_1 = a_p - b_p
-    v_2 = a_q - a_p
-    v_3 = b_p - b_q
+    R = typeof(one(T) / one(T))
+    ap, aq = Point{D,R}(a_p), Point{D,R}(a_q)
+    bp, bq = Point{D,R}(b_p), Point{D,R}(b_q)
 
-    # Minimizing ||v_1 + s*v_2 + t*v_3||^2
-    # Normal equations lead to a 2x2 system
-    c = [-dot(v_1, v_2), -dot(v_1, v_3)]
-    m = [
-        dot(v_2, v_2) dot(v_2, v_3);
-        dot(v_2, v_3) dot(v_3, v_3)
-    ]
+    v_1 = ap - bp
+    v_2 = aq - ap
+    v_3 = bp - bq
 
-    # Degenerate case check (parallel segments)
-    if det(m) < 1e-12 * norm(m)
-        return min(
-            dist_point_segment(b_p, a_p, a_q),
-            dist_point_segment(b_q, a_p, a_q),
-            dist_point_segment(a_p, b_p, b_q),
-            dist_point_segment(a_q, b_p, b_q),
-        )
+    # Minimizing ||v_1 + s*v_2 + t*v_3||^2 via normal equations [A B; B C] [s; t] = [r1; r2]
+    A = dot(v_2, v_2)
+    B = dot(v_2, v_3)
+    C = dot(v_3, v_3)
+    r1 = -dot(v_1, v_2)
+    r2 = -dot(v_1, v_3)
+    Δ = A * C - B * B
+
+    edge_dist = _min_endpoint_segment_dist(ap, aq, bp, bq)
+    tol = R <: AbstractFloat ? max(R(1e-12), 4 * eps(R)) : zero(R)
+    if Δ <= tol * (A * C)
+        return edge_dist
     end
 
-    sol = m \ c
-    s = clamp(sol[1], 0.0, 1.0)
-    t = clamp(sol[2], 0.0, 1.0)
-
-    d = dist(convex_comb(a_p, a_q, s), convex_comb(b_p, b_q, t))
-
-    # Boundary check for global minimum
-    return min(
-        d,
-        dist_point_segment(b_p, a_p, a_q),
-        dist_point_segment(b_q, a_p, a_q),
-        dist_point_segment(a_p, b_p, b_q),
-        dist_point_segment(a_q, b_p, b_q),
-    )
+    s = clamp((r1 * C - B * r2) / Δ, zero(R), one(R))
+    t = clamp((A * r2 - B * r1) / Δ, zero(R), one(R))
+    d = dist(convex_comb(ap, aq, s), convex_comb(bp, bq, t))
+    return min(d, edge_dist)
 end
 
 """
@@ -208,20 +217,22 @@ Return `(intersects::Bool, t::Float64, point::Point)`.
 `t` is the parameter on the segment where intersection occurs.
 """
 function bisection_point(seg::Segment{D,T}, p::Point{D,T}, q::Point{D,T}) where {D,T}
-    dir = q - p
-    mid = (q + p) / 2
+    R = typeof(one(T) / one(T))
+    sp, sq = Point{D,R}(seg.p), Point{D,R}(seg.q)
+    pr, qr = Point{D,R}(p), Point{D,R}(q)
+
+    dir = qr - pr
+    mid = (qr + pr) / R(2)
     pos = dot(dir, mid)
+    denom = dot(dir, sq - sp)
 
-    seg_vec = seg.q - seg.p
-    denom = dot(dir, seg_vec)
-
-    if abs(denom) < 1e-12 # Segment parallel to bisector plane
-        return false, 0.0, seg.p
+    is_parallel = R <: AbstractFloat ? abs(denom) < R(1e-12) : iszero(denom)
+    if is_parallel
+        return false, zero(R), sp
     end
 
-    t = (pos - dot(dir, seg.p)) / denom
-    on_seg = (0.0 <= t <= 1.0)
-    return on_seg, t, at(seg, t)
+    t = (pos - dot(dir, sp)) / denom
+    return zero(R) <= t <= one(R), t, convex_comb(sp, sq, t)
 end
 
 """

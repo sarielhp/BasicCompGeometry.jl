@@ -41,10 +41,17 @@ end
 Apply a 3x3 homogeneous transformation matrix `m` to a 2D point `p`.
 Return the resulting `Point{2}`.
 """
-function apply_transform(m::Matrix{T}, p::Point{2,T})::Point{2,T} where {T}
-    # Augmented vector multiplication
-    res = m * [p[1], p[2], one(T)]
-    return Point{2,T}(res[1], res[2])
+@inline function apply_transform(
+    m::AbstractMatrix{T},
+    p::Point{2,T},
+)::Point{2,T} where {T}
+    size(m) == (3, 3) ||
+        throw(DimensionMismatch("expected a 3×3 transformation matrix, got $(size(m))"))
+    @inbounds begin
+        x = muladd(m[1, 1], p.x, muladd(m[1, 2], p.y, m[1, 3]))
+        y = muladd(m[2, 1], p.x, muladd(m[2, 2], p.y, m[2, 3]))
+    end
+    return Point{2,T}(x, y)
 end
 
 export translation, rotation, apply_transform

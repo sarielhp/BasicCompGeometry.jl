@@ -74,6 +74,18 @@ end
     @test BasicCompGeometry.d_max(box, 2) == 1.0
     @test occursin("uninitialized", sprint(show, BBox2F()))
     @test union_bbox([box, bbox(Segment(points[1], points[3]))]) == box
+    let large_boxes = [BBox(point(Float64(i), 0.0), point(Float64(i) + 1.0, 1.0)) for i in 1:10_000]
+        expected_large = BBox(point(1.0, 0.0), point(10_001.0, 1.0))
+        @test (@inferred union_bbox(large_boxes)) == expected_large
+        @test (@allocated union_bbox(large_boxes)) <= 1024
+    end
+    let mixed_boxes = Any[BBox(point(0, 0), point(1, 1)), BBox{2,Float64}(), Segment(point(0.0, 0.0), point(3.5, 2.5))]
+        ub = union_bbox(mixed_boxes)
+        @test ub isa BBox2F
+        @test ub == BBox(point(0.0, 0.0), point(3.5, 2.5))
+    end
+    @test_throws ArgumentError union_bbox(BBox2F[])
+    @test_throws DimensionMismatch union_bbox([BBox(point(0, 0), point(1, 1)), BBox(point(0, 0, 0), point(1, 1, 1))])
 
     mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
         file = joinpath(dir, "points.plt")

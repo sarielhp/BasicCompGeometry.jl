@@ -58,7 +58,7 @@ function dist_subspace(p::Point{D,T}, q::Point{D,T}, dir::Point{D,T}) where {D,T
     proj_len = dot(diff, dir)
     # distance^2 = |p-q|^2 - <p-q, dir>^2
     d_sq = dot(diff, diff) - proj_len^2
-    return d_sq > 0 ? sqrt(d_sq) : zero(T)
+    return sqrt(max(zero(d_sq), d_sq))
 end
 
 """
@@ -193,19 +193,27 @@ Example: `point(1.0, 2.0)` or `point([1, 2, 3])`.
 
 """
     rand_gaussian(D, T=Float64)
+    rand_gaussian(Val(D), T=Float64)
 
 Return a random `Point{D, T}` where each coordinate is sampled from a standard normal distribution.
+Pass `Val(D)` in performance-critical code to guarantee compile-time dimension inference.
 """
-function rand_gaussian(D::Int, T::Type{<:Real} = Float64)
-    return Point{D,T}(randn(T, D))
-end
+@inline rand_gaussian(::Val{D}, ::Type{T} = Float64) where {D,T<:Real} =
+    Point{D,T}(ntuple(_ -> randn(T), Val(D)))
+
+@inline rand_gaussian(D::Int, ::Type{T} = Float64) where {T<:Real} =
+    rand_gaussian(Val(D), T)
 
 """
     rand_point(D, T=Float64)
+    rand_point(Val(D), T=Float64)
 
 Return a random `Point{D, T}` where each coordinate is sampled uniformly from the interval `[0, 1)`.
+Pass `Val(D)` in performance-critical code to guarantee compile-time dimension inference.
 """
-rand_point(D::Int, T::Type{<:Real} = Float64) = rand(Point{D,T})
+@inline rand_point(::Val{D}, ::Type{T} = Float64) where {D,T<:Real} = rand(Point{D,T})
+
+@inline rand_point(D::Int, ::Type{T} = Float64) where {T<:Real} = rand(Point{D,T})
 
 """
     point_max(p, q)

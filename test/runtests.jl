@@ -443,9 +443,23 @@ Aqua.test_all(BasicCompGeometry)
         @test is_right_eq_turn(a, b, point(2, 0)) == true
         @test turn_sign(a, b, point(2, 0)) == 0
 
-        # Random
+        # Random & Val(D) inference
         @test length(rand_point(2)) == 2
         @test length(rand_gaussian(3)) == 3
+        @test (@inferred rand_point(Val(3))) isa Point{3,Float64}
+        @test (@inferred rand_point(Val(2), Float32)) isa Point{2,Float32}
+        @test (@inferred rand_gaussian(Val(3))) isa Point{3,Float64}
+        @test (@inferred rand_gaussian(Val(2), Float32)) isa Point{2,Float32}
+        let sample_points = () -> (rand_point(Val(3)), rand_gaussian(Val(3)), rand_gaussian(3))
+            sample_points()
+            @test (@allocated sample_points()) == 0
+        end
+
+        # dist_subspace type stability across Int, Float32, Rational
+        @test (@inferred BasicCompGeometry.dist_subspace(point(0, 0), point(0, 0), point(1, 0))) === 0.0
+        @test (@inferred BasicCompGeometry.dist_subspace(point(0, 3), point(0, 0), point(1, 0))) === 3.0
+        @test (@inferred BasicCompGeometry.dist_subspace(point(0.0f0, 0.0f0), point(0.0f0, 0.0f0), point(1.0f0, 0.0f0))) === 0.0f0
+        @test (@inferred BasicCompGeometry.dist_subspace(point(0 // 1, 0 // 1), point(0 // 1, 0 // 1), point(1 // 1, 0 // 1))) === 0.0
 
         # Min/Max
         @test point_max(point(1, 5), point(2, 3)) == point(2, 5)
@@ -469,6 +483,29 @@ Aqua.test_all(BasicCompGeometry)
         # Segment distance
         seg2 = Segment(point(5.0, 2.0), point(5.0, 10.0))
         @test dist(seg, seg2) == 2.0
+        let seg_dist_bench = (a, b) -> BasicCompGeometry.dist_segment_segment(a.p, a.q, b.p, b.q)
+            seg_dist_bench(seg, seg2)
+            @test (@allocated seg_dist_bench(seg, seg2)) == 0
+        end
+        @test dist(
+            Segment(point(0.0, 0.0), point(1e-4, 0.0)),
+            Segment(point(5e-5, -5e-5), point(5e-5, 5e-5)),
+        ) == 0.0
+        @test dist(
+            Segment(point(0, 0), point(2, 0)),
+            Segment(point(0, 3), point(2, 3)),
+        ) == 3.0
+        @test (@inferred BasicCompGeometry.dist_segment_segment(
+            point(0.0f0, 0.0f0), point(2.0f0, 0.0f0),
+            point(1.0f0, 1.0f0), point(1.0f0, 3.0f0),
+        )) === 1.0f0
+
+        # nn_point type stability across Int, Float32, Rational
+        @test (@inferred nn_point(point(0, 0), point(0, 0), point(1, 1))) === point(0.0, 0.0)
+        @test (@inferred nn_point(point(0, 0), point(2, 0), point(1, 1))) === point(1.0, 0.0)
+        @test (@inferred nn_point(point(0.0f0, 0.0f0), point(2.0f0, 0.0f0), point(1.0f0, 1.0f0))) === point(1.0f0, 0.0f0)
+        @test (@inferred nn_point(point(0 // 1, 0 // 1), point(0 // 1, 0 // 1), point(1 // 1, 1 // 1))) === point(0 // 1, 0 // 1)
+        @test (@inferred nn_point(point(0 // 1, 0 // 1), point(2 // 1, 0 // 1), point(1 // 2, 1 // 1))) === point(1 // 2, 0 // 1)
 
         # Bisection
         # p_a, p_b define a vertical bisector at x=5
@@ -478,6 +515,26 @@ Aqua.test_all(BasicCompGeometry)
         ok, t, pt = bisection_point(s_cross, p_a, p_b)
         @test ok == true
         @test pt ≈ point(5.0, 0.0)
+
+        # bisection_point type stability across Int, Float32, Rational
+        @test (@inferred bisection_point(
+            Segment(point(0, 0), point(0, 10)), point(0, 0), point(10, 0),
+        )) === (false, 0.0, point(0.0, 0.0))
+        @test (@inferred bisection_point(
+            Segment(point(0, 0), point(10, 0)), point(0, 0), point(10, 0),
+        )) === (true, 0.5, point(5.0, 0.0))
+        @test (@inferred bisection_point(
+            Segment(point(0.0f0, 0.0f0), point(10.0f0, 0.0f0)),
+            point(0.0f0, 0.0f0), point(10.0f0, 0.0f0),
+        )) === (true, 0.5f0, point(5.0f0, 0.0f0))
+        @test (@inferred bisection_point(
+            Segment(point(0 // 1, 0 // 1), point(0 // 1, 1 // 1)),
+            point(0 // 1, 0 // 1), point(1 // 1, 0 // 1),
+        )) === (false, 0 // 1, point(0 // 1, 0 // 1))
+        @test (@inferred bisection_point(
+            Segment(point(0 // 1, 0 // 1), point(1 // 1, 0 // 1)),
+            point(0 // 1, 0 // 1), point(1 // 1, 0 // 1),
+        )) === (true, 1 // 2, point(1 // 2, 0 // 1))
 
         # Lines
         line = Line(point(0.0, 0.0), point(1.0, 1.0))
@@ -584,6 +641,15 @@ Aqua.test_all(BasicCompGeometry)
         m_trans = BasicCompGeometry.translation(2.0, 3.0)
         p_trans = BasicCompGeometry.apply_transform(m_trans, p)
         @test p_trans == point(3.0, 3.0)
+
+        # Zero-allocation transform & AbstractMatrix support
+        let tf_bench = (m, pt) -> BasicCompGeometry.apply_transform(m, pt)
+            tf_bench(m_trans, p)
+            @test (@allocated tf_bench(m_trans, p)) == 0
+        end
+        m_static = SMatrix{3,3,Float64}(m_trans)
+        @test (@inferred apply_transform(m_static, p)) == point(3.0, 3.0)
+        @test_throws DimensionMismatch apply_transform(zeros(2, 2), p)
     end
 
     @testset "Algorithms & Module Level" begin
