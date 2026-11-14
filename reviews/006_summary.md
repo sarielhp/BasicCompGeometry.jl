@@ -3,7 +3,6 @@
 - **Review Document**: `reviews/006_performance.md`
 - **Plan Document**: `reviews/006_performance_plan.md`
 - **Focus Area**: `performance`
-- **Status**: Completed & Verified
 
 ---
 
@@ -21,7 +20,6 @@ All 4 findings in `reviews/006_performance.md` were triaged, confirmed as genuin
 
 ### Finding 1: Abstract `PS::AbsPntSeq{2,T}` Fields in `LCSContext` and `RotateOrder`
 - **Location**: `src/LongestConvexSubset.jl:45-58` (`LCSContext`, `RotateOrder`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Parameterized `mutable struct LCSContext{T,P<:AbsPntSeq{2,T}}` and `struct RotateOrder{T,P<:AbsPntSeq{2,T}} <: Base.Order.Ordering` with `PS::P`.
   - Updated `pt_init` and `lcs_init` to construct `RotateOrder(PS, PS[loc])` and `LCSContext(PS, pt, lens)` so Julia preserves the concrete sequence subtype `P`.
@@ -30,7 +28,6 @@ All 4 findings in `reviews/006_performance.md` were triaged, confirmed as genuin
 
 ### Finding 2: Repeated `O(n^2)` Context Initialization and Sorting in `compute_largest_convex_subset`
 - **Location**: `src/LongestConvexSubset.jl:64-93, 334-340` (`pt_init`, `lcs_init`, `_reset_context!`, `compute_largest_convex_subset`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Hoisted `lct_upper = lcs_init(work_ps)` and `lct_lower = lcs_init(ps_reflected)` before the `for target = 1:n` loop.
   - Added `_reset_context!(lct::LCSContext)` to clear `lct.Lens` via `empty!` (retaining allocated capacity) and reset `pt.f_terminal = false` across `lct.turns` before each `compute_dp_table!` pass.
@@ -40,7 +37,6 @@ All 4 findings in `reviews/006_performance.md` were triaged, confirmed as genuin
 
 ### Finding 3: Non-Concrete `PriorityQueue{Tuple{Node,Node},T}` in `approx_diam` and `approx_diam_subspace`
 - **Location**: `src/MVBB.jl:246, 352` (`approx_diam`, `approx_diam_subspace`, `_init_node_pair_pq`, `_push_child_pairs!`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Narrowed `root = tree.root` via `root === nothing && return pp` and extracted `_init_node_pair_pq(root::N, d0, ::Type{T}) where {N<:Node,T}` to build `PriorityQueue{Tuple{N,N},T}(Base.Order.Reverse)` with concrete `Node{D,T,S,V}` keys.
   - Parameterized `_push_child_pairs!(pq, n1, n2, threshold, max_dist_fn::F) where {F}` to specialize on the bound function/closure.
@@ -49,7 +45,6 @@ All 4 findings in `reviews/006_performance.md` were triaged, confirmed as genuin
 
 ### Finding 4: Per-Horizon-Edge Conflict Concatenation & `unique!` Churn in `ConvexHull3D`
 - **Location**: `src/ConvexHull3D.jl:183-201, 245-283` (`convex_hull_3d`, `_replace_visible_faces!`, `_assign_face_conflicts!`)
-- **Status**: **Mitigated**
 - **Mitigation**:
   - Allocated `seen_stamp = zeros(Int, n_in)` once in `convex_hull_3d` with a monotonic integer `stamp` counter passed through `_replace_visible_faces!`.
   - Extracted `_assign_face_conflicts!` to scan `(f.visible_points, f_nonvis.visible_points)` directly and deduplicate candidates in `O(1)` via `seen_stamp[pt] == stamp` without temporary vector concatenation or `unique!` allocation.
@@ -64,3 +59,6 @@ All 4 findings in `reviews/006_performance.md` were triaged, confirmed as genuin
 - **Full Test Suite (`./tools/gate`, `Pkg.test()`)**: Passed (`156,417 / 156,417` assertions in `BasicCompGeometry.jl`, plus all `Aqua` package quality checks).
 - **Sizing & Nesting**: All new and modified functions (`pt_init`, `lcs_init`, `_reset_context!`, `compute_largest_convex_subset`, `_init_node_pair_pq`, `_push_child_pairs!`, `_assign_face_conflicts!`, `_replace_visible_faces!`) are concise and maintain nesting depth `<= 3` (within the `<= 4` limit).
 - **Scope & Anti-Oscillation**: Unrelated modules (`src/RMQ.jl`, `src/BBT.jl`, `src/WSPD.jl`, `src/VisibilityPolygon.jl`, `src/MinkowskiSum.jl`, triangulation modules, etc.) were left untouched. Public APIs and exported names are unchanged; changes are recorded in `CHANGELOG.md` under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 9 files changed, 319 insertions(+), 41 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
