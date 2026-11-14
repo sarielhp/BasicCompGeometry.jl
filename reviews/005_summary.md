@@ -4,7 +4,6 @@
 - **Architectural Plan**: `reviews/005_performance_plan.md`
 - **Date**: 2026-11-13
 - **Focus Area**: Performance Audit (`RMQ.jl`, `BBT.jl`, and `WSPD.jl`)
-- **Status**: Complete & Verified
 
 ---
 
@@ -25,7 +24,6 @@ All 4 findings reported in `reviews/005_performance.md` were triaged, reproduced
 
 ### Finding 1: `Core.Box` Capture & Missing `less::F` Specialization in `_sparse_levels`
 - **Location**: `src/RMQ.jl` (`_sparse_levels`, `_better_index`, `_block_masks`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Parameterized `_sparse_levels(keys::V, less::F, minima::Vector{Int}) where {V,F}` (and `_better_index`, `_block_masks` on `keys::V, less::F where {V,F}`) so Julia specializes on the comparator function type `F`.
   - Replaced the `half`-capturing comprehension with a preallocated `row = Vector{Int}(undef, m)` filled by an `@inbounds for i in 1:m` loop.
@@ -35,7 +33,6 @@ All 4 findings reported in `reviews/005_performance.md` were triaged, reproduced
 
 ### Finding 2: Value-Dependent Union Return Type & Missing `less::F` Specialization in `build_rmq`
 - **Location**: `src/RMQ.jl` (`build_rmq`, `_build_rmq`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Extracted `@inline` backend constructors `_build_rmq(keys::V, less::F, ::Val{:blocked})` and `_build_rmq(keys::V, less::F, ::Val{:sparse})`.
   - Updated `build_rmq(keys::V; less::F = isless, backend::Union{Symbol,Val} = Val(:blocked)) where {V<:AbstractVector,F}` with `Base.@constprop :aggressive`, validating `Val{:blocked}` / `Val{:sparse}` and throwing `ArgumentError` for unknown backends.
@@ -44,7 +41,6 @@ All 4 findings reported in `reviews/005_performance.md` were triaged, reproduced
 
 ### Finding 3: Dynamic Reflection (`getfield`/`setfield!`) & Generator Allocation in `BBT.get_min_max_orig_index`
 - **Location**: `src/BBT.jl` (`get_min_orig_index`, `get_max_orig_index`, `_range_ext_orig_index`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Replaced `get_min_max_orig_index` with a shared `@inline` helper `_range_ext_orig_index(tree::Tree, r::UnitRange{Int}, better::F)::Int where {F}` (guarding empty ranges with `ArgumentError` and scanning with `@inbounds`).
   - Rewrote `get_min_orig_index` and `get_max_orig_index` to access `node.min_index` and `node.max_index` directly with local `left, right = node.left, node.right` narrowing.
@@ -53,7 +49,6 @@ All 4 findings reported in `reviews/005_performance.md` were triaged, reproduced
 
 ### Finding 4: Type-Parameter & Return-Type Instability in `WSPD`
 - **Location**: `src/WSPD.jl` (`separation`, `PD`, `init`, `push_pair!`, `top_refine!`, `top_diam_ub`) and `src/BBT.jl` (`Tree_init_inner`)
-- **Status**: **Mitigated**
 - **Remediation**:
   - Updated `separation(pair::WSPair{D,T,S,V})::S` to `@inline`, returning `S(MAX_SEP)` when `pair.dist <= zero(S)`.
   - Parameterized `mutable struct PD{D,T,S,V,P<:AbsPntSeq{D,T}}` on concrete `pnts::P` and updated `push_pair!`, `top_refine!`, and `top_diam_ub` signatures (plus `zero(S)` comparisons in `top_refine!`).
@@ -70,3 +65,6 @@ All 4 findings reported in `reviews/005_performance.md` were triaged, reproduced
 - **Full Test Suite (`tools/gate`, `Pkg.test()`)**: Passed (`156,403 / 156,403` assertions in `BasicCompGeometry.jl`, plus all `Aqua` package checks).
 - **Sizing & Nesting**: All new and modified functions in `src/RMQ.jl`, `src/BBT.jl`, and `src/WSPD.jl` are compact (`<= 19` lines each) with shallow nesting (`<= 3`, below the `<= 4` limit).
 - **Scope & Anti-Oscillation**: Unrelated modules (`src/Diameter.jl`, `src/MetricSpace.jl`, `src/VisibilityPolygon.jl`, `src/MinkowskiSum.jl`, triangulation modules, etc.) were left untouched. Public APIs and exports remain unchanged; user-visible changes are recorded in `CHANGELOG.md` under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 8 files changed, 305 insertions(+), 61 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
