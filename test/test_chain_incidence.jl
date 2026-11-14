@@ -162,6 +162,15 @@ end
     @test vertical_ray_segment((0, 0), 1, (1, 0), (1, 5)) isa NoHit
     @test_throws ArgumentError vertical_ray_segment((0, 0), 0, (0, 0), (1, 1))
     @test_throws ArgumentError vertical_ray_segment((0.0, 0), 1, (0, 0), (1, 1))
+    @test_throws ArgumentError vertical_ray_segment((10.0, 0), 1, (0, 0), (1, 1))
+    @test_throws ArgumentError vertical_ray_segment((10, 0.0), 1, (0, 0), (1, 1))
+    # early span rejection avoids BigInt allocations on non-spanning segments
+    span_segs = [((i, 0), (i + 1, 2), i) for i = 1:1000]
+    _run_vc(s, q, d) = first_positive_vertical_contact(s, q, d)
+    @test _run_vc(span_segs, (-10, -1), 1) === nothing
+    @test (@allocated _run_vc(span_segs, (-10, -1), 1)) == 0
+    @test _run_vc(span_segs, (500, -1), 1).t == 1
+    @test (@allocated _run_vc(span_segs, (500, -1), 1)) < 20_000
     # huge rationals
     b = big(10)^40
     h = vertical_ray_segment((1 // b, 0), 1, (0, 0), (1, 1))

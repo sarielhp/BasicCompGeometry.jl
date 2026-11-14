@@ -133,9 +133,9 @@ end
 @inline _kids(pal::Palette, i::Int, k::Int, j::Int) = pal.kids[k]
 
 function _fill!(errs, kids, P, err, rule, i::Int, j::Int)
-    i > j && return (0.0, 0)
+    i > j && return (zero(eltype(errs)), 0)
     k = split_vertex(rule, P, i, j)
-    (k <= i || k >= j) && return (0.0, 0)
+    (k <= i || k >= j) && return (zero(eltype(errs)), 0)
 
     v_l, k_l = _fill!(errs, kids, P, err, rule, i, k)
     v_r, k_r = _fill!(errs, kids, P, err, rule, k, j)
@@ -172,7 +172,7 @@ function palette(
 end
 
 function _p_extract!(pout, pout_is, P, pal, i::Int, j::Int, k::Int, w)
-    k == 0 && return 0.0
+    k == 0 && return zero(eltype(pal))
     if pal[k] < w
         push!(pout, P[k])
         push!(pout_is, k)
@@ -312,17 +312,17 @@ hausdorff_measure() = HierarchyMeasure(
 #######################################################################
 
 """
-    SimplificationHierarchy{D, T, M}
+    SimplificationHierarchy{D, T, R, M}
 
 Simplifications of the curve `P` stored from the widest (fewest vertices) to
 the narrowest: `polys[i]` has error `widths[i]`, and `widths` is
 non-increasing. `plt` is the palette of `P` and `len` its length. Access is
 guarded by `lock`.
 """
-mutable struct SimplificationHierarchy{D,T,M<:HierarchyMeasure}
+mutable struct SimplificationHierarchy{D,T,R<:SplitRule,M<:HierarchyMeasure}
     len::T
     P::PntSeq{D,T}
-    plt::Palette{T}
+    plt::Palette{T,R}
     polys::Vector{PntSeq{D,T}}
     widths::Vector{Float64}
     lock::ReentrantLock

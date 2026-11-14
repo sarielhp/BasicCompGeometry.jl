@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `at`, `sample_uniformly`, and `dist(::AbsPntSeq, i, j)`: eliminated type instabilities (`Union{Point{D,T}, Point{D,Float64}}` / `Union{Float32, Float64}`) for `Float32` and integer point sequences by consistently using `float(T)` (`zero(float(T))` when `i == j`), and fixed `InexactError` in `sample_uniformly` on integer point sequences.
 - `visibility_polygon` and `polygon_kernel`: integer coordinate inputs under `FloatingKernel()` now promote to `Float64` instead of throwing `InexactError`, and `Float32` / `Rational{Int64}` coordinate types are preserved with homogeneous, type-stable return types (including `_ray_edge_intersect`).
 - `WSPD` and `approx_diameter`: `WSPD.init` now derives its distance scalar type from the `BBT.Tree` rather than `sep` and accepts any `sep::Real` (fixing `MethodError` on `Float32` point sequences and integer `sep` values), while `WSPD.separation` preserves the tree's distance scalar type `S` and `WSPD.PD` parameterizes the concrete point-sequence type `P`.
 - `dist_subspace`, `nn_point`, and `bisection_point`: eliminated value-dependent union return types for integer, `Float32`, and `Rational` inputs so degenerate/nonpositive branches return the exact same promoted coordinate/scalar types as the general branches.
@@ -27,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LongestConvexSubset`: parameterized `LCSContext` and `RotateOrder` on the concrete sequence type `P<:AbsPntSeq{2,T}`, preallocated `PointTurn` arrays in `pt_init`, and hoisted `lcs_init` out of the `target` loop in `compute_largest_convex_subset` (60-point allocations reduced from ~192.5 MB to ~175 KB).
 - `MVBB.approx_diam` and `MVBB.approx_diam_subspace`: parameterized priority-queue keys on the concrete `BBT.Node{D,T,S,V}` type via `_init_node_pair_pq` and specialized `_push_child_pairs!` on the upper-bound function.
 - `ConvexHull3D.convex_hull_3d`: replaced per-horizon-edge conflict vector concatenation and `unique!` with a reusable generation-counter stamp array (`seen_stamp`), reducing 400-point spherical shell allocations from ~4.64 MB to ~2.69 MB.
+- `vertical_decomposition` and `trapezoid_chains`: concrete-typed `_ActiveTrap{R_type}` double-buffering, preallocated slab buffers with $O(k)$ two-pointer advancement, binary-searched zero-allocation `_vd_walls`, and indexed `x_left` neighbor linking in `_tc_link_neighbors!` (160-line decomposition allocations reduced from ~2.8 GiB to ~24 MiB and chain linking from ~1.06 s to ~9 ms).
+- `vertices(...; unique=true)` (`_unique_points`): replaced $O(m^2)$ scan with sorted $x$-window deduplication preserving original order.
+- `sample_uniformly`: replaced $O(mn)$ repeated `at` / `prefix_lengths` calls with a single-pass $O(m + n)$ scan (1,000-point resampling allocations reduced from ~8.1 MB to ~24 KB).
+- `PntSeqHierarchy.SimplificationHierarchy`: parameterized `plt::Palette{T,R}` on `R<:SplitRule` to eliminate dynamic dispatch in `hierarchy_approx` / `hierarchy_build!`, and replaced `0.0` base-case returns in `_fill!` / `_p_extract!` with `zero(eltype(...))`.
+- `vertical_ray_segment` and `first_positive_vertical_contact`: added exact `x`-span / ray-side rejection before `BigInt` / `Rational{BigInt}` widening, eliminating heap allocations on non-spanning segments.
 
 ## [0.5.16] - 2026-11-13
 

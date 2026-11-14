@@ -590,6 +590,27 @@ Aqua.test_all(BasicCompGeometry)
         @test length(poly_uniform) == 10
         @test geom_length(poly_uniform) ≈ geom_length(poly)
 
+        # Type stability and O(m + n) allocation for dist, at, and sample_uniformly
+        p32 = PntSeq([Point{2,Float32}(Float32(i), Float32(i % 3)) for i = 1:20])
+        @test (@inferred dist(p32, 1, 1)) === 0.0f0
+        @test (@inferred dist(p32, 1, 2)) isa Float32
+        @test (@inferred at(p32, 0.0f0)) isa Point{2,Float32}
+        @test (@inferred at(p32, 0.5f0)) isa Point{2,Float32}
+        @test (@inferred at(p32, 1.0f0)) isa Point{2,Float32}
+        p32_u = @inferred sample_uniformly(p32, 12)
+        @test p32_u isa PntSeq{2,Float32}
+        @test p32_u[1] == p32[1] && p32_u[end] == p32[end]
+
+        pint = PntSeq([Point{2,Int}(0, 0), Point{2,Int}(2, 0), Point{2,Int}(2, 2)])
+        @test (@inferred at(pint, 0.0)) === point(0.0, 0.0)
+        @test (@inferred at(pint, 0.5)) === point(2.0, 0.0)
+        @test (@inferred sample_uniformly(pint, 5)) isa PntSeq{2,Float64}
+
+        p1k = PntSeq([point(Float64(i), sin(i)) for i = 1:1000])
+        _run_su(p, n) = sample_uniformly(p, n)
+        _run_su(p1k, 1000)
+        @test (@allocated _run_su(p1k, 1000)) < 100_000
+
         # Random
         @test length(rand_pnt_seq(2, Float64, 5)) == 5
     end

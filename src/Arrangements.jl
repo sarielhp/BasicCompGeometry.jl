@@ -286,6 +286,18 @@ function _vd_dedup_xs(x_events::Vector{R}, x_min, x_max, tol) where {R}
     return unique_x
 end
 
+# Nearest index in sorted `unique_x` within `tol` of `x_target`, or `nothing`.
+function _nearest_x_idx(unique_x, x_target, tol)
+    n = length(unique_x)
+    idx = searchsortedfirst(unique_x, x_target)
+    if idx <= n && abs(unique_x[idx] - x_target) <= tol
+        return idx
+    elseif idx > 1 && abs(unique_x[idx-1] - x_target) <= tol
+        return idx - 1
+    end
+    return nothing
+end
+
 # Vertical walls at each x-event: through every vertex, and along every vertical line.
 function _vd_walls(
     lines::AbstractVector{Line{2,R}},
@@ -298,26 +310,30 @@ function _vd_walls(
     walls_at_event = [_VertWall{R}[] for _ = 1:length(unique_x)]
 
     for v in in_view_verts
-        k_idx = findfirst(x -> abs(x - v[1]) <= tol, unique_x)
+        k_idx = _nearest_x_idx(unique_x, v.x, tol)
         k_idx === nothing && continue
         x_val = unique_x[k_idx]
 
-        non_vert = filter(l -> abs(l.u[1]) > 1e-14, lines)
-        y_vals = [_line_y_at_x(l, x_val) for l in non_vert]
-
-        above_y = filter(y -> y > v[2] + tol, y_vals)
-        below_y = filter(y -> y < v[2] - tol, y_vals)
-
-        wall_top = isempty(above_y) ? y_max : min(minimum(above_y), y_max)
-        wall_bot = isempty(below_y) ? y_min : max(maximum(below_y), y_min)
+        wall_top = y_max
+        wall_bot = y_min
+        vy = v.y
+        for l in lines
+            abs(l.u.x) > 1e-14 || continue
+            y = _line_y_at_x(l, x_val)
+            if y > vy + tol
+                wall_top = min(wall_top, y)
+            elseif y < vy - tol
+                wall_bot = max(wall_bot, y)
+            end
+        end
 
         push!(walls_at_event[k_idx], _VertWall{R}(wall_bot, wall_top))
     end
 
     # Vertical lines (u_x == 0) have vertical wall spanning [y_min, y_max]
     for l in lines
-        abs(l.u[1]) <= 1e-14 || continue
-        k_idx = findfirst(x -> abs(x - l.p[1]) <= tol, unique_x)
+        abs(l.u.x) <= 1e-14 || continue
+        k_idx = _nearest_x_idx(unique_x, l.p.x, tol)
         k_idx === nothing && continue
         push!(walls_at_event[k_idx], _VertWall{R}(y_min, y_max))
     end
@@ -348,11 +364,21 @@ function _vd_make_trap(at::_ActiveTrap, ::Type{R}, y_min, y_max) where {R}
 end
 
 # Non-coincident lines crossing the interior of slab [x_l, x_r], sorted bottom to top.
-function _vd_slab_lines(lines::AbstractVector{Line{2,R}}, x_l, x_r, y_min, y_max, tol) where {R}
+function _vd_slab_lines!(
+    unique_slab::Vector{Line{2,R}},
+    slab_lines::Vector{Line{2,R}},
+    lines::AbstractVector{Line{2,R}},
+    x_l,
+    x_r,
+    y_min,
+    y_max,
+    tol,
+) where {R}
+    empty!(slab_lines)
+    empty!(unique_slab)
     x_mid = (x_l + x_r) / 2.0
-    slab_lines = Line{2,R}[]
     for l in lines
-        abs(l.u[1]) <= 1e-14 && continue
+        abs(l.u.x) <= 1e-14 && continue
         y_l = _line_y_at_x(l, x_l)
         y_r = _line_y_at_x(l, x_r)
         if max(y_l, y_r) > y_min + tol && min(y_l, y_r) < y_max - tol
@@ -360,10 +386,9 @@ function _vd_slab_lines(lines::AbstractVector{Line{2,R}}, x_l, x_r, y_min, y_max
         end
     end
 
-    sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid))
+    sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid), alg = QuickSort)
 
     # Deduplicate coincident lines in slab
-    unique_slab = Line{2,R}[]
     for l in slab_lines
         if isempty(unique_slab) ||
            abs(_line_y_at_x(l, x_mid) - _line_y_at_x(unique_slab[end], x_mid)) > tol
@@ -373,11 +398,8 @@ function _vd_slab_lines(lines::AbstractVector{Line{2,R}}, x_l, x_r, y_min, y_max
     return unique_slab
 end
 
-# Can active trapezoid `at` (bounded by `bot_b`, `top_b`) continue across the wall at `x_l`?
-function _vd_can_extend(at, bot_b, top_b, x_l, walls, y_min, y_max, tol)
-    (at.bottom == bot_b && at.top == top_b) || return false
-    y_bot_xl = _vd_clamped_y(bot_b, x_l, y_min, y_min, y_max)
-    y_top_xl = _vd_clamped_y(top_b, x_l, y_max, y_min, y_max)
+# Can an active trapezoid spanning [y_bot_xl, y_top_xl] at x_l continue across `walls`?
+function _vd_can_extend(y_bot_xl, y_top_xl, walls, tol)
     (y_top_xl - y_bot_xl) <= tol && return false
     for w in walls
         if max(w.y_bot, y_bot_xl) < min(w.y_top, y_top_xl) - tol
@@ -387,12 +409,52 @@ function _vd_can_extend(at, bot_b, top_b, x_l, walls, y_min, y_max, tol)
     return true
 end
 
-function _vd_find_active(active_traps, k, bot_b, top_b, x_l, walls, y_min, y_max, tol)
-    k > 1 || return nothing
-    for (a_idx, at) in enumerate(active_traps)
-        if _vd_can_extend(at, bot_b, top_b, x_l, walls, y_min, y_max, tol)
-            return a_idx
+# Two-pointer merge of bottom-to-top active trapezoids with slab boundary pairs `bounds`.
+function _vd_advance_slab!(
+    completed::Vector{VerticalTrapezoid{R}},
+    new_active::Vector{_ActiveTrap{R}},
+    active_traps::Vector{_ActiveTrap{R}},
+    bounds::Vector{Union{Nothing,Line{2,R}}},
+    x_l::R,
+    x_r::R,
+    walls::Vector{_VertWall{R}},
+    y_min::R,
+    y_max::R,
+    tol,
+    is_first_slab::Bool,
+) where {R}
+    empty!(new_active)
+    a_idx = 1
+    na = is_first_slab ? 0 : length(active_traps)
+    for p_idx = 1:(length(bounds)-1)
+        bot_b = bounds[p_idx]
+        top_b = bounds[p_idx+1]
+        p_bot = _vd_clamped_y(bot_b, x_l, y_min, y_min, y_max)
+        p_top = _vd_clamped_y(top_b, x_l, y_max, y_min, y_max)
+        matched = false
+        while a_idx <= na
+            at = active_traps[a_idx]
+            if at.bottom != bot_b || at.top != top_b
+                a_top = _vd_clamped_y(at.top, x_l, y_max, y_min, y_max)
+                a_top > p_top && break
+                push!(completed, _vd_make_trap(at, R, y_min, y_max))
+                a_idx += 1
+                continue
+            end
+            if _vd_can_extend(p_bot, p_top, walls, tol)
+                at.x_right = x_r
+                push!(new_active, at)
+                matched = true
+            else
+                push!(completed, _vd_make_trap(at, R, y_min, y_max))
+            end
+            a_idx += 1
+            break
         end
+        matched || push!(new_active, _ActiveTrap{R}(x_l, x_r, bot_b, top_b))
+    end
+    for i = a_idx:na
+        push!(completed, _vd_make_trap(active_traps[i], R, y_min, y_max))
     end
     return nothing
 end
@@ -432,46 +494,35 @@ function vertical_decomposition(
     # Sweep slabs and build/merge trapezoids
     completed = VerticalTrapezoid{R_type}[]
     active_traps = _ActiveTrap{R_type}[]
+    new_active = _ActiveTrap{R_type}[]
+    slab_lines = Line{2,R_type}[]
+    unique_slab = Line{2,R_type}[]
+    bounds = Union{Nothing,Line{2,R_type}}[]
 
     for k = 1:(length(unique_x)-1)
         x_l = unique_x[k]
         x_r = unique_x[k+1]
-        slab_lines = _vd_slab_lines(lines_typed, x_l, x_r, y_min, y_max, tol)
+        _vd_slab_lines!(unique_slab, slab_lines, lines_typed, x_l, x_r, y_min, y_max, tol)
 
-        bounds = Vector{Union{Nothing,Line{2,R_type}}}()
+        empty!(bounds)
         push!(bounds, nothing) # bottom of view
-        append!(bounds, slab_lines)
+        append!(bounds, unique_slab)
         push!(bounds, nothing) # top of view
 
-        new_active = _ActiveTrap[]
-        for p_idx = 1:(length(bounds)-1)
-            bot_b = bounds[p_idx]
-            top_b = bounds[p_idx+1]
-            matched_idx = _vd_find_active(
-                active_traps,
-                k,
-                bot_b,
-                top_b,
-                x_l,
-                walls_at_event[k],
-                y_min,
-                y_max,
-                tol,
-            )
-            if matched_idx !== nothing
-                at = active_traps[matched_idx]
-                at.x_right = x_r
-                push!(new_active, at)
-                deleteat!(active_traps, matched_idx)
-            else
-                push!(new_active, _ActiveTrap(x_l, x_r, bot_b, top_b))
-            end
-        end
-
-        for at in active_traps
-            push!(completed, _vd_make_trap(at, R_type, y_min, y_max))
-        end
-        active_traps = new_active
+        _vd_advance_slab!(
+            completed,
+            new_active,
+            active_traps,
+            bounds,
+            x_l,
+            x_r,
+            walls_at_event[k],
+            y_min,
+            y_max,
+            tol,
+            k == 1,
+        )
+        active_traps, new_active = new_active, active_traps
     end
 
     for at in active_traps
@@ -513,20 +564,28 @@ ArrVertDecomp(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-11) =
 # overlap, skipping x-coordinates that are input vertical lines.
 function _tc_link_neighbors!(right_neighbor, left_neighbor, traps, vert_line_x, tol)
     n = length(traps)
-    for i = 1:n, j = 1:n
-        i == j && continue
-        ti, tj = traps[i], traps[j]
-        # ti must be to the left of tj
-        abs(ti.x_right - tj.x_left) <= tol || continue
-        # Make sure this x is not an input vertical line
-        any(xv -> abs(xv - ti.x_right) <= tol, vert_line_x) && continue
-        # Check vertical boundary overlap between ti's right edge [c2.y, c3.y]
-        # and tj's left edge [c1.y, c4.y]
-        y_bot = max(ti.corners[2][2], tj.corners[1][2])
-        y_top = min(ti.corners[3][2], tj.corners[4][2])
-        if y_top - y_bot > tol
-            right_neighbor[i] = j
-            left_neighbor[j] = i
+    order = sortperm(traps, by = t -> t.x_left)
+    x_lefts = [traps[idx].x_left for idx in order]
+    sort!(vert_line_x)
+    for i = 1:n
+        ti = traps[i]
+        xr = ti.x_right
+        if !isempty(vert_line_x)
+            k = searchsortedfirst(vert_line_x, xr - tol)
+            (k <= length(vert_line_x) && abs(vert_line_x[k] - xr) <= tol) && continue
+        end
+        lo = searchsortedfirst(x_lefts, xr - tol)
+        hi = searchsortedlast(x_lefts, xr + tol)
+        for pos = lo:hi
+            j = order[pos]
+            i == j && continue
+            tj = traps[j]
+            y_bot = max(ti.corners[2].y, tj.corners[1].y)
+            y_top = min(ti.corners[3].y, tj.corners[4].y)
+            if y_top - y_bot > tol
+                right_neighbor[i] = j
+                left_neighbor[j] = i
+            end
         end
     end
     return nothing

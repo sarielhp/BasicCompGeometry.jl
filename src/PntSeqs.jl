@@ -58,9 +58,9 @@ Return the dimension of the points in the point sequence.
 Distance between vertex `i` and vertex `j` of the point sequence.
 Part of the `AbsFMS` interface.
 """
-@inline function dist(P::AbsPntSeq, i::Int, j::Int)
+@inline function dist(P::AbsPntSeq{D,T}, i::Int, j::Int) where {D,T}
     if i == j
-        return 0.0
+        return zero(float(T))
     end
     return dist(P.pnts[i], P.pnts[j])
 end
@@ -153,27 +153,32 @@ The parameterization is based on arc-length (linear interpolation along edges).
 function at(pnt_seq::AbsPntSeq{D,T}, t::Real) where {D,T}
     n = length(pnt_seq)
     n == 0 && throw(ArgumentError("Empty point sequence"))
-    n == 1 && return pnt_seq.pnts[1]
+    OutT = float(T)
+    n == 1 && return Point{D,OutT}(pnt_seq.pnts[1])
 
     plens = prefix_lengths(pnt_seq)
     total_len = plens[end]
-    total_len == 0.0 && return pnt_seq.pnts[1]
+    total_len == 0.0 && return Point{D,OutT}(pnt_seq.pnts[1])
 
     # Target absolute arc-length
     target = t * total_len
     if target <= 0
-        return pnt_seq.pnts[1]
+        return Point{D,OutT}(pnt_seq.pnts[1])
     elseif target >= total_len
-        return pnt_seq.pnts[n]
+        return Point{D,OutT}(pnt_seq.pnts[n])
     end
 
     # Find the segment containing the target distance
     i = searchsortedfirst(plens, target)
-    i <= 1 && return pnt_seq.pnts[1]
+    i <= 1 && return Point{D,OutT}(pnt_seq.pnts[1])
 
     segment_len = plens[i] - plens[i-1]
-    local_t = (target - plens[i-1]) / segment_len
-    return convex_comb(pnt_seq.pnts[i-1], pnt_seq.pnts[i], local_t)
+    local_t = OutT((target - plens[i-1]) / segment_len)
+    return convex_comb(
+        Point{D,OutT}(pnt_seq.pnts[i-1]),
+        Point{D,OutT}(pnt_seq.pnts[i]),
+        local_t,
+    )
 end
 
 # Base Extensions for collection-like behavior
@@ -265,11 +270,33 @@ Resample the point sequence `P` into `n` vertices that are evenly spaced by arc-
 """
 function sample_uniformly(P::AbsPntSeq{D,T}, n::Int) where {D,T}
     n <= 1 && throw(ArgumentError("n must be > 1"))
-    new_P = PntSeq{D,T}()
-    for i = 1:n
-        push!(new_P, at(P, (i-1)/(n-1)))
+    m = length(P)
+    m == 0 && throw(ArgumentError("Empty point sequence"))
+    OutT = float(T)
+    out = Vector{Point{D,OutT}}(undef, n)
+    if m == 1
+        fill!(out, Point{D,OutT}(P[1]))
+        return PntSeq(out)
     end
-    return new_P
+    plens = prefix_lengths(P)
+    total_len = plens[end]
+    if total_len == 0.0
+        fill!(out, Point{D,OutT}(P[1]))
+        return PntSeq(out)
+    end
+    out[1] = Point{D,OutT}(P[1])
+    out[n] = Point{D,OutT}(P[m])
+    seg = 2
+    for i = 2:(n-1)
+        target = ((i - 1) / (n - 1)) * total_len
+        while seg < m && plens[seg] < target
+            seg += 1
+        end
+        denom = plens[seg] - plens[seg-1]
+        local_t = denom == 0.0 ? zero(OutT) : OutT((target - plens[seg-1]) / denom)
+        out[i] = convex_comb(Point{D,OutT}(P[seg-1]), Point{D,OutT}(P[seg]), local_t)
+    end
+    return PntSeq(out)
 end
 
 """

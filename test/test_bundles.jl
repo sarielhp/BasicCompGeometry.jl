@@ -151,3 +151,22 @@ end
         @test is_inside(top_right(box), view)
     end
 end
+
+@testset "Point deduplication order and scaling" begin
+    pts = [
+        point(3.0, 1.0),
+        point(1.0, 2.0),
+        point(3.0 - 1e-13, 1.0 + 1e-13),
+        point(2.0, 5.0),
+        point(1.0 + 1e-13, 2.0 - 1e-13),
+    ]
+    uniq = BasicCompGeometry._unique_points(pts; tol = 1e-12)
+    @test length(uniq) == 3
+    @test uniq[1] ≈ point(3.0, 1.0) atol = 1e-12
+    @test uniq[2] ≈ point(1.0, 2.0) atol = 1e-12
+    @test uniq[3] ≈ point(2.0, 5.0) atol = 1e-12
+
+    pts32 = Point{2,Float32}[point(1.0f0, 0.0f0), point(0.0f0, 1.0f0), point(1.0f0, 0.0f0)]
+    @test BasicCompGeometry._unique_points(pts32) ==
+          Point{2,Float32}[point(1.0f0, 0.0f0), point(0.0f0, 1.0f0)]
+end

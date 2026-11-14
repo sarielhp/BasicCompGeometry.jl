@@ -39,15 +39,37 @@ all arithmetic is exact (widened to `BigInt`), with O(1) operations. Returned
 """
 function vertical_ray_segment(p, direction::Integer, a, b)
     s = _check_direction(direction)
-    px, py = _exact(_cx(p)), _exact(_cy(p))
-    ax, ay, bx, by = _exact(_cx(a)), _exact(_cy(a)), _exact(_cx(b)), _exact(_cy(b))
-    if ax == bx
-        return _vertical_overlap(p, s, px, py, ax, ay, by)
+    px_raw, py_raw = _cx(p), _cy(p)
+    ax_raw, ay_raw = _cx(a), _cy(a)
+    bx_raw, by_raw = _cx(b), _cy(b)
+    _check_exact_scalar(px_raw)
+    _check_exact_scalar(py_raw)
+    _check_exact_scalar(ax_raw)
+    _check_exact_scalar(ay_raw)
+    _check_exact_scalar(bx_raw)
+    _check_exact_scalar(by_raw)
+    if ax_raw == bx_raw
+        px_raw == ax_raw || return NoHit()
+        return _vertical_overlap(
+            p,
+            s,
+            _exact(px_raw),
+            _exact(py_raw),
+            _exact(ax_raw),
+            _exact(ay_raw),
+            _exact(by_raw),
+        )
     end
+    lo_x, hi_x = ax_raw < bx_raw ? (ax_raw, bx_raw) : (bx_raw, ax_raw)
+    (px_raw < lo_x || px_raw > hi_x) && return NoHit()
+    if s == 1 ? max(ay_raw, by_raw) < py_raw : min(ay_raw, by_raw) > py_raw
+        return NoHit()
+    end
+    px, py = _exact(px_raw), _exact(py_raw)
+    ax, ay, bx, by = _exact(ax_raw), _exact(ay_raw), _exact(bx_raw), _exact(by_raw)
     if ax > bx
         ax, ay, bx, by = bx, by, ax, ay
     end
-    (px < ax || px > bx) && return NoHit()
     y = ay + (px - ax) * (by - ay) // (bx - ax)
     t = s * (y - py)
     t < 0 && return NoHit()

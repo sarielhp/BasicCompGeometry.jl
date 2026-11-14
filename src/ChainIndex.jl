@@ -17,15 +17,19 @@ _exact(x::Integer) = BigInt(x)
 _exact(x::Rational) = Rational{BigInt}(x)
 _exact(x) = throw(ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(x))"))
 
+@inline function _check_exact_scalar(c)
+    c isa _ExactScalar ||
+        throw(ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(c))"))
+    (c isa Rational && iszero(denominator(c))) &&
+        throw(ArgumentError("coordinates must be finite"))
+    return nothing
+end
+
 function _check_exact_point(p)
     (p isa Tuple || p isa AbstractVector) && length(p) == 2 ||
         throw(ArgumentError("points must be planar tuples or 2-vectors"))
-    for c in (_cx(p), _cy(p))
-        c isa _ExactScalar ||
-            throw(ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(c))"))
-        (c isa Rational && iszero(denominator(c))) &&
-            throw(ArgumentError("coordinates must be finite"))
-    end
+    _check_exact_scalar(_cx(p))
+    _check_exact_scalar(_cy(p))
     return nothing
 end
 

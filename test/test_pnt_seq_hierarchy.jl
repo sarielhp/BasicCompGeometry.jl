@@ -172,6 +172,19 @@ end
     @testset "Float32 curves and integer rejection" begin
         P32 = PntSeq([Point{2,Float32}(Float32(x), Float32(sin(x))) for x = 0:0.05:6])
         h = hierarchy_init(P32)
+        @test isconcretetype(fieldtype(typeof(h), :plt))
+        pal32 = @inferred palette(P32, hausdorff_dist_subseg; rule = MidpointSplit())
+        @test pal32 isa Palette{Float32,MidpointSplit}
+        @test (@inferred palette_extract(P32, pal32, 0.3))[3] isa Float32
+        @test (@inferred H._fill!(
+            zeros(Float32, length(P32)),
+            NTuple{2,Int}[],
+            P32,
+            hausdorff_dist_subseg,
+            MidpointSplit(),
+            1,
+            length(P32),
+        )) isa Tuple{Float32,Int}
         hierarchy_build!(h)
         Q, w = hierarchy_approx(h, 0.3)
         @test Q isa PntSeq{2,Float32}

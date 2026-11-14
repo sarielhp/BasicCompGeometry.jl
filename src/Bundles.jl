@@ -72,16 +72,34 @@ function pairwise_intersections(h1::Hyperbola, h2::Hyperbola; tol::Real = 1e-12)
     return intersect_hyperbolas(h1, h2)
 end
 
-function _unique_points(pts::Vector{Point{2,Float64}}; tol::Real = 1e-12)
+function _unique_points(pts::Vector{Point{2,T}}; tol::Real = 1e-12) where {T}
     isempty(pts) && return pts
-    res = Point{2,Float64}[]
     tol_sq = tol^2
-    for p in pts
-        if !any(q -> dist_sq(p, q) <= tol_sq, res)
-            push!(res, p)
+    abs_tol = abs(tol)
+    order = sortperm(pts, by = p -> (p.x, p.y))
+    kept = Int[]
+    rep = Int[]
+    sizehint!(kept, length(pts))
+    sizehint!(rep, length(pts))
+    for idx in order
+        p = pts[idx]
+        dup = false
+        for j = length(kept):-1:1
+            q = pts[kept[j]]
+            (p.x - q.x) > abs_tol && break
+            if dist_sq(p, q) <= tol_sq
+                rep[j] = min(rep[j], idx)
+                dup = true
+                break
+            end
+        end
+        if !dup
+            push!(kept, idx)
+            push!(rep, idx)
         end
     end
-    return res
+    sort!(rep)
+    return pts[rep]
 end
 
 """

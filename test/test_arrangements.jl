@@ -170,4 +170,21 @@ end
     # The faces function directly from bundle
     faces_direct = faces(rand_hps, rand_view)
     @test length(faces_direct) == length(rand_faces)
+
+    # 9. Vertical decomposition and chain linking with vertical/coincident lines & bounded allocations
+    rng40 = Random.MersenneTwister(123)
+    lines40 = [
+        Line(point(rand(rng40) * 10 - 5, rand(rng40) * 10 - 5), point(cos(t), sin(t))) for
+        t in range(0.01, 3.1, length = 40)
+    ]
+    push!(lines40, Line(point(0.0, 0.0), point(0.0, 1.0)), lines40[1])
+    bb40 = BBox(point(-20.0, -20.0), point(20.0, 20.0))
+    _run_vd(ls, b) = vertical_decomposition(ls, b)
+    _run_tc(d) = trapezoid_chains(d)
+    decomp40 = _run_vd(lines40, bb40)
+    chains40 = _run_tc(decomp40)
+    @test area(decomp40) ≈ width(bb40) * height(bb40) atol = 1e-6
+    @test length(chains40) == length(faces(decomp40))
+    @test (@allocated _run_vd(lines40, bb40)) < 5_000_000
+    @test (@allocated _run_tc(decomp40)) < 1_000_000
 end
