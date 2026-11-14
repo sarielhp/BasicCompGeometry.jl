@@ -12,33 +12,54 @@ using Random
         tri = [point(0.0, 0.0), point(2.0, 0.0), point(1.0, 2.0)]
         @test is_convex(tri)
 
-        hex = [point(cos(2π * k / 6), sin(2π * k / 6)) for k in 0:5]
+        hex = [point(cos(2π * k / 6), sin(2π * k / 6)) for k = 0:5]
         @test is_convex(hex)
 
         # Collinear intermediate vertices along an edge
-        sq_collinear = [point(0.0, 0.0), point(0.5, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+        sq_collinear = [
+            point(0.0, 0.0),
+            point(0.5, 0.0),
+            point(1.0, 0.0),
+            point(1.0, 1.0),
+            point(0.0, 1.0),
+        ]
         @test is_convex(sq_collinear)
 
         # Duplicate consecutive vertices
-        sq_dup = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+        sq_dup = [
+            point(0.0, 0.0),
+            point(1.0, 0.0),
+            point(1.0, 0.0),
+            point(1.0, 1.0),
+            point(0.0, 1.0),
+        ]
         @test is_convex(sq_dup)
 
         # Non-convex shapes
         l_shape = [
-            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
-            point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0),
+            point(0.0, 0.0),
+            point(3.0, 0.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 3.0),
+            point(0.0, 3.0),
         ]
         @test !is_convex(l_shape)
 
         u_shape = [
-            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 3.0),
-            point(2.0, 3.0), point(2.0, 1.0), point(1.0, 1.0),
-            point(1.0, 3.0), point(0.0, 3.0),
+            point(0.0, 0.0),
+            point(3.0, 0.0),
+            point(3.0, 3.0),
+            point(2.0, 3.0),
+            point(2.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 3.0),
+            point(0.0, 3.0),
         ]
         @test !is_convex(u_shape)
 
         # Self-intersecting star pentagram (all turns left, but wraps around twice: 4π)
-        star5_angles = [2π * (2k % 5) / 5 for k in 0:4]
+        star5_angles = [2π * (2k % 5) / 5 for k = 0:4]
         star5 = [point(cos(a), sin(a)) for a in star5_angles]
         @test !is_convex(star5)
 
@@ -127,7 +148,8 @@ using Random
 
     @testset "minkowski_sum with ExactKernel" begin
         exact = ExactKernel()
-        sq1_ex = [point(0//1, 0//1), point(1//1, 0//1), point(1//1, 1//1), point(0//1, 1//1)]
+        sq1_ex =
+            [point(0//1, 0//1), point(1//1, 0//1), point(1//1, 1//1), point(0//1, 1//1)]
         tri_ex = [point(0//1, 0//1), point(1//2, 0//1), point(0//1, 1//2)]
 
         m_ex = minkowski_sum(sq1_ex, tri_ex; kernel = exact)
@@ -140,8 +162,12 @@ using Random
 
     @testset "minkowski_sum convex hull and non-convex error handling" begin
         l_shape = [
-            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
-            point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0),
+            point(0.0, 0.0),
+            point(3.0, 0.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 3.0),
+            point(0.0, 3.0),
         ]
         sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
 
@@ -158,8 +184,12 @@ using Random
 
     @testset "minkowski_sum_decomposition" begin
         l_shape = [
-            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
-            point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0),
+            point(0.0, 0.0),
+            point(3.0, 0.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 3.0),
+            point(0.0, 3.0),
         ]
         sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
 
@@ -181,12 +211,20 @@ using Random
         exact = ExactKernel()
         l_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in l_shape]
         sq_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in sq]
-        for alg in (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)
+        for alg in (
+            :sweep,
+            :seidel,
+            :ear_cut_z_order,
+            :ear_cut_kd_tree,
+            :ear_cut_u_kd_tree,
+            :ear_cut,
+        )
             decomp_alg = minkowski_sum_decomposition(l_shape, sq; algorithm = alg)
             @test length(decomp_alg) == 4
             @test all(p -> is_convex(p) && twice_area(p) > 0, decomp_alg)
 
-            decomp_ex = minkowski_sum_decomposition(l_ex, sq_ex; kernel = exact, algorithm = alg)
+            decomp_ex =
+                minkowski_sum_decomposition(l_ex, sq_ex; kernel = exact, algorithm = alg)
             @test length(decomp_ex) == 4
             @test eltype(eltype(decomp_ex[1])) <: Rational
             @test all(p -> is_convex(p; kernel = exact) && twice_area(p) > 0, decomp_ex)
@@ -194,23 +232,30 @@ using Random
 
         # Non-monotone polygon via PntSeq wrapper and default :sweep decomposition
         u_poly = [
-            point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
-            point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
+            point(0.0, 0.0),
+            point(4.0, 0.0),
+            point(4.0, 4.0),
+            point(3.0, 4.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 4.0),
+            point(0.0, 4.0),
         ]
         decomp_u = minkowski_sum_decomposition(PntSeq(u_poly), sq)
         @test length(decomp_u) == length(u_poly) - 2
         @test all(is_convex, decomp_u)
         hull_from_decomp = convex_hull(reduce(vcat, decomp_u))
-        @test twice_area(hull_from_decomp) ≈ twice_area(minkowski_sum(u_poly, sq; hull = true))
+        @test twice_area(hull_from_decomp) ≈
+              twice_area(minkowski_sum(u_poly, sq; hull = true))
     end
 
     @testset "Randomized validation against convex_hull of pairwise sums" begin
         rng = Xoshiro(12345)
-        for _ in 1:100
+        for _ = 1:100
             n = rand(rng, 3:15)
             m = rand(rng, 3:15)
-            pts1 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ in 1:n]
-            pts2 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ in 1:m]
+            pts1 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ = 1:n]
+            pts2 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ = 1:m]
 
             poly1 = collect(convex_hull(pts1))
             poly2 = collect(convex_hull(pts2))
@@ -237,26 +282,28 @@ using Random
 
         # Concrete return type inference across is_convex, minkowski_sum, and overloads
         @test (@inferred is_convex(sq)) === true
-        @test (@inferred minkowski_sum(sq, sq)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum(seg1, seg2)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum(pt, sq)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum(sq, pt)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum(seg1, sq)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum(sq, seg1)) isa Vector{Point{2, Float64}}
-        @test (@inferred minkowski_sum_decomposition(sq, sq)) isa Vector{Vector{Point{2, Float64}}}
+        @test (@inferred minkowski_sum(sq, sq)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum(seg1, seg2)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum(pt, sq)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum(sq, pt)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum(seg1, sq)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum(sq, seg1)) isa Vector{Point{2,Float64}}
+        @test (@inferred minkowski_sum_decomposition(sq, sq)) isa
+              Vector{Vector{Point{2,Float64}}}
 
         # Integer and Rational{Int64} coordinate preservation
         sq_int = [point(0, 0), point(1, 0), point(1, 1), point(0, 1)]
         m_int = @inferred minkowski_sum(sq_int, sq_int)
-        @test m_int isa Vector{Point{2, Int64}}
+        @test m_int isa Vector{Point{2,Int64}}
         @test twice_area(m_int) == 8
 
-        sq_rat = [point(0//1, 0//1), point(1//1, 0//1), point(1//1, 1//1), point(0//1, 1//1)]
+        sq_rat =
+            [point(0//1, 0//1), point(1//1, 0//1), point(1//1, 1//1), point(0//1, 1//1)]
         @test (@inferred is_convex(sq_rat; kernel = exact)) === true
         m_rat = @inferred minkowski_sum(sq_rat, sq_rat; kernel = exact)
-        @test m_rat isa Vector{Point{2, Rational{Int64}}}
+        @test m_rat isa Vector{Point{2,Rational{Int64}}}
         d_rat = @inferred minkowski_sum_decomposition(sq_rat, sq_rat; kernel = exact)
-        @test d_rat isa Vector{Vector{Point{2, Rational{Int64}}}}
+        @test d_rat isa Vector{Vector{Point{2,Rational{Int64}}}}
 
         # Allocation regression guards (previously ~3.5KB / ~10.7KB / ~8.8KB / ~5.1MB)
         alloc_convex = let p = sq
@@ -273,8 +320,10 @@ using Random
         @test alloc_segs < 4096
 
         star40 = [
-            point((iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40), (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40))
-            for i in 0:39
+            point(
+                (iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40),
+                (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40),
+            ) for i = 0:39
         ]
         d_star = @inferred minkowski_sum_decomposition(star40, star40)
         @test length(d_star) == 38 * 38
@@ -287,7 +336,12 @@ using Random
     @testset "decomposition with clockwise triangles" begin
         # :ear_cut triangulates this quad as [(3,1,4), (2,1,3)]; the second
         # triple is clockwise and must be reoriented before merging.
-        quad = [point(0.74, 0.21), point(-0.35, 0.56), point(-0.03, -0.56), point(-0.07, -0.42)]
+        quad = [
+            point(0.74, 0.21),
+            point(-0.35, 0.56),
+            point(-0.03, -0.56),
+            point(-0.07, -0.42),
+        ]
         sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
         for alg in (:ear_cut, :sweep, :seidel)
             d = minkowski_sum_decomposition(quad, sq; algorithm = alg)

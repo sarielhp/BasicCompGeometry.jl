@@ -38,19 +38,22 @@ function monotone_chain_indices(p; kernel::AbstractKernel = FloatingKernel())
     k = length(p)
     k >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got k = $k"))
 
-    lo = 1; hi = 1
-    for i in 2:k
+    lo = 1
+    hi = 1
+    for i = 2:k
         p[i].x < p[lo].x && (lo = i)
         p[i].x > p[hi].x && (hi = i)
     end
 
-    c_minus = Int[lo]; curr = lo
+    c_minus = Int[lo]
+    curr = lo
     while curr != hi
         curr = mod1(curr - 1, k)
         push!(c_minus, curr)
     end
 
-    c_plus = Int[lo]; curr = lo
+    c_plus = Int[lo]
+    curr = lo
     while curr != hi
         curr = mod1(curr + 1, k)
         push!(c_plus, curr)
@@ -85,12 +88,15 @@ in linear time `O(k)`, eliminating duplicate endpoints.
 function merge_chains(upper::AbstractVector{T}, lower::AbstractVector{T}) where {T<:Point}
     order = T[]
     sizehint!(order, length(upper) + length(lower))
-    i = 1; j = 1
+    i = 1
+    j = 1
     while i <= length(upper) || j <= length(lower)
         if j > length(lower) || (i <= length(upper) && upper[i].x <= lower[j].x)
-            pt = upper[i]; i += 1
+            pt = upper[i]
+            i += 1
         else
-            pt = lower[j]; j += 1
+            pt = lower[j]
+            j += 1
         end
         (isempty(order) || last(order) != pt) && push!(order, pt)
     end
@@ -109,34 +115,37 @@ Returns a `MonotoneTriangulation` with:
 - `vertices` must form a simple counterclockwise x-monotone polygon with `k >= 3` vertices.
 - Original x-coordinates are distinct, and no three supplied vertices are collinear.
 """
-function triangulate_monotone(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function triangulate_monotone(vertices; kernel::AbstractKernel = FloatingKernel())
     k = length(vertices)
     k >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got k = $k"))
 
     if k == 3
-        t = orient_sign(kernel, vertices[1], vertices[2], vertices[3]) > 0 ? (1, 2, 3) : (1, 3, 2)
+        t =
+            orient_sign(kernel, vertices[1], vertices[2], vertices[3]) > 0 ? (1, 2, 3) :
+            (1, 3, 2)
         return MonotoneTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[t])
     end
 
     upper, lower = monotone_chain_indices(vertices; kernel = kernel)
 
     is_upper = falses(k)
-    for v in @view upper[2:end-1]
+    for v in @view upper[2:(end-1)]
         is_upper[v] = true
     end
 
     # Merge chains by increasing x in linear time O(k)
     order = Int[]
     sizehint!(order, k)
-    i = 1; j = 1
+    i = 1
+    j = 1
     while i <= length(upper) || j <= length(lower)
-        if j > length(lower) || (i <= length(upper) && vertices[upper[i]].x <= vertices[lower[j]].x)
-            v = upper[i]; i += 1
+        if j > length(lower) ||
+           (i <= length(upper) && vertices[upper[i]].x <= vertices[lower[j]].x)
+            v = upper[i]
+            i += 1
         else
-            v = lower[j]; j += 1
+            v = lower[j]
+            j += 1
         end
         (isempty(order) || last(order) != v) && push!(order, v)
     end
@@ -155,7 +164,7 @@ function triangulate_monotone(
     stack = Int[]
     sizehint!(stack, k)
     push!(stack, order[1], order[2])
-    for j in 3:k-1
+    for j = 3:(k-1)
         v = order[j]
         if is_upper[v] != is_upper[last(stack)]
             while length(stack) >= 2
@@ -184,7 +193,10 @@ function triangulate_monotone(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        push!(triangles, is_upper[s_top] ? (v_last, s_top, s_next) : (v_last, s_next, s_top))
+        push!(
+            triangles,
+            is_upper[s_top] ? (v_last, s_top, s_next) : (v_last, s_next, s_top),
+        )
         emit_diagonal!(v_last, s_top)
     end
 
@@ -210,8 +222,9 @@ function is_x_monotone(p)
     n = length(p)
     n >= 3 || return false
 
-    lo = 1; hi = 1
-    for i in 2:n
+    lo = 1
+    hi = 1
+    for i = 2:n
         p[i].x < p[lo].x && (lo = i)
         p[i].x > p[hi].x && (hi = i)
     end
@@ -244,8 +257,9 @@ function is_y_monotone(p)
     n = length(p)
     n >= 3 || return false
 
-    lo = 1; hi = 1
-    for i in 2:n
+    lo = 1
+    hi = 1
+    for i = 2:n
         p[i].y < p[lo].y && (lo = i)
         p[i].y > p[hi].y && (hi = i)
     end
@@ -268,7 +282,13 @@ function is_y_monotone(p)
     return true
 end
 
-@inline function _point_in_ccw_triangle(kernel::AbstractKernel, p::Point, a::Point, b::Point, c::Point)
+@inline function _point_in_ccw_triangle(
+    kernel::AbstractKernel,
+    p::Point,
+    a::Point,
+    b::Point,
+    c::Point,
+)
     return orient_sign(kernel, a, b, p) >= 0 &&
            orient_sign(kernel, b, c, p) >= 0 &&
            orient_sign(kernel, c, a, p) >= 0
@@ -288,7 +308,7 @@ function _build_plain_reflex_index(is_reflex::BitVector)
     r_prev = zeros(Int, n)
     r_next = zeros(Int, n)
     r_head = 0
-    @inbounds for i in n:-1:1
+    @inbounds for i = n:-1:1
         if is_reflex[i]
             r_next[i] = r_head
             r_head != 0 && (r_prev[r_head] = i)
@@ -359,7 +379,7 @@ end
 @inline function _init_ear_clip_ring(n::Int)
     prev_v = Vector{Int}(undef, n)
     next_v = Vector{Int}(undef, n)
-    @inbounds for i in 1:n
+    @inbounds for i = 1:n
         prev_v[i] = i == 1 ? n : i - 1
         next_v[i] = i == n ? 1 : i + 1
     end
@@ -396,7 +416,11 @@ end
 
 # Validate a simple-polygon input: `n >= 3`, positive (counterclockwise) signed area and,
 # when `check_duplicates`, pairwise distinct vertices (O(n log n) sort). Returns `n`.
-function _validate_ccw_polygon(kernel::AbstractKernel, vertices; check_duplicates::Bool = true)
+function _validate_ccw_polygon(
+    kernel::AbstractKernel,
+    vertices;
+    check_duplicates::Bool = true,
+)
     n = length(vertices)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
 
@@ -420,11 +444,13 @@ function _check_distinct_vertices(kernel::AbstractKernel, vertices)
     else
         sort!(collect(1:n); alg = MergeSort, by = i -> (vertices[i][1], vertices[i][2]))
     end
-    for i in 1:n-1
+    for i = 1:(n-1)
         a = vertices[order[i]]
-        b = vertices[order[i + 1]]
+        b = vertices[order[i+1]]
         (a[1] == b[1] && a[2] == b[2]) && throw(
-            ArgumentError("polygon contains duplicate vertex $(order[i + 1]) (equal to vertex $(order[i]))"),
+            ArgumentError(
+                "polygon contains duplicate vertex $(order[i + 1]) (equal to vertex $(order[i]))",
+            ),
         )
     end
     return nothing
@@ -454,7 +480,7 @@ function _ear_clip_run!(st::_EarClipState)
     entry_ver = zeros(Int, n)
     vert_ver = ones(Int, n)
     verified = zeros(Int, n)
-    for i in 1:n
+    for i = 1:n
         if _is_ear_vertex(st, i)
             push!(ear_queue, i)
             entry_ver[i] = 1
@@ -538,18 +564,30 @@ function _ear_clip_with_index(make_index, poly, n::Int, kernel::AbstractKernel)
     prev_v, next_v, is_active = _init_ear_clip_ring(n)
     is_reflex = falses(n)
     reflex_cnt = 0
-    @inbounds for i in 1:n
+    @inbounds for i = 1:n
         if orient_sign(kernel, poly[prev_v[i]], poly[i], poly[next_v[i]]) <= 0
             is_reflex[i] = true
             reflex_cnt += 1
         end
     end
-    st = _EarClipState(kernel, poly, prev_v, next_v, is_active, make_index(is_reflex, reflex_cnt))
+    st = _EarClipState(
+        kernel,
+        poly,
+        prev_v,
+        next_v,
+        is_active,
+        make_index(is_reflex, reflex_cnt),
+    )
     return _ear_clip_run!(st)
 end
 
 _ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = FloatingKernel()) =
-    _ear_clip_with_index((is_reflex, _) -> _build_plain_reflex_index(is_reflex), poly, n, kernel)
+    _ear_clip_with_index(
+        (is_reflex, _) -> _build_plain_reflex_index(is_reflex),
+        poly,
+        n,
+        kernel,
+    )
 
 """
     triangulate_ear_cut(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
@@ -561,10 +599,7 @@ on strictly x-monotone or y-monotone polygons).
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-function triangulate_ear_cut(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function triangulate_ear_cut(vertices; kernel::AbstractKernel = FloatingKernel())
     n = _validate_ccw_polygon(kernel, vertices)
 
     if n == 3
@@ -620,7 +655,11 @@ function triangulate_polygon(
     elseif algorithm == :ear_cut || algorithm == :ear_clipping
         return triangulate_ear_cut(vertices; kernel = kernel)
     else
-        throw(ArgumentError("unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)"))
+        throw(
+            ArgumentError(
+                "unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
+            ),
+        )
     end
 end
 

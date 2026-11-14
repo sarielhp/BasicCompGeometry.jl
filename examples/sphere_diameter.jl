@@ -47,7 +47,7 @@ function test_diameter(P, N::Int, D::Int)
         N = N,
         approx_runtime = @sprintf("%.6f", t_approx.time),
         exact_runtime = @sprintf("%.6f", t_exact.time),
-        approx_ratio = @sprintf("%.4f", approx_diam/exact_diam)
+        approx_ratio = @sprintf("%.4f", approx_diam/exact_diam),
     )
 end
 

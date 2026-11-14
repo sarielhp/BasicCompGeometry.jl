@@ -203,14 +203,10 @@ Collinearity and coordinate bounds are evaluated under `kernel`.
     kernel::AbstractKernel = FloatingKernel(),
 ) = on_segment(kernel, p, a, b)
 
-@inline function on_segment(
-    kernel::AbstractKernel,
-    p::Point{2},
-    a::Point{2},
-    b::Point{2},
-)
+@inline function on_segment(kernel::AbstractKernel, p::Point{2}, a::Point{2}, b::Point{2})
     turn_sign(kernel, a, b, p) == 0 || return false
-    kp, ka, kb = _kernel_point(kernel, p), _kernel_point(kernel, a), _kernel_point(kernel, b)
+    kp, ka, kb =
+        _kernel_point(kernel, p), _kernel_point(kernel, a), _kernel_point(kernel, b)
     return min(ka.x, kb.x) <= kp.x <= max(ka.x, kb.x) &&
            min(ka.y, kb.y) <= kp.y <= max(ka.y, kb.y)
 end
@@ -256,17 +252,10 @@ point in the exact same direction.
 # Preconditions
 - Vectors `a` and `b` must both be nonzero. Throws `ArgumentError` if either is zero.
 """
-@inline compare_angle(
-    a::Point{2},
-    b::Point{2};
-    kernel::AbstractKernel = FloatingKernel(),
-) = compare_angle(kernel, a, b)
+@inline compare_angle(a::Point{2}, b::Point{2}; kernel::AbstractKernel = FloatingKernel()) =
+    compare_angle(kernel, a, b)
 
-@inline function compare_angle(
-    kernel::AbstractKernel,
-    a::Point{2},
-    b::Point{2},
-)
+@inline function compare_angle(kernel::AbstractKernel, a::Point{2}, b::Point{2})
     (iszero(a.x) && iszero(a.y)) &&
         throw(ArgumentError("angular comparison requires nonzero vectors; got a = $a"))
     (iszero(b.x) && iszero(b.y)) &&
@@ -293,11 +282,8 @@ are equivalent and return `false`.
 # Preconditions
 - Vectors `a` and `b` must both be nonzero. Throws `ArgumentError` if either is zero.
 """
-@inline angle_less(
-    a::Point{2},
-    b::Point{2};
-    kernel::AbstractKernel = FloatingKernel(),
-) = angle_less(kernel, a, b)
+@inline angle_less(a::Point{2}, b::Point{2}; kernel::AbstractKernel = FloatingKernel()) =
+    angle_less(kernel, a, b)
 
 @inline angle_less(kernel::AbstractKernel, a::Point{2}, b::Point{2}) =
     compare_angle(kernel, a, b) < 0
@@ -315,14 +301,11 @@ Return the sorted pair `(min(a, b), max(a, b))` as a canonical key for an undire
 Compute twice the signed area of the polygon formed by `vertices`.
 For `ExactKernel()`, returns the exact signed area without floating-point rounding.
 """
-function twice_area(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function twice_area(vertices; kernel::AbstractKernel = FloatingKernel())
     n = length(vertices)
     n < 3 && return zero(_kernel_scalar(kernel, 0))
     s = orient(kernel, point(0, 0), vertices[1], vertices[2])
-    for i in 2:n
+    for i = 2:n
         s += orient(kernel, point(0, 0), vertices[i], vertices[mod1(i + 1, n)])
     end
     return s

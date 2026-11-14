@@ -174,8 +174,8 @@ end
     # 9. Vertical decomposition and chain linking with vertical/coincident lines & bounded allocations
     rng40 = Random.MersenneTwister(123)
     lines40 = [
-        Line(point(rand(rng40) * 10 - 5, rand(rng40) * 10 - 5), point(cos(t), sin(t))) for
-        t in range(0.01, 3.1, length = 40)
+        Line(point(rand(rng40) * 10 - 5, rand(rng40) * 10 - 5), point(cos(t), sin(t)))
+        for t in range(0.01, 3.1, length = 40)
     ]
     push!(lines40, Line(point(0.0, 0.0), point(0.0, 1.0)), lines40[1])
     bb40 = BBox(point(-20.0, -20.0), point(20.0, 20.0))

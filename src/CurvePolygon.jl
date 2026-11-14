@@ -143,9 +143,7 @@ function _point_on_closed(
         seg_len = R(dist(pnts[i], p_next))
         if acc + seg_len >= target
             local_t = seg_len == zero(R) ? zero(R) : (target - acc) / seg_len
-            return Point{D,R}(
-                convex_comb(Point{D,R}(pnts[i]), Point{D,R}(p_next), local_t),
-            )
+            return Point{D,R}(convex_comb(Point{D,R}(pnts[i]), Point{D,R}(p_next), local_t))
         end
         acc += seg_len
     end

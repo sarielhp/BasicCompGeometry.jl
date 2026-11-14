@@ -95,7 +95,8 @@ end
 
 function union_bbox(objects::AbstractVector)
     first_iter = iterate(objects)
-    first_iter === nothing && throw(ArgumentError("union_bbox requires at least one object"))
+    first_iter === nothing &&
+        throw(ArgumentError("union_bbox requires at least one object"))
     first_obj, state = first_iter
     first_box = bbox(first_obj)
     D = length(first_box.mini)

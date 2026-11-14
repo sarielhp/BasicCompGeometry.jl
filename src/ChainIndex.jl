@@ -15,11 +15,14 @@ _cy(p::AbstractVector) = p[2]
 # scalars before any arithmetic, so predicates and constructions cannot overflow.
 _exact(x::Integer) = BigInt(x)
 _exact(x::Rational) = Rational{BigInt}(x)
-_exact(x) = throw(ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(x))"))
+_exact(x) = throw(
+    ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(x))"),
+)
 
 @inline function _check_exact_scalar(c)
-    c isa _ExactScalar ||
-        throw(ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(c))"))
+    c isa _ExactScalar || throw(
+        ArgumentError("coordinates must be exact (Integer or Rational), got $(typeof(c))"),
+    )
     (c isa Rational && iszero(denominator(c))) &&
         throw(ArgumentError("coordinates must be finite"))
     return nothing
@@ -193,14 +196,22 @@ function point_at(w::ChainWindow, t::_ExactScalar, j::Integer)
     (t isa Rational && iszero(denominator(t))) && throw(ArgumentError("t must be finite"))
     if j == t == w.hi
         p = vertex(w, w.hi)
-        return _mkpoint(p, Rational{BigInt}(_exact(_cx(p))), Rational{BigInt}(_exact(_cy(p))))
+        return _mkpoint(
+            p,
+            Rational{BigInt}(_exact(_cx(p))),
+            Rational{BigInt}(_exact(_cy(p))),
+        )
     end
     w.lo <= j < w.hi || throw(BoundsError(w, j))
     j <= t <= j + 1 || throw(ArgumentError("parameter t=$t is not on edge position j=$j"))
     a, b = vertex(w, j), vertex(w, j + 1)
     f = _exact(t) - j
     ax, ay, bx, by = _exact(_cx(a)), _exact(_cy(a)), _exact(_cx(b)), _exact(_cy(b))
-    return _mkpoint(a, Rational{BigInt}(ax + f * (bx - ax)), Rational{BigInt}(ay + f * (by - ay)))
+    return _mkpoint(
+        a,
+        Rational{BigInt}(ax + f * (bx - ax)),
+        Rational{BigInt}(ay + f * (by - ay)),
+    )
 end
 
 """

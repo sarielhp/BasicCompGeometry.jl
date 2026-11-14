@@ -41,10 +41,7 @@ end
 Apply a 3x3 homogeneous transformation matrix `m` to a 2D point `p`.
 Return the resulting `Point{2}`.
 """
-@inline function apply_transform(
-    m::AbstractMatrix{T},
-    p::Point{2,T},
-)::Point{2,T} where {T}
+@inline function apply_transform(m::AbstractMatrix{T}, p::Point{2,T})::Point{2,T} where {T}
     size(m) == (3, 3) ||
         throw(DimensionMismatch("expected a 3×3 transformation matrix, got $(size(m))"))
     @inbounds begin

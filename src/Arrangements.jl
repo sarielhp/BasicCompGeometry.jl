@@ -486,8 +486,9 @@ function vertical_decomposition(
         throw(ArgumentError("View bounding box must have positive width and height: $view"))
     end
 
-    lines_typed =
-        Line{2,R_type}[Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines]
+    lines_typed = Line{2,R_type}[
+        Line{2,R_type}(Point{2,R_type}(l.p), Point{2,R_type}(l.u)) for l in bundle_lines
+    ]
 
     in_view_verts = _vd_in_view_vertices(lines_typed, x_min, x_max, y_min, y_max, tol)
     unique_x = _vd_event_xs(lines_typed, in_view_verts, x_min, x_max, y_min, y_max, tol)

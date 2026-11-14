@@ -55,7 +55,7 @@ using BasicCompGeometry.LongestConvexSubset
 
     @testset "Concrete context types and context reuse" begin
         rng = Xoshiro(7)
-        ps = PntSeq([point(rand(rng), rand(rng)) for _ in 1:60])
+        ps = PntSeq([point(rand(rng), rand(rng)) for _ = 1:60])
 
         lct = LongestConvexSubset.lcs_init(ps)
         ro = LongestConvexSubset.RotateOrder(ps, ps[1])
@@ -63,7 +63,7 @@ using BasicCompGeometry.LongestConvexSubset
         @test isconcretetype(fieldtype(typeof(ro), :PS))
 
         # Hoisted context initialization should produce identical results to per-target init
-        ps25 = PntSeq([point(rand(rng), rand(rng)) for _ in 1:25])
+        ps25 = PntSeq([point(rand(rng), rand(rng)) for _ = 1:25])
         subset25 = compute_largest_convex_subset(ps25)
         @test length(subset25) >= 3
         work_ps = deepcopy(ps25)
@@ -71,7 +71,7 @@ using BasicCompGeometry.LongestConvexSubset
         ps_ref = PntSeq{2,Float64}([point(p[1], -p[2]) for p in work_ps])
         best_sz = -1
         best_sol = Int[]
-        for target in 1:length(ps25)
+        for target = 1:length(ps25)
             lu = LongestConvexSubset.lcs_init(work_ps)
             LongestConvexSubset.compute_dp_table!(lu, target)
             ll = LongestConvexSubset.lcs_init(ps_ref)

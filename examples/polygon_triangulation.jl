@@ -13,7 +13,7 @@ using Random
 """Build a CCW non-monotone horizontal comb polygon with `4m + 4` vertices and `2m` reflex notches."""
 function make_comb_polygon(m_prongs::Int)
     pts = Point2F[point(0.0, 0.0)]
-    for i in 1:m_prongs
+    for i = 1:m_prongs
         y_bot = 2.0 * (i - 1)
         x_notch = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
         push!(pts, point(10.0, y_bot))
@@ -61,8 +61,10 @@ norm_diag(a::Int, b::Int) = a < b ? (a, b) : (b, a)
 # checks are never compiled away.
 function verify_triangulation(poly, res)
     n = length(poly)
-    length(res.diagonals) == n - 3 || error("expected $(n - 3) diagonals, got $(length(res.diagonals))")
-    length(res.triangles) == n - 2 || error("expected $(n - 2) triangles, got $(length(res.triangles))")
+    length(res.diagonals) == n - 3 ||
+        error("expected $(n - 3) diagonals, got $(length(res.diagonals))")
+    length(res.triangles) == n - 2 ||
+        error("expected $(n - 2) triangles, got $(length(res.triangles))")
     poly_area = twice_area(poly)
     poly_area > 0 || error("polygon is not counterclockwise")
     tri_area = 0.0
@@ -71,7 +73,8 @@ function verify_triangulation(poly, res)
         a > 0 || error("triangle ($i, $j, $k) is not counterclockwise")
         tri_area += a
     end
-    isapprox(tri_area, poly_area; rtol = 1e-8) || error("triangle areas do not sum to the polygon area")
+    isapprox(tri_area, poly_area; rtol = 1e-8) ||
+        error("triangle areas do not sum to the polygon area")
     return nothing
 end
 
@@ -79,11 +82,14 @@ function run_benchmarks()
     prongs_list = example_size([50, 200, 600, 1200], [8, 20, 40])
     # Warm up all six algorithms (with > 16 reflex vertices to exercise the spatial indices)
     warm = make_comb_polygon(12)
-    for alg in (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)
+    for alg in
+        (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)
         triangulate_polygon(warm; algorithm = alg, rng = MersenneTwister(1))
     end
 
-    println("Polygon Triangulation Benchmark (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)")
+    println(
+        "Polygon Triangulation Benchmark (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
+    )
     println("  Monotone?: false for all test combs (2m reflex vertices)")
     @printf(
         "%-7s | %-10s | %-10s | %-12s | %-11s | %-11s | %-11s | %-7s | %-7s\n",
@@ -117,10 +123,14 @@ function run_benchmarks()
         n = length(poly)
 
         t_sweep = @elapsed res_sweep = triangulate_polygon(poly)
-        t_seidel = @elapsed res_seidel = triangulate_polygon(poly; algorithm = :seidel, rng = MersenneTwister(42))
-        t_zorder = @elapsed res_zorder = triangulate_polygon(poly; algorithm = :ear_cut_z_order)
-        t_kdtree = @elapsed res_kdtree = triangulate_polygon(poly; algorithm = :ear_cut_kd_tree)
-        t_ukdtree = @elapsed res_ukdtree = triangulate_polygon(poly; algorithm = :ear_cut_u_kd_tree)
+        t_seidel = @elapsed res_seidel =
+            triangulate_polygon(poly; algorithm = :seidel, rng = MersenneTwister(42))
+        t_zorder =
+            @elapsed res_zorder = triangulate_polygon(poly; algorithm = :ear_cut_z_order)
+        t_kdtree =
+            @elapsed res_kdtree = triangulate_polygon(poly; algorithm = :ear_cut_kd_tree)
+        t_ukdtree =
+            @elapsed res_ukdtree = triangulate_polygon(poly; algorithm = :ear_cut_u_kd_tree)
         t_ear = @elapsed res_ear = triangulate_polygon(poly; algorithm = :ear_cut)
 
         verify_triangulation(poly, res_sweep)
@@ -144,10 +154,20 @@ function run_benchmarks()
             "pass",
         )
     end
-    println("Verified: every algorithm passed the Euler-count, orientation, and area checks")
+    println(
+        "Verified: every algorithm passed the Euler-count, orientation, and area checks",
+    )
 end
 
-function draw_panel!(fig, poly, part_diags, all_diags, theme, shift_x::Float64, caption_tex::String)
+function draw_panel!(
+    fig,
+    poly,
+    part_diags,
+    all_diags,
+    theme,
+    shift_x::Float64,
+    caption_tex::String,
+)
     shifted = [point(p.x + shift_x, p.y) for p in poly]
     part_set = Set(norm_diag(a, b) for (a, b) in part_diags)
     all_set = Set(norm_diag(a, b) for (a, b) in all_diags)
@@ -161,7 +181,14 @@ function draw_panel!(fig, poly, part_diags, all_diags, theme, shift_x::Float64, 
         draw!(fig, Segment(shifted[a], shifted[b]); style = theme.partition_diag)
     end
     mark!(fig, shifted; stroke = :navy, fill = :navy, shape = :disk, size = :small)
-    label!(fig, point(shift_x + 5.0, -0.55), caption_tex; anchor = :center, style = :normal, size = :small)
+    label!(
+        fig,
+        point(shift_x + 5.0, -0.55),
+        caption_tex;
+        anchor = :center,
+        style = :normal,
+        size = :small,
+    )
 end
 
 function build_figure()
@@ -175,7 +202,11 @@ function build_figure()
 
     # Seidel triangulation + its trapezoidal-partition diagonals with shared RNG seed
     rng_seidel = MersenneTwister(17)
-    trap_map = BasicCompGeometry._seidel_build_trapezoidal_map(FloatingKernel(), fig_poly, copy(rng_seidel))
+    trap_map = BasicCompGeometry._seidel_build_trapezoidal_map(
+        FloatingKernel(),
+        fig_poly,
+        copy(rng_seidel),
+    )
     seidel_part = BasicCompGeometry._seidel_extract_diagonals(trap_map)
     res_seidel = triangulate_seidel(fig_poly; rng = rng_seidel)
     verify_triangulation(fig_poly, res_seidel)
@@ -187,7 +218,12 @@ function build_figure()
     dx = 11.4
     fit_box = BBox(point(-0.2, -1.2), point(dx + 10.2, 9.2))
     theme = Theme(
-        polygon = Style(fill = :lightblue, fill_opacity = 0.2, stroke = :navy, pen = :heavier),
+        polygon = Style(
+            fill = :lightblue,
+            fill_opacity = 0.2,
+            stroke = :navy,
+            pen = :heavier,
+        ),
         partition_diag = Style(stroke = :red, pen = :heavier, dash = :dashed),
         secondary_diag = Style(stroke = :seagreen, pen = :thin),
     )

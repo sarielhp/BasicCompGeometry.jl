@@ -262,7 +262,7 @@ function draw_cell_diagram(canvas, p::Point{2,Float64})
     area_val = cell_area(p)
     description(
         canvas,
-        @sprintf("Voronoi cell of point (%.2f, %.2f) — area = %.4f", p.x, p.y, area_val)
+        @sprintf("Voronoi cell of point (%.2f, %.2f) — area = %.4f", p.x, p.y, area_val),
     )
 end
 
@@ -370,7 +370,7 @@ function draw_page2(canvas)
     Cairo.show_text(canvas, "f(p)")
     description(
         canvas,
-        @sprintf("Surface plot of f(p) = area of Voronoi cell. Max = %.4f", max_val)
+        @sprintf("Surface plot of f(p) = area of Voronoi cell. Max = %.4f", max_val),
     )
 end
 
@@ -599,7 +599,7 @@ function draw_page4(canvas, p = point(0.05, 0.05))
         @sprintf(
             "Voronoi cell of corner site (0.05, 0.05) — 2 parabolic arcs, area = %.5f",
             area_val
-        )
+        ),
     )
 end
 
@@ -772,7 +772,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
             page_diag_num,
             p.x,
             p.y
-        )
+        ),
     )
 
     # Body text setup
@@ -851,7 +851,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
             @sprintf("  • Bottom edge (y = 0): y = %.4f + %.4f*(x - 0.5)^2", v_bot, k_bot),
             @sprintf("  • Left edge   (x = 0): x = 0.2500 + (y - %.2f)^2", p.y),
             @sprintf("  • Right edge  (x = 1): x = 0.7500 - (y - %.2f)^2", p.y),
-            @sprintf("  • Top edge    (y = 1): y = %.4f - %.4f*(x - 0.5)^2", v_top, k_top)
+            @sprintf("  • Top edge    (y = 1): y = %.4f - %.4f*(x - 0.5)^2", v_top, k_top),
         ],
         is_code = true,
         color = (0.1, 0.2, 0.35),
@@ -876,7 +876,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
                     verts[2].y,
                     verts[3].x,
                     verts[3].y
-                )
+                ),
             ],
             is_code = true,
             color = (0.1, 0.2, 0.35),
@@ -902,7 +902,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
             "  • Cell Area:              %.4f (approx %.1f%% of maximum center area 0.2189)",
             area_val,
             area_val / 0.2189 * 100
-        )
+        ),
     ])
 
     # Bottom info box
@@ -930,7 +930,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
             page_diag_num,
             p.x,
             p.y
-        )
+        ),
     )
 
     description(
@@ -938,7 +938,7 @@ function draw_edge_analysis(canvas, p::Point{2,Float64}, page_diag_num::Int)
         @sprintf(
             "Mathematical analysis and explanation of the edge-adjacent Voronoi cell on Page %d",
             page_diag_num
-        )
+        ),
     )
 end
 

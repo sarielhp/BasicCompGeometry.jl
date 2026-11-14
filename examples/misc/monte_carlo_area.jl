@@ -218,7 +218,7 @@ function main()
     # Construct curved polygon
     cp = voronoi_curved_polygon(p)
     println(
-        @sprintf("Constructed CurvePolygon2D with %d parabolic arcs.", length(cp.curves))
+        @sprintf("Constructed CurvePolygon2D with %d parabolic arcs.", length(cp.curves)),
     )
     println(@sprintf("Boundary perimeter (arc length): %.6f", geom_length(cp)))
     println()
@@ -238,7 +238,7 @@ function main()
             "Abs Error",
             "Std Dev (1σ)",
             "Rel Error"
-        )
+        ),
     )
     println("-"^75)
 
@@ -260,7 +260,7 @@ function main()
                 abs_err,
                 sigma,
                 rel_err * 100.0
-            )
+            ),
         )
     end
     println("-"^75)

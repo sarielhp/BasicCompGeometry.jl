@@ -91,7 +91,8 @@ end
 Compute the affine interpolation `(1 - t) * p + t * q = p + (q - p) * t`.
 Preserves exact rational coordinates when points and `t` are rational or integer.
 """
-@inline affine_interpolate(p::Point{D}, q::Point{D}, t::Real) where {D} = convex_comb(p, q, t)
+@inline affine_interpolate(p::Point{D}, q::Point{D}, t::Real) where {D} =
+    convex_comb(p, q, t)
 
 """
     turn_sign(p, q, r; kernel=FloatingKernel())

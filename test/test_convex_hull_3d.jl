@@ -67,7 +67,8 @@ using LinearAlgebra
         verts, faces = convex_hull_3d(pnts)
         @test length(verts) == n
         @test length(faces) == 2n - 4
-        @test ConvexHull3D.verify_convex_hull_3d(pnts, verts, faces) == (true, "Hull is valid")
+        @test ConvexHull3D.verify_convex_hull_3d(pnts, verts, faces) ==
+              (true, "Hull is valid")
     end
 
     @testset "Conflict list deduplication allocations" begin

@@ -59,7 +59,8 @@ struct LatticeDisk <: AbsLatticeBody
 end
 
 _exact_rational(x::Union{Integer,Rational}, _) = Rational{BigInt}(x)
-_exact_rational(x::AbstractFloat, den) = Rational{BigInt}(round(BigInt, BigFloat(x) * den), den)
+_exact_rational(x::AbstractFloat, den) =
+    Rational{BigInt}(round(BigInt, BigFloat(x) * den), den)
 
 function LatticeDisk(center, radius::Real; den::Integer = 2^16)
     cx = _exact_rational(center[1], den)
@@ -155,14 +156,20 @@ struct ConvexPolygonBody <: AbsLatticeBody
     function ConvexPolygonBody(vs; den::Integer = 2^16)
         R = [(_exact_rational(v[1], den), _exact_rational(v[2], den)) for v in vs]
         common = reduce(lcm, (denominator(c) for v in R for c in v); init = BigInt(1))
-        V = [Point{2,Int128}(Int128(numerator(v[1] * common)), Int128(numerator(v[2] * common)))
-             for v in R]
+        V = [
+            Point{2,Int128}(
+                Int128(numerator(v[1] * common)),
+                Int128(numerator(v[2] * common)),
+            ) for v in R
+        ]
         n = length(V)
         n >= 3 || throw(ArgumentError("need at least three vertices"))
         sum(_lat_cross(V[i], V[mod1(i + 1, n)]) for i = 1:n) > 0 ||
             throw(ArgumentError("vertices must be counterclockwise and not all collinear"))
-        all(_lat_cross(V[mod1(i + 1, n)] - V[i], V[mod1(i + 2, n)] - V[mod1(i + 1, n)]) >= 0
-            for i = 1:n) || throw(ArgumentError("polygon is not convex"))
+        all(
+            _lat_cross(V[mod1(i + 1, n)] - V[i], V[mod1(i + 2, n)] - V[mod1(i + 1, n)]) >=
+            0 for i = 1:n
+        ) || throw(ArgumentError("polygon is not convex"))
         return new(V, Int128(common))
     end
 end
@@ -314,7 +321,8 @@ function _first_hull_edge(C, p::Point2I)
     end
     isempty(cands) && return nothing
     i = findfirst(d -> all(_lat_cross(d, c) >= 0 for c in cands), cands)
-    i === nothing && throw(ArgumentError("start point is not a vertex of the discrete hull"))
+    i === nothing &&
+        throw(ArgumentError("start point is not a vertex of the discrete hull"))
     e = cands[i]
     return p + something(chord_range(C, p, e))[2] * e, e
 end
@@ -430,7 +438,7 @@ end
 
 function discrete_hull_columns(D::LatticeDisk)
     c, r = center(D), radius(D)
-    return discrete_hull_columns(D, floor(Int, c[1] - r)-1:ceil(Int, c[1] + r)+1)
+    return discrete_hull_columns(D, (floor(Int, c[1]-r)-1):(ceil(Int, c[1]+r)+1))
 end
 
 # Andrew's monotone chain on strictly lexicographically sorted unique Point2I points in O(|P|).

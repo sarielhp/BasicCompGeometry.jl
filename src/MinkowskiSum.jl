@@ -3,30 +3,33 @@
 @inline _minkowski_coord_type(::ExactKernel, ::Type{T}) where {T} =
     T <: Rational ? T : Rational{BigInt}
 @inline _minkowski_coord_type(::AbstractKernel, ::Type{T}) where {T} = T
-@inline _minkowski_coord_type(kernel::AbstractKernel, ::Type{T1}, ::Type{T2}) where {T1, T2} =
-    _minkowski_coord_type(kernel, promote_type(T1, T2))
+@inline _minkowski_coord_type(
+    kernel::AbstractKernel,
+    ::Type{T1},
+    ::Type{T2},
+) where {T1,T2} = _minkowski_coord_type(kernel, promote_type(T1, T2))
 
-@inline _pts_vec(s::Segment{2, T}) where {T} = Point{2, T}[s.p, s.q]
-@inline _pts_vec(p::Point{2, T}) where {T} = Point{2, T}[p]
+@inline _pts_vec(s::Segment{2,T}) where {T} = Point{2,T}[s.p, s.q]
+@inline _pts_vec(p::Point{2,T}) where {T} = Point{2,T}[p]
 
-struct _TrianglePieces{R} <: AbstractVector{SVector{3, Point{2, R}}}
-    pts::Vector{Point{2, R}}
-    tris::Vector{NTuple{3, Int}}
+struct _TrianglePieces{R} <: AbstractVector{SVector{3,Point{2,R}}}
+    pts::Vector{Point{2,R}}
+    tris::Vector{NTuple{3,Int}}
 end
 
 Base.size(tp::_TrianglePieces) = (length(tp.tris),)
 @inline function Base.getindex(tp::_TrianglePieces{R}, k::Int) where {R}
     i, j, m = tp.tris[k]
-    return SVector{3, Point{2, R}}(tp.pts[i], tp.pts[j], tp.pts[m])
+    return SVector{3,Point{2,R}}(tp.pts[i], tp.pts[j], tp.pts[m])
 end
 
 function _has_all_ccw_turns(
-    pts::Vector{Point{2, R}},
+    pts::Vector{Point{2,R}},
     kernel::AbstractKernel,
     tol::Float64,
 ) where {R}
     k = length(pts)
-    for i in 1:k
+    for i = 1:k
         p = pts[i == 1 ? k : i - 1]
         q = pts[i]
         r = pts[i == k ? 1 : i + 1]
@@ -43,9 +46,9 @@ function _has_all_ccw_turns(
     return true
 end
 
-function _lowest_left_index(pts::AbstractVector{Point{2, R}}) where {R}
+function _lowest_left_index(pts::AbstractVector{Point{2,R}}) where {R}
     idx_min = 1
-    for i in 2:length(pts)
+    for i = 2:length(pts)
         p = pts[i]
         m = pts[idx_min]
         if p.y < m.y || (p.y == m.y && p.x < m.x)
@@ -56,16 +59,16 @@ function _lowest_left_index(pts::AbstractVector{Point{2, R}}) where {R}
 end
 
 function _edges_angle_monotone(
-    pts::Vector{Point{2, R}},
+    pts::Vector{Point{2,R}},
     idx_min::Int,
     kernel::AbstractKernel,
 ) where {R}
     k = length(pts)
-    prev_edge = Point{2, R}(zero(R), zero(R))
+    prev_edge = Point{2,R}(zero(R), zero(R))
     has_prev = false
     nz_count = 0
     idx = idx_min
-    for _ in 1:k
+    for _ = 1:k
         nxt = idx == k ? 1 : idx + 1
         e = pts[nxt] - pts[idx]
         idx = nxt
@@ -104,7 +107,7 @@ function is_convex(
 end
 
 function _is_convex_impl(poly, kernel::AbstractKernel, ::Type{R}) where {R}
-    deduped = Point{2, R}[]
+    deduped = Point{2,R}[]
     sizehint!(deduped, length(poly))
     _collect_deduped_points!(deduped, poly, kernel, 1e-11)
 
@@ -172,10 +175,18 @@ function minkowski_sum(
     end
 
     if !is_convex(poly1; kernel = kernel)
-        throw(ArgumentError("minkowski_sum: poly1 is not convex. Use minkowski_sum_decomposition for non-convex polygons, or set hull=true to compute the convex hull of the sum."))
+        throw(
+            ArgumentError(
+                "minkowski_sum: poly1 is not convex. Use minkowski_sum_decomposition for non-convex polygons, or set hull=true to compute the convex hull of the sum.",
+            ),
+        )
     end
     if !is_convex(poly2; kernel = kernel)
-        throw(ArgumentError("minkowski_sum: poly2 is not convex. Use minkowski_sum_decomposition for non-convex polygons, or set hull=true to compute the convex hull of the sum."))
+        throw(
+            ArgumentError(
+                "minkowski_sum: poly2 is not convex. Use minkowski_sum_decomposition for non-convex polygons, or set hull=true to compute the convex hull of the sum.",
+            ),
+        )
     end
 
     return _minkowski_convex(poly1, poly2, kernel)
@@ -187,32 +198,32 @@ function _minkowski_convex(poly1, poly2, kernel::AbstractKernel)
 end
 
 function _minkowski_convex_impl(poly1, poly2, kernel::AbstractKernel, ::Type{R}) where {R}
-    p1 = Point{2, R}[]
+    p1 = Point{2,R}[]
     sizehint!(p1, length(poly1))
     _collect_deduped_points!(p1, poly1, kernel, 1e-11)
 
-    p2 = Point{2, R}[]
+    p2 = Point{2,R}[]
     sizehint!(p2, length(poly2))
     _collect_deduped_points!(p2, poly2, kernel, 1e-11)
 
     n, m = length(p1), length(p2)
-    (n == 0 || m == 0) && return Point{2, R}[]
-    n == 1 && m == 1 && return Point{2, R}[p1[1] + p2[1]]
-    n == 1 && return Point{2, R}[q + p1[1] for q in p2]
-    m == 1 && return Point{2, R}[p + p2[1] for p in p1]
+    (n == 0 || m == 0) && return Point{2,R}[]
+    n == 1 && m == 1 && return Point{2,R}[p1[1]+p2[1]]
+    n == 1 && return Point{2,R}[q + p1[1] for q in p2]
+    m == 1 && return Point{2,R}[p + p2[1] for p in p1]
 
     n >= 3 && twice_area(p1; kernel = kernel) < 0 && reverse!(p1)
     m >= 3 && twice_area(p2; kernel = kernel) < 0 && reverse!(p2)
 
-    scratch_raw = Point{2, R}[]
-    scratch_dedup = Point{2, R}[]
+    scratch_raw = Point{2,R}[]
+    scratch_dedup = Point{2,R}[]
     return _minkowski_convex_ccw(p1, p2, kernel, scratch_raw, scratch_dedup)
 end
 
 function _minkowski_merge_ccw!(
-    raw_out::Vector{Point{2, R}},
-    p1::AbstractVector{Point{2, R}},
-    p2::AbstractVector{Point{2, R}},
+    raw_out::Vector{Point{2,R}},
+    p1::AbstractVector{Point{2,R}},
+    p2::AbstractVector{Point{2,R}},
     kernel::AbstractKernel,
 ) where {R}
     n = length(p1)
@@ -250,17 +261,17 @@ function _minkowski_merge_ccw!(
 end
 
 function _minkowski_convex_ccw(
-    p1::AbstractVector{Point{2, R}},
-    p2::AbstractVector{Point{2, R}},
+    p1::AbstractVector{Point{2,R}},
+    p2::AbstractVector{Point{2,R}},
     kernel::AbstractKernel,
-    scratch_raw::Vector{Point{2, R}},
-    scratch_dedup::Vector{Point{2, R}},
+    scratch_raw::Vector{Point{2,R}},
+    scratch_dedup::Vector{Point{2,R}},
 ) where {R}
     n, m = length(p1), length(p2)
-    (n == 0 || m == 0) && return Point{2, R}[]
-    n == 1 && m == 1 && return Point{2, R}[p1[1] + p2[1]]
-    n == 1 && return Point{2, R}[q + p1[1] for q in p2]
-    m == 1 && return Point{2, R}[p + p2[1] for p in p1]
+    (n == 0 || m == 0) && return Point{2,R}[]
+    n == 1 && m == 1 && return Point{2,R}[p1[1]+p2[1]]
+    n == 1 && return Point{2,R}[q + p1[1] for q in p2]
+    m == 1 && return Point{2,R}[p + p2[1] for p in p1]
 
     _minkowski_merge_ccw!(scratch_raw, p1, p2, kernel)
     _collect_deduped_points!(scratch_dedup, scratch_raw, kernel, 1e-11)
@@ -271,33 +282,69 @@ function _minkowski_convex_ccw(
 end
 
 # Specialized Point and Segment overloads
-minkowski_sum(p1::Point{2, T1}, p2::Point{2, T2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) where {T1, T2} =
-    p1 + p2
+minkowski_sum(
+    p1::Point{2,T1},
+    p2::Point{2,T2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) where {T1,T2} = p1 + p2
 
-minkowski_sum(p::Point{2, T1}, s::Segment{2, T2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) where {T1, T2} =
-    Segment(p + s.p, p + s.q)
+minkowski_sum(
+    p::Point{2,T1},
+    s::Segment{2,T2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) where {T1,T2} = Segment(p + s.p, p + s.q)
 
-minkowski_sum(s::Segment{2, T1}, p::Point{2, T2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) where {T1, T2} =
-    Segment(s.p + p, s.q + p)
+minkowski_sum(
+    s::Segment{2,T1},
+    p::Point{2,T2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) where {T1,T2} = Segment(s.p + p, s.q + p)
 
-minkowski_sum(s1::Segment{2}, s2::Segment{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(_pts_vec(s1), _pts_vec(s2); kernel = kernel, kwargs...)
+minkowski_sum(
+    s1::Segment{2},
+    s2::Segment{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(_pts_vec(s1), _pts_vec(s2); kernel = kernel, kwargs...)
 
-minkowski_sum(p::Point{2}, poly::AbstractVector{<:Point{2}}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(_pts_vec(p), poly; kernel = kernel, kwargs...)
+minkowski_sum(
+    p::Point{2},
+    poly::AbstractVector{<:Point{2}};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(_pts_vec(p), poly; kernel = kernel, kwargs...)
 
-minkowski_sum(poly::AbstractVector{<:Point{2}}, p::Point{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(poly, _pts_vec(p); kernel = kernel, kwargs...)
+minkowski_sum(
+    poly::AbstractVector{<:Point{2}},
+    p::Point{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(poly, _pts_vec(p); kernel = kernel, kwargs...)
 
-minkowski_sum(s::Segment{2}, poly::AbstractVector{<:Point{2}}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(_pts_vec(s), poly; kernel = kernel, kwargs...)
+minkowski_sum(
+    s::Segment{2},
+    poly::AbstractVector{<:Point{2}};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(_pts_vec(s), poly; kernel = kernel, kwargs...)
 
-minkowski_sum(poly::AbstractVector{<:Point{2}}, s::Segment{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(poly, _pts_vec(s); kernel = kernel, kwargs...)
+minkowski_sum(
+    poly::AbstractVector{<:Point{2}},
+    s::Segment{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(poly, _pts_vec(s); kernel = kernel, kwargs...)
 
 # PntSeq and generic collections
-minkowski_sum(p1::AbsPntSeq{2}, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum(Points(p1), Points(p2); kernel = kernel, kwargs...)
+minkowski_sum(
+    p1::AbsPntSeq{2},
+    p2::AbsPntSeq{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum(Points(p1), Points(p2); kernel = kernel, kwargs...)
 
 minkowski_sum(p1::AbsPntSeq{2}, p2; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
     minkowski_sum(Points(p1), p2; kernel = kernel, kwargs...)
@@ -332,8 +379,8 @@ function minkowski_sum_decomposition(
     return _minkowski_sum_decomposition_impl(poly1, poly2, kernel, algorithm, R)
 end
 
-function _normalize_convex_copy(p::Vector{Point{2, R}}, kernel::AbstractKernel) where {R}
-    out = Point{2, R}[]
+function _normalize_convex_copy(p::Vector{Point{2,R}}, kernel::AbstractKernel) where {R}
+    out = Point{2,R}[]
     sizehint!(out, length(p))
     _collect_deduped_points!(out, p, kernel, 1e-11)
     length(out) >= 3 && twice_area(out; kernel = kernel) < 0 && reverse!(out)
@@ -341,17 +388,17 @@ function _normalize_convex_copy(p::Vector{Point{2, R}}, kernel::AbstractKernel) 
 end
 
 function _decompose_pieces(
-    p::Vector{Point{2, R}},
+    p::Vector{Point{2,R}},
     kernel::AbstractKernel,
     algorithm::Symbol,
 ) where {R}
     if length(p) <= 3 || is_convex(p; kernel = kernel)
-        return (_normalize_convex_copy(p, kernel), NTuple{3, Int}[])
+        return (_normalize_convex_copy(p, kernel), NTuple{3,Int}[])
     end
     t = triangulate_polygon(p; kernel = kernel, algorithm = algorithm)
     # Triangulators may emit clockwise index triples (e.g. :ear_cut), but
     # _minkowski_convex_ccw requires counter-clockwise pieces.
-    tris = Vector{NTuple{3, Int}}(undef, length(t.triangles))
+    tris = Vector{NTuple{3,Int}}(undef, length(t.triangles))
     for (k, (i, j, m)) in enumerate(t.triangles)
         tris[k] = orient_sign(kernel, p[i], p[j], p[m]) < 0 ? (i, m, j) : (i, j, m)
     end
@@ -370,51 +417,118 @@ function _minkowski_sum_decomposition_impl(
     pts1, tris1 = _decompose_pieces(p1, kernel, algorithm)
     pts2, tris2 = _decompose_pieces(p2, kernel, algorithm)
 
-    results = Vector{Point{2, R}}[]
-    scratch_raw = Point{2, R}[]
-    scratch_dedup = Point{2, R}[]
-    return _dispatch_p1!(results, pts1, tris1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
+    results = Vector{Point{2,R}}[]
+    scratch_raw = Point{2,R}[]
+    scratch_dedup = Point{2,R}[]
+    return _dispatch_p1!(
+        results,
+        pts1,
+        tris1,
+        pts2,
+        tris2,
+        kernel,
+        scratch_raw,
+        scratch_dedup,
+    )
 end
 
-function _dispatch_p1!(results, pts1, tris1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
+function _dispatch_p1!(
+    results,
+    pts1,
+    tris1,
+    pts2,
+    tris2,
+    kernel,
+    scratch_raw,
+    scratch_dedup,
+)
     if isempty(tris1)
-        return _dispatch_p2!(results, (pts1,), pts2, tris2, kernel, scratch_raw, scratch_dedup)
+        return _dispatch_p2!(
+            results,
+            (pts1,),
+            pts2,
+            tris2,
+            kernel,
+            scratch_raw,
+            scratch_dedup,
+        )
     end
-    return _dispatch_p2!(results, _TrianglePieces(pts1, tris1), pts2, tris2, kernel, scratch_raw, scratch_dedup)
+    return _dispatch_p2!(
+        results,
+        _TrianglePieces(pts1, tris1),
+        pts2,
+        tris2,
+        kernel,
+        scratch_raw,
+        scratch_dedup,
+    )
 end
 
 function _dispatch_p2!(results, pieces1, pts2, tris2, kernel, scratch_raw, scratch_dedup)
     if isempty(tris2)
-        return _minkowski_pair_loop!(results, pieces1, (pts2,), kernel, scratch_raw, scratch_dedup)
+        return _minkowski_pair_loop!(
+            results,
+            pieces1,
+            (pts2,),
+            kernel,
+            scratch_raw,
+            scratch_dedup,
+        )
     end
-    return _minkowski_pair_loop!(results, pieces1, _TrianglePieces(pts2, tris2), kernel, scratch_raw, scratch_dedup)
+    return _minkowski_pair_loop!(
+        results,
+        pieces1,
+        _TrianglePieces(pts2, tris2),
+        kernel,
+        scratch_raw,
+        scratch_dedup,
+    )
 end
 
 function _minkowski_pair_loop!(
-    results::Vector{Vector{Point{2, R}}},
+    results::Vector{Vector{Point{2,R}}},
     pieces1,
     pieces2,
     kernel::AbstractKernel,
-    scratch_raw::Vector{Point{2, R}},
-    scratch_dedup::Vector{Point{2, R}},
+    scratch_raw::Vector{Point{2,R}},
+    scratch_dedup::Vector{Point{2,R}},
 ) where {R}
     sizehint!(results, length(pieces1) * length(pieces2))
     for c1 in pieces1
         for c2 in pieces2
-            push!(results, _minkowski_convex_ccw(c1, c2, kernel, scratch_raw, scratch_dedup))
+            push!(
+                results,
+                _minkowski_convex_ccw(c1, c2, kernel, scratch_raw, scratch_dedup),
+            )
         end
     end
     return results
 end
 
-minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum_decomposition(Points(p1), Points(p2); kernel = kernel, kwargs...)
+minkowski_sum_decomposition(
+    p1::AbsPntSeq{2},
+    p2::AbsPntSeq{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum_decomposition(Points(p1), Points(p2); kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(p1::AbsPntSeq{2}, p2; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum_decomposition(Points(p1), p2; kernel = kernel, kwargs...)
+minkowski_sum_decomposition(
+    p1::AbsPntSeq{2},
+    p2;
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum_decomposition(Points(p1), p2; kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(p1, p2::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum_decomposition(p1, Points(p2); kernel = kernel, kwargs...)
+minkowski_sum_decomposition(
+    p1,
+    p2::AbsPntSeq{2};
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum_decomposition(p1, Points(p2); kernel = kernel, kwargs...)
 
-minkowski_sum_decomposition(poly1, poly2; kernel::AbstractKernel = FloatingKernel(), kwargs...) =
-    minkowski_sum_decomposition(collect(poly1), collect(poly2); kernel = kernel, kwargs...)
+minkowski_sum_decomposition(
+    poly1,
+    poly2;
+    kernel::AbstractKernel = FloatingKernel(),
+    kwargs...,
+) = minkowski_sum_decomposition(collect(poly1), collect(poly2); kernel = kernel, kwargs...)

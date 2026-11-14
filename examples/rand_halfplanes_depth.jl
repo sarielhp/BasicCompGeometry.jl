@@ -177,7 +177,7 @@ function render_plot(decomp, depths, min_d, max_d, outfile)
             "Vertical decomposition of %d halfplanes inside default view. Total arrangement depth = %d.",
             length(decomp.lines),
             min_d
-        )
+        ),
     )
     Cairo.finish(c)
     println("Saved visualization to: ", outfile)

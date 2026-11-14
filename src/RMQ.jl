@@ -42,7 +42,7 @@ function _sparse_levels(keys::V, less::F, minima::Vector{Int}) where {V,F}
         previous = last(levels)
         m = n - 2 * half + 1
         row = Vector{Int}(undef, m)
-        @inbounds for i in 1:m
+        @inbounds for i = 1:m
             row[i] = _better_index(keys, less, previous[i], previous[i+half])
         end
         push!(levels, row)
@@ -106,7 +106,8 @@ Base.@constprop :aggressive function build_rmq(
 ) where {V<:AbstractVector,F}
     Base.require_one_based_indexing(keys)
     b = backend isa Val ? backend : Val(backend)
-    b isa Val{:blocked} || b isa Val{:sparse} ||
+    b isa Val{:blocked} ||
+        b isa Val{:sparse} ||
         throw(ArgumentError("unknown RMQ backend: $backend"))
     return _build_rmq(keys, less, b)
 end

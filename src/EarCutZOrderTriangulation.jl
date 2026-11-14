@@ -28,7 +28,7 @@ function _compute_z_bounds(vertices)
     max_x = min_x
     min_y = Float64(p1.y)
     max_y = min_y
-    @inbounds for i in 2:length(vertices)
+    @inbounds for i = 2:length(vertices)
         p = vertices[i]
         x = Float64(p.x)
         y = Float64(p.y)
@@ -41,8 +41,15 @@ function _compute_z_bounds(vertices)
     span_y = max_y - min_y
     inv_x = span_x > 0.0 ? (65535.0 / span_x) : 0.0
     inv_y = span_y > 0.0 ? (65535.0 / span_y) : 0.0
-    ok = isfinite(min_x) && isfinite(max_x) && isfinite(min_y) && isfinite(max_y) &&
-         isfinite(inv_x) && isfinite(inv_y) && inv_x > 0.0 && inv_y > 0.0
+    ok =
+        isfinite(min_x) &&
+        isfinite(max_x) &&
+        isfinite(min_y) &&
+        isfinite(max_y) &&
+        isfinite(inv_x) &&
+        isfinite(inv_y) &&
+        inv_x > 0.0 &&
+        inv_y > 0.0
     return ok, min_x, min_y, inv_x, inv_y
 end
 
@@ -117,7 +124,13 @@ end
 const _MORTON_X_MASK = 0x55555555
 const _MORTON_Y_MASK = 0xaaaaaaaa
 
-@inline function _in_morton_box(z::UInt32, min_zx::UInt32, max_zx::UInt32, min_zy::UInt32, max_zy::UInt32)::Bool
+@inline function _in_morton_box(
+    z::UInt32,
+    min_zx::UInt32,
+    max_zx::UInt32,
+    min_zy::UInt32,
+    max_zy::UInt32,
+)::Bool
     zx = z & _MORTON_X_MASK
     zy = z & _MORTON_Y_MASK
     return min_zx <= zx <= max_zx && min_zy <= zy <= max_zy
@@ -127,7 +140,7 @@ end
 function _morton_bigmin(z::UInt32, lo::UInt32, hi::UInt32)::Tuple{Bool,UInt32}
     res = UInt32(0)
     found = false
-    for k in 31:-1:0
+    for k = 31:-1:0
         axis = isodd(k) ? _MORTON_Y_MASK : _MORTON_X_MASK
         mask = UInt32(1) << k
         low_both = mask - UInt32(1)
@@ -154,7 +167,7 @@ end
 function _morton_litmax(z::UInt32, lo::UInt32, hi::UInt32)::Tuple{Bool,UInt32}
     res = UInt32(0)
     found = false
-    for k in 31:-1:0
+    for k = 31:-1:0
         axis = isodd(k) ? _MORTON_Y_MASK : _MORTON_X_MASK
         mask = UInt32(1) << k
         low_both = mask - UInt32(1)
@@ -178,7 +191,12 @@ function _morton_litmax(z::UInt32, lo::UInt32, hi::UInt32)::Tuple{Bool,UInt32}
     return true, z
 end
 
-@inline function _advance_q_in_box(idx::_ZOrderReflexIndex, q::Int, min_z::UInt32, max_z::UInt32)::Int
+@inline function _advance_q_in_box(
+    idx::_ZOrderReflexIndex,
+    q::Int,
+    min_z::UInt32,
+    max_z::UInt32,
+)::Int
     zq = idx.z_code[q]
     ok, bm = _morton_bigmin(zq, min_z, max_z)
     (!ok || bm > max_z) && return 0
@@ -195,7 +213,12 @@ end
     return q
 end
 
-@inline function _retreat_p_in_box(idx::_ZOrderReflexIndex, p::Int, min_z::UInt32, max_z::UInt32)::Int
+@inline function _retreat_p_in_box(
+    idx::_ZOrderReflexIndex,
+    p::Int,
+    min_z::UInt32,
+    max_z::UInt32,
+)::Int
     zp = idx.z_code[p]
     ok, lm = _morton_litmax(zp, min_z, max_z)
     (!ok || lm < min_z) && return 0
@@ -227,7 +250,7 @@ function _build_zorder_reflex_index(
     z_code = Vector{UInt32}(undef, n)
     packed = Vector{UInt64}(undef, reflex_cnt)
     k = 0
-    @inbounds for i in 1:n
+    @inbounds for i = 1:n
         p = vertices[i]
         ix = _quantize_coord(Float64(p.x), min_x, inv_x)
         iy = _quantize_coord(Float64(p.y), min_y, inv_y)
@@ -251,7 +274,7 @@ function _build_zorder_reflex_index(
 
     rz_head = 0
     rz_tail = 0
-    @inbounds for pos in 1:reflex_cnt
+    @inbounds for pos = 1:reflex_cnt
         v = Int(packed[pos] & UInt64(0xffffffff))
         in_rz[v] = true
         rz_prev[v] = rz_tail
@@ -417,13 +440,28 @@ end
     zv = idx.z_code[v]
     in_range = forward ? (zv >= min_z) : (zv <= max_z)
     if in_range && _in_morton_box(zv, min_zx, max_zx, min_zy, max_zy)
-        _ear_candidate_blocks(poly, kernel, v, pr, ear, nx, a, b, c, min_tx, max_tx, min_ty, max_ty) &&
-            return true, 0, 0
+        _ear_candidate_blocks(
+            poly,
+            kernel,
+            v,
+            pr,
+            ear,
+            nx,
+            a,
+            b,
+            c,
+            min_tx,
+            max_tx,
+            min_ty,
+            max_ty,
+        ) && return true, 0, 0
         return false, (forward ? idx.rz_next[v] : idx.rz_prev[v]), 0
     end
     miss += 1
     if miss >= 3
-        jumped = forward ? _advance_q_in_box(idx, v, min_z, max_z) : _retreat_p_in_box(idx, v, min_z, max_z)
+        jumped =
+            forward ? _advance_q_in_box(idx, v, min_z, max_z) :
+            _retreat_p_in_box(idx, v, min_z, max_z)
         return false, jumped, 0
     end
     return false, (forward ? idx.rz_next[v] : idx.rz_prev[v]), miss
@@ -487,27 +525,107 @@ function _ear_blocked(
     miss_q = 0
     while p != 0 && idx.z_code[p] >= min_z && q != 0 && idx.z_code[q] <= max_z
         hit, p, miss_p = _step_ear_scan(
-            idx, poly, kernel, p, miss_p, false, pr, ear, nx, a, b, c,
-            min_tx, max_tx, min_ty, max_ty, min_z, max_z, min_zx, max_zx, min_zy, max_zy,
+            idx,
+            poly,
+            kernel,
+            p,
+            miss_p,
+            false,
+            pr,
+            ear,
+            nx,
+            a,
+            b,
+            c,
+            min_tx,
+            max_tx,
+            min_ty,
+            max_ty,
+            min_z,
+            max_z,
+            min_zx,
+            max_zx,
+            min_zy,
+            max_zy,
         )
         hit && return true
         hit, q, miss_q = _step_ear_scan(
-            idx, poly, kernel, q, miss_q, true, pr, ear, nx, a, b, c,
-            min_tx, max_tx, min_ty, max_ty, min_z, max_z, min_zx, max_zx, min_zy, max_zy,
+            idx,
+            poly,
+            kernel,
+            q,
+            miss_q,
+            true,
+            pr,
+            ear,
+            nx,
+            a,
+            b,
+            c,
+            min_tx,
+            max_tx,
+            min_ty,
+            max_ty,
+            min_z,
+            max_z,
+            min_zx,
+            max_zx,
+            min_zy,
+            max_zy,
         )
         hit && return true
     end
     while p != 0 && idx.z_code[p] >= min_z
         hit, p, miss_p = _step_ear_scan(
-            idx, poly, kernel, p, miss_p, false, pr, ear, nx, a, b, c,
-            min_tx, max_tx, min_ty, max_ty, min_z, max_z, min_zx, max_zx, min_zy, max_zy,
+            idx,
+            poly,
+            kernel,
+            p,
+            miss_p,
+            false,
+            pr,
+            ear,
+            nx,
+            a,
+            b,
+            c,
+            min_tx,
+            max_tx,
+            min_ty,
+            max_ty,
+            min_z,
+            max_z,
+            min_zx,
+            max_zx,
+            min_zy,
+            max_zy,
         )
         hit && return true
     end
     while q != 0 && idx.z_code[q] <= max_z
         hit, q, miss_q = _step_ear_scan(
-            idx, poly, kernel, q, miss_q, true, pr, ear, nx, a, b, c,
-            min_tx, max_tx, min_ty, max_ty, min_z, max_z, min_zx, max_zx, min_zy, max_zy,
+            idx,
+            poly,
+            kernel,
+            q,
+            miss_q,
+            true,
+            pr,
+            ear,
+            nx,
+            a,
+            b,
+            c,
+            min_tx,
+            max_tx,
+            min_ty,
+            max_ty,
+            min_z,
+            max_z,
+            min_zx,
+            max_zx,
+            min_zy,
+            max_zy,
         )
         hit && return true
     end
@@ -531,16 +649,21 @@ quadratic; prefer `triangulate_ear_cut_kd_tree` or `triangulate_sweep` for such 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-function triangulate_ear_cut_z_order(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function triangulate_ear_cut_z_order(vertices; kernel::AbstractKernel = FloatingKernel())
     n = _validate_ccw_polygon(kernel, vertices)
     return _ear_clip_with_index(vertices, n, kernel) do is_reflex, reflex_cnt
         reflex_cnt <= 16 && return _build_plain_reflex_index(is_reflex)
         ok, min_x, min_y, inv_x, inv_y = _compute_z_bounds(vertices)
         ok || return _build_plain_reflex_index(is_reflex)
-        return _build_zorder_reflex_index(vertices, is_reflex, reflex_cnt, min_x, min_y, inv_x, inv_y)
+        return _build_zorder_reflex_index(
+            vertices,
+            is_reflex,
+            reflex_cnt,
+            min_x,
+            min_y,
+            inv_x,
+            inv_y,
+        )
     end
 end
 

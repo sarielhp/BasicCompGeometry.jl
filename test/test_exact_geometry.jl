@@ -118,7 +118,8 @@ using BasicCompGeometry
         @test !proper_crossing(s1, t_seg; kernel = exact)
 
         # Shared endpoint (corner) is NOT a proper crossing
-        corner_seg = Segment(point(big(0) // 1, big(0) // 1), point(big(0) // 1, big(2) // 1))
+        corner_seg =
+            Segment(point(big(0) // 1, big(0) // 1), point(big(0) // 1, big(2) // 1))
         @test !proper_crossing(s1, corner_seg; kernel = exact)
 
         # Collinear overlapping segments are NOT proper crossings
@@ -139,7 +140,8 @@ using BasicCompGeometry
 
         # Midpoint
         m = midpoint(p, q)
-        @test m == point((big(1) // 3 + big(5) // 9) // 2, (big(2) // 7 + big(4) // 11) // 2)
+        @test m ==
+              point((big(1) // 3 + big(5) // 9) // 2, (big(2) // 7 + big(4) // 11) // 2)
         @test typeof(m.x) === Rational{BigInt}
         @test midpoint(seg) == m
 
@@ -211,8 +213,8 @@ using BasicCompGeometry
         v9 = point(big(1), big(-1))       # 315 deg
 
         seq = [v1, v2, v3, v4, v5, v6, v7, v8, v9]
-        for i in 1:length(seq)-1
-            for j in i+1:length(seq)
+        for i = 1:(length(seq)-1)
+            for j = (i+1):length(seq)
                 @test compare_angle(seq[i], seq[j]; kernel = exact) == -1
                 @test compare_angle(seq[j], seq[i]; kernel = exact) == 1
                 @test angle_less(seq[i], seq[j]; kernel = exact)

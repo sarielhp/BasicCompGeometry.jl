@@ -647,7 +647,7 @@ function generate_flower_pdf(output_pdf::String = "output/flower.pdf")
     Cairo.move_to(cr, cb_screen_x, cb_screen_y - 5.0)
     Cairo.show_text(
         cr,
-        @sprintf("Nearest Site Dist: %.3f (min) -> %.3f (max)", min_dist_V, max_dist_V)
+        @sprintf("Nearest Site Dist: %.3f (min) -> %.3f (max)", min_dist_V, max_dist_V),
     )
 
     Cairo.show_page(cr)

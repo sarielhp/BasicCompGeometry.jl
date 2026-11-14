@@ -37,7 +37,8 @@ Base.iterate(s::Segment, state) = state == 1 ? (s.q, 2) : nothing
 Base.length(::Segment) = 2
 Base.firstindex(::Segment) = 1
 Base.lastindex(::Segment) = 2
-@inline Base.getindex(s::Segment, i::Int) = i == 1 ? s.p : (i == 2 ? s.q : throw(BoundsError(s, i)))
+@inline Base.getindex(s::Segment, i::Int) =
+    i == 1 ? s.p : (i == 2 ? s.q : throw(BoundsError(s, i)))
 
 """
     Segment{D, T}()
@@ -69,7 +70,8 @@ Return the exact midpoint of segment `seg`.
 
 Compute the affine interpolation on `seg` at parameter `t`.
 """
-@inline affine_interpolate(seg::Segment{D}, t::Real) where {D} = convex_comb(seg.p, seg.q, t)
+@inline affine_interpolate(seg::Segment{D}, t::Real) where {D} =
+    convex_comb(seg.p, seg.q, t)
 
 function Base.show(io::IO, s::Segment{D,T}) where {D,T}
     print(io, "[[", s.p, " .. ", s.q, "]]")
@@ -248,7 +250,9 @@ or `nothing` if `x` is strictly outside.
 - The segment must be nonvertical (`a.x != b.x`). Throws `ArgumentError` if `a.x == b.x`.
 """
 function segment_at_x(a::Point{2}, b::Point{2}, x::Real)
-    a.x == b.x && throw(ArgumentError("segment is vertical: cannot evaluate nonvertical segment at x = $x"))
+    a.x == b.x && throw(
+        ArgumentError("segment is vertical: cannot evaluate nonvertical segment at x = $x"),
+    )
     min_x, max_x = min(a.x, b.x), max(a.x, b.x)
     (x < min_x || x > max_x) && return nothing
     x == a.x && return a
@@ -267,11 +271,8 @@ end
     kernel::AbstractKernel = FloatingKernel(),
 ) = on_segment(kernel, p, seg.p, seg.q)
 
-@inline on_segment(
-    kernel::AbstractKernel,
-    p::Point{2},
-    seg::Segment{2},
-) = on_segment(kernel, p, seg.p, seg.q)
+@inline on_segment(kernel::AbstractKernel, p::Point{2}, seg::Segment{2}) =
+    on_segment(kernel, p, seg.p, seg.q)
 
 @inline proper_crossing(
     seg1::Segment{2},
@@ -279,11 +280,8 @@ end
     kernel::AbstractKernel = FloatingKernel(),
 ) = proper_crossing(kernel, seg1.p, seg1.q, seg2.p, seg2.q)
 
-@inline proper_crossing(
-    kernel::AbstractKernel,
-    seg1::Segment{2},
-    seg2::Segment{2},
-) = proper_crossing(kernel, seg1.p, seg1.q, seg2.p, seg2.q)
+@inline proper_crossing(kernel::AbstractKernel, seg1::Segment{2}, seg2::Segment{2}) =
+    proper_crossing(kernel, seg1.p, seg1.q, seg2.p, seg2.q)
 
 """
     segment_key(a, b; kernel=FloatingKernel())
@@ -292,25 +290,16 @@ end
 Return the canonical undirected segment key with endpoints ordered lexicographically
 (first by x-coordinate, then by y-coordinate).
 """
-@inline segment_key(
-    a::Point{2},
-    b::Point{2};
-    kernel::AbstractKernel = FloatingKernel(),
-) = segment_key(kernel, a, b)
+@inline segment_key(a::Point{2}, b::Point{2}; kernel::AbstractKernel = FloatingKernel()) =
+    segment_key(kernel, a, b)
 
-@inline segment_key(
-    seg::Segment{2};
-    kernel::AbstractKernel = FloatingKernel(),
-) = segment_key(kernel, seg.p, seg.q)
+@inline segment_key(seg::Segment{2}; kernel::AbstractKernel = FloatingKernel()) =
+    segment_key(kernel, seg.p, seg.q)
 
 @inline segment_key(kernel::AbstractKernel, seg::Segment{2}) =
     segment_key(kernel, seg.p, seg.q)
 
-@inline function segment_key(
-    kernel::AbstractKernel,
-    a::Point{2},
-    b::Point{2},
-)
+@inline function segment_key(kernel::AbstractKernel, a::Point{2}, b::Point{2})
     return compare_xy(kernel, a, b) <= 0 ? Segment(a, b) : Segment(b, a)
 end
 
@@ -328,7 +317,7 @@ Return the sequence of directed segments `[Segment(v[i], v[i+1])]` connecting su
 """
 function polygon_segments(vertices)
     n = length(vertices)
-    return [Segment(vertices[i], vertices[mod1(i + 1, n)]) for i in 1:n]
+    return [Segment(vertices[i], vertices[mod1(i + 1, n)]) for i = 1:n]
 end
 
 """

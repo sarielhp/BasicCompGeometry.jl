@@ -350,43 +350,43 @@ end
 
     # 2. Parameterized Style, inferred _style_options, function barrier, and fill_opacity
     st = Style(stroke = :blue, fill = :red, fill_opacity = 0.2, extra_ignored = 42)
-    @test st isa Style{@NamedTuple{stroke::Symbol,fill::Symbol,fill_opacity::Float64,extra_ignored::Int}}
+    @test st isa Style{
+        @NamedTuple{stroke::Symbol,fill::Symbol,fill_opacity::Float64,extra_ignored::Int},
+    }
     @test Style((stroke = :blue,)) == Style(stroke = :blue)
 
-    opts = @inferred ID._style_options(
-        Style(),
-        st,
-        (pen = :heavier,),
-        Val(ID.PATH_STYLE),
-    )
+    opts = @inferred ID._style_options(Style(), st, (pen = :heavier,), Val(ID.PATH_STYLE))
     @test opts === (stroke = :blue, fill = :red, fill_opacity = 0.2, pen = :heavier)
     @test_throws ArgumentError draw!(canvas, point(0.0, 0.0); bogus_option = 1)
 
-    with_style(canvas, Style(stroke = :darkgreen, fill = :lightgreen, fill_opacity = 0.3)) do cv
+    with_style(
+        canvas,
+        Style(stroke = :darkgreen, fill = :lightgreen, fill_opacity = 0.3),
+    ) do cv
         n_before = length(cv.elements)
         draw!(cv, BBox(point(0.0, 0.0), point(2.0, 2.0)); pen = :fat)
         @test length(cv.elements) == n_before + 2
-        @test occursin("opacity=\"30%\"", cv.elements[end - 1])
+        @test occursin("opacity=\"30%\"", cv.elements[end-1])
         @test occursin("pen=\"fat\"", cv.elements[end])
     end
     @test isempty(canvas.active_style.values)
 
-    segs = [Segment(point(Float64(i), 0.0), point(Float64(i), 1.0)) for i in 1:5]
+    segs = [Segment(point(Float64(i), 0.0), point(Float64(i), 1.0)) for i = 1:5]
     n_before = length(canvas.elements)
     draw!(canvas, segs; style = st)
     @test length(canvas.elements) == n_before + 5
-    @test all(el -> occursin("stroke=\"blue\"", el), canvas.elements[(end - 4):end])
+    @test all(el -> occursin("stroke=\"blue\"", el), canvas.elements[(end-4):end])
 
     # 3. Single-pass IOBuffer streaming for polygon, spline, B-spline, and holes
     empty!(canvas.elements)
     draw_polygon!(canvas, Point{2,Float64}[])
     draw_polygon!(canvas, [Point(1.0, 1.0)])
-    draw_polygon!(canvas, (Point(Float64(i), 0.0) for i in 1:1))
+    draw_polygon!(canvas, (Point(Float64(i), 0.0) for i = 1:1))
     @test isempty(canvas.elements)
 
     draw_polygon!(canvas, [Point(0, 0), Point(1, 0), Point(1, 1)]; close = false)
     @test !occursin("\nh\n", canvas.elements[end])
-    draw_polygon!(canvas, (Point(Float64(i), Float64(i % 2)) for i in 1:4); close = true)
+    draw_polygon!(canvas, (Point(Float64(i), Float64(i % 2)) for i = 1:4); close = true)
     @test occursin("\nh\n", canvas.elements[end])
 
     empty_spline = CubicSpline(CubicBezier{2,Float64}[])
@@ -395,12 +395,18 @@ end
     @test length(canvas.elements) == n_before
 
     @test_throws ArgumentError draw_bspline!(canvas, [Point(0.0, 0.0), Point(1.0, 1.0)])
-    draw_bspline!(canvas, (Point(Float64(i), Float64(i % 2)) for i in 1:4); closed = false)
-    @test occursin(" m\n", canvas.elements[end]) && occursin(" s\n</path>", canvas.elements[end])
-    draw_bspline!(canvas, (Point(0.0, 0.0), Point(1.0, 0.0), Point(0.0, 1.0)); closed = true)
-    @test !occursin(" m\n", canvas.elements[end]) && occursin(" u\n</path>", canvas.elements[end])
+    draw_bspline!(canvas, (Point(Float64(i), Float64(i % 2)) for i = 1:4); closed = false)
+    @test occursin(" m\n", canvas.elements[end]) &&
+          occursin(" s\n</path>", canvas.elements[end])
+    draw_bspline!(
+        canvas,
+        (Point(0.0, 0.0), Point(1.0, 0.0), Point(0.0, 1.0));
+        closed = true,
+    )
+    @test !occursin(" m\n", canvas.elements[end]) &&
+          occursin(" u\n</path>", canvas.elements[end])
 
-    large_pts = [Point(Float64(i), Float64(i % 7)) for i in 1:2000]
+    large_pts = [Point(Float64(i), Float64(i % 7)) for i = 1:2000]
     function _measure_path_allocs(cv, pts)
         draw_polygon!(cv, pts)
         poly_bytes = sizeof(cv.elements[end])
@@ -415,7 +421,8 @@ end
         return (poly_alloc, poly_bytes, bspline_alloc, bspline_bytes)
     end
     _measure_path_allocs(canvas, large_pts[1:10])
-    poly_alloc, poly_bytes, bspline_alloc, bspline_bytes = _measure_path_allocs(canvas, large_pts)
+    poly_alloc, poly_bytes, bspline_alloc, bspline_bytes =
+        _measure_path_allocs(canvas, large_pts)
     @test poly_alloc < 3 * poly_bytes
     @test bspline_alloc < 3 * bspline_bytes
 

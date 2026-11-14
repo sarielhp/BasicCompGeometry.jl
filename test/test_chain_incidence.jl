@@ -10,7 +10,8 @@ import BasicCompGeometry as CG
         idx = build_rmq(keys; backend)
         for lo = 1:n, hi = lo:n
             m = minimum(keys[lo:hi])
-            @test range_argmin(idx, lo, hi) == findlast(==(m), keys[1:hi]) |> (i -> max(i, lo))
+            @test range_argmin(idx, lo, hi) ==
+                  findlast(==(m), keys[1:hi]) |> (i -> max(i, lo))
         end
         @test_throws BoundsError range_argmin(idx, 0, 1)
         @test_throws BoundsError range_argmin(idx, 2, 1)
@@ -27,7 +28,8 @@ import BasicCompGeometry as CG
     idx = build_rmq(big)
     rng = MersenneTwister(2)
     for _ = 1:2000
-        lo = rand(rng, 1:3000); hi = rand(rng, lo:3000)
+        lo = rand(rng, 1:3000)
+        hi = rand(rng, lo:3000)
         m = minimum(@view big[lo:hi])
         @test range_argmin(idx, lo, hi) == lo - 1 + findlast(==(m), @view big[lo:hi])
     end
@@ -67,7 +69,8 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
         for q in vs
             (q[2][1], q[2][2]) <= (lm[2][1], lm[2][2]) && (lm = q)
         end
-        xs = [q[2][1] for q in vs]; ys = [q[2][2] for q in vs]
+        xs = [q[2][1] for q in vs]
+        ys = [q[2][2] for q in vs]
         lm, (xmin = minimum(xs), xmax = maximum(xs), ymin = minimum(ys), ymax = maximum(ys))
     end
     rng = MersenneTwister(7)
@@ -120,7 +123,8 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
     idx = build_chain_index(cv)
     cv.reads[] = 0
     w = chain_window(idx, 3, N - 5)
-    CG.bounds(w); CG.leftmost(w)
+    CG.bounds(w)
+    CG.leftmost(w)
     @test cv.reads[] < 200
 
     # Concrete ChainIndex return type and zero per-query allocation inside a function
@@ -150,7 +154,8 @@ end
     @test vertical_ray_segment((0, 2), 1, (-1, 1), (1, 3)).t == 0
     @test vertical_ray_segment((0, 0), 1, (0, 1), (5, 5)).t == 1       # endpoint
     @test vertical_ray_segment((6, 0), 1, (0, 1), (5, 5)) isa NoHit
-    @test vertical_ray_segment((0, 0), 1, (0, 0), (0, 0)) == PointHit((0 // 1, 0 // 1), R(0))
+    @test vertical_ray_segment((0, 0), 1, (0, 0), (0, 0)) ==
+          PointHit((0 // 1, 0 // 1), R(0))
     @test vertical_ray_segment((1, 0), 1, (0, 0), (0, 0)) isa NoHit
     # vertical overlaps
     @test vertical_ray_segment((0, 0), 1, (0, 2), (0, 5)) == OverlapHit(R(2), R(5))
@@ -158,7 +163,8 @@ end
     @test vertical_ray_segment((0, 0), 1, (0, -3), (0, 4)) == OverlapHit(R(0), R(4))
     @test vertical_ray_segment((0, 0), -1, (0, -3), (0, 4)) == OverlapHit(R(0), R(3))
     @test vertical_ray_segment((0, 0), 1, (0, -3), (0, -1)) isa NoHit
-    @test vertical_ray_segment((0, 0), 1, (0, -3), (0, 0)) == PointHit((0 // 1, 0 // 1), R(0))
+    @test vertical_ray_segment((0, 0), 1, (0, -3), (0, 0)) ==
+          PointHit((0 // 1, 0 // 1), R(0))
     @test vertical_ray_segment((0, 0), 1, (1, 0), (1, 5)) isa NoHit
     @test_throws ArgumentError vertical_ray_segment((0, 0), 0, (0, 0), (1, 1))
     @test_throws ArgumentError vertical_ray_segment((0.0, 0), 1, (0, 0), (1, 1))
@@ -176,14 +182,24 @@ end
     h = vertical_ray_segment((1 // b, 0), 1, (0, 0), (1, 1))
     @test h.t == 1 // b
     # collection scan
-    segs = [((0, 5), (2, 5), :far), ((0, 2), (2, 2), "near"), ((1, 1), (1, 1) .+ (1, 1), :third), ((0, 2), (4, 2), :tie), ((-1, 0), (1, 0), :origin)]
+    segs = [
+        ((0, 5), (2, 5), :far),
+        ((0, 2), (2, 2), "near"),
+        ((1, 1), (1, 1) .+ (1, 1), :third),
+        ((0, 2), (4, 2), :tie),
+        ((-1, 0), (1, 0), :origin),
+    ]
     r = first_positive_vertical_contact(segs, (1, 0), 1)
     @test r.carrier == :third && r.t == 1 && r.record_index == 3
     r = first_positive_vertical_contact(segs[[1, 2, 4]], (1, 0), 1)
     @test r.carrier == "near" && r.record_index == 2 && r.point == (1 // 1, 2 // 1)
     @test first_positive_vertical_contact(segs, (1, 0), -1) === nothing
     @test first_positive_vertical_contact([((0, 0), (2, 0), 1)], (1, 0), 1) === nothing
-    @test_throws ArgumentError first_positive_vertical_contact([((0, 0), (0, 2), 1)], (0, -1), 1)
+    @test_throws ArgumentError first_positive_vertical_contact(
+        [((0, 0), (0, 2), 1)],
+        (0, -1),
+        1,
+    )
 end
 
 @testset "Angular sectors" begin

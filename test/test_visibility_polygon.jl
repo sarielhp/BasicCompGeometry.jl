@@ -29,7 +29,7 @@ using BasicCompGeometry
         @test twice_area(v_rect) ≈ twice_area(rect)
 
         # Regular octagon
-        theta = range(0, 2pi, length=9)[1:8]
+        theta = range(0, 2pi, length = 9)[1:8]
         oct = [point(3.0 * cos(t), 3.0 * sin(t)) for t in theta]
         v_oct = visibility_polygon(oct, point(0.2, -0.1))
         @test length(v_oct) == 8
@@ -156,8 +156,14 @@ using BasicCompGeometry
 
         # U-shape exact
         p_u_ex = [
-            point(0//1, 0//1), point(4//1, 0//1), point(4//1, 4//1), point(3//1, 4//1),
-            point(3//1, 1//1), point(1//1, 1//1), point(1//1, 4//1), point(0//1, 4//1),
+            point(0//1, 0//1),
+            point(4//1, 0//1),
+            point(4//1, 4//1),
+            point(3//1, 4//1),
+            point(3//1, 1//1),
+            point(1//1, 1//1),
+            point(1//1, 4//1),
+            point(0//1, 4//1),
         ]
         v_u_ex = visibility_polygon(p_u_ex, point(2//1, 1//2); kernel = exact)
         @test length(v_u_ex) == 6
@@ -166,8 +172,12 @@ using BasicCompGeometry
 
         # L-shape arm exact (19/3)
         p_l_ex = [
-            point(0//1, 0//1), point(3//1, 0//1), point(3//1, 1//1),
-            point(1//1, 1//1), point(1//1, 3//1), point(0//1, 3//1),
+            point(0//1, 0//1),
+            point(3//1, 0//1),
+            point(3//1, 1//1),
+            point(1//1, 1//1),
+            point(1//1, 3//1),
+            point(0//1, 3//1),
         ]
         v_l_ex = visibility_polygon(p_l_ex, point(5//2, 1//2); kernel = exact)
         @test length(v_l_ex) == 5
@@ -201,7 +211,10 @@ using BasicCompGeometry
         @test_throws ArgumentError visibility_polygon(cw, point(1.0, 1.0))
 
         # Less than 3 vertices
-        @test_throws ArgumentError visibility_polygon([point(0.0, 0.0), point(1.0, 1.0)], point(0.5, 0.5))
+        @test_throws ArgumentError visibility_polygon(
+            [point(0.0, 0.0), point(1.0, 1.0)],
+            point(0.5, 0.5),
+        )
 
         # 3D query point vector
         @test_throws ArgumentError visibility_polygon(tri, [1.0, 1.0, 1.0])
@@ -224,8 +237,12 @@ using BasicCompGeometry
 
         # L-shaped polygon (kernel is corner rectangle [0, 1] x [0, 1])
         p_l = [
-            point(0.0, 0.0), point(3.0, 0.0), point(3.0, 1.0),
-            point(1.0, 1.0), point(1.0, 3.0), point(0.0, 3.0),
+            point(0.0, 0.0),
+            point(3.0, 0.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 3.0),
+            point(0.0, 3.0),
         ]
         k_l = polygon_kernel(p_l)
         @test length(k_l) == 4
@@ -246,24 +263,45 @@ using BasicCompGeometry
 
         # Non-star-shaped polygons (kernel is empty)
         p_u = [
-            point(0.0, 0.0), point(4.0, 0.0), point(4.0, 4.0), point(3.0, 4.0),
-            point(3.0, 1.0), point(1.0, 1.0), point(1.0, 4.0), point(0.0, 4.0),
+            point(0.0, 0.0),
+            point(4.0, 0.0),
+            point(4.0, 4.0),
+            point(3.0, 4.0),
+            point(3.0, 1.0),
+            point(1.0, 1.0),
+            point(1.0, 4.0),
+            point(0.0, 4.0),
         ]
         @test isempty(polygon_kernel(p_u))
         @test !is_star_shaped(p_u)
 
         p_comb = [
-            point(0.0, 0.0), point(6.0, 0.0), point(6.0, 4.0), point(4.5, 4.0),
-            point(4.5, 1.0), point(3.5, 1.0), point(3.5, 4.0), point(2.5, 4.0),
-            point(2.5, 1.0), point(1.5, 1.0), point(1.5, 4.0), point(0.0, 4.0),
+            point(0.0, 0.0),
+            point(6.0, 0.0),
+            point(6.0, 4.0),
+            point(4.5, 4.0),
+            point(4.5, 1.0),
+            point(3.5, 1.0),
+            point(3.5, 4.0),
+            point(2.5, 4.0),
+            point(2.5, 1.0),
+            point(1.5, 1.0),
+            point(1.5, 4.0),
+            point(0.0, 4.0),
         ]
         @test isempty(polygon_kernel(p_comb))
         @test !is_star_shaped(p_comb)
 
         # 4-pointed star (kernel is an 8-gon)
         p_star = [
-            point(2.0, 0.0), point(0.5, 0.5), point(0.0, 2.0), point(-0.5, 0.5),
-            point(-2.0, 0.0), point(-0.5, -0.5), point(0.0, -2.0), point(0.5, -0.5),
+            point(2.0, 0.0),
+            point(0.5, 0.5),
+            point(0.0, 2.0),
+            point(-0.5, 0.5),
+            point(-2.0, 0.0),
+            point(-0.5, -0.5),
+            point(0.0, -2.0),
+            point(0.5, -0.5),
         ]
         k_star = polygon_kernel(p_star)
         @test length(k_star) == 8
@@ -296,51 +334,79 @@ using BasicCompGeometry
         # Integer coordinates under FloatingKernel promote cleanly to Float64 without InexactError
         p_int = [point(0, 0), point(10, 0), point(10, 10), point(5, 3), point(0, 10)]
         v_int = @inferred visibility_polygon(p_int, point(2, 1))
-        @test v_int isa Vector{Point{2, Float64}}
+        @test v_int isa Vector{Point{2,Float64}}
         @test length(v_int) >= 3
         @test twice_area(v_int) > 0
 
         k_int = @inferred polygon_kernel(p_int)
-        @test k_int isa Vector{Point{2, Float64}}
+        @test k_int isa Vector{Point{2,Float64}}
         @test twice_area(k_int) > 0
 
         # Float32 homogeneous return types across _ray_edge_intersect, visibility_polygon, polygon_kernel
         hit_res = @inferred BasicCompGeometry._ray_edge_intersect(
-            FloatingKernel(), point(0f0, 0f0), point(1f0, 0f0), point(1f0, -1f0), point(1f0, 1f0), Float32
+            FloatingKernel(),
+            point(0.0f0, 0.0f0),
+            point(1.0f0, 0.0f0),
+            point(1.0f0, -1.0f0),
+            point(1.0f0, 1.0f0),
+            Float32,
         )
-        @test hit_res isa Tuple{Bool, Float32, Point{2, Float32}}
+        @test hit_res isa Tuple{Bool,Float32,Point{2,Float32}}
         miss_res = @inferred BasicCompGeometry._ray_edge_intersect(
-            FloatingKernel(), point(0f0, 0f0), point(1f0, 0f0), point(-1f0, -1f0), point(-1f0, 1f0), Float32
+            FloatingKernel(),
+            point(0.0f0, 0.0f0),
+            point(1.0f0, 0.0f0),
+            point(-1.0f0, -1.0f0),
+            point(-1.0f0, 1.0f0),
+            Float32,
         )
-        @test miss_res isa Tuple{Bool, Float32, Point{2, Float32}}
+        @test miss_res isa Tuple{Bool,Float32,Point{2,Float32}}
 
-        p_u32 = Point{2, Float32}[
-            point(0f0, 0f0), point(4f0, 0f0), point(4f0, 4f0), point(3f0, 4f0),
-            point(3f0, 1f0), point(1f0, 1f0), point(1f0, 4f0), point(0f0, 4f0),
+        p_u32 = Point{2,Float32}[
+            point(0.0f0, 0.0f0),
+            point(4.0f0, 0.0f0),
+            point(4.0f0, 4.0f0),
+            point(3.0f0, 4.0f0),
+            point(3.0f0, 1.0f0),
+            point(1.0f0, 1.0f0),
+            point(1.0f0, 4.0f0),
+            point(0.0f0, 4.0f0),
         ]
-        v_u32 = @inferred visibility_polygon(p_u32, point(2f0, 0.5f0))
-        @test v_u32 isa Vector{Point{2, Float32}}
+        v_u32 = @inferred visibility_polygon(p_u32, point(2.0f0, 0.5f0))
+        @test v_u32 isa Vector{Point{2,Float32}}
         @test twice_area(v_u32) ≈ 9.0
 
-        p_l32 = Point{2, Float32}[
-            point(0f0, 0f0), point(3f0, 0f0), point(3f0, 1f0),
-            point(1f0, 1f0), point(1f0, 3f0), point(0f0, 3f0),
+        p_l32 = Point{2,Float32}[
+            point(0.0f0, 0.0f0),
+            point(3.0f0, 0.0f0),
+            point(3.0f0, 1.0f0),
+            point(1.0f0, 1.0f0),
+            point(1.0f0, 3.0f0),
+            point(0.0f0, 3.0f0),
         ]
         k_l32 = @inferred polygon_kernel(p_l32)
-        @test k_l32 isa Vector{Point{2, Float32}}
+        @test k_l32 isa Vector{Point{2,Float32}}
         @test twice_area(k_l32) ≈ 2.0
 
         # Rational{Int64} preserved under ExactKernel without Union{Rational{BigInt}, Rational{Int64}}
-        p_rat = [point(0//1, 0//1), point(10//1, 0//1), point(10//1, 10//1), point(5//1, 3//1), point(0//1, 10//1)]
+        p_rat = [
+            point(0//1, 0//1),
+            point(10//1, 0//1),
+            point(10//1, 10//1),
+            point(5//1, 3//1),
+            point(0//1, 10//1),
+        ]
         v_rat = @inferred visibility_polygon(p_rat, point(2//1, 1//1); kernel = exact)
-        @test v_rat isa Vector{Point{2, Rational{Int64}}}
+        @test v_rat isa Vector{Point{2,Rational{Int64}}}
         k_rat = @inferred polygon_kernel(p_rat; kernel = exact)
-        @test k_rat isa Vector{Point{2, Rational{Int64}}}
+        @test k_rat isa Vector{Point{2,Rational{Int64}}}
 
         # Allocation regression guard on 40-vertex star polygon (previously >650KB / >380KB due to Core.Box)
         star40 = [
-            point((iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40), (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40))
-            for i in 0:39
+            point(
+                (iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40),
+                (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40),
+            ) for i = 0:39
         ]
         q0 = point(0.0, 0.0)
         @inferred visibility_polygon(star40, q0)

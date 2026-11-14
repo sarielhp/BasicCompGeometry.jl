@@ -86,7 +86,7 @@ end
 
 @testset "MVBB PriorityQueue type stability" begin
     rng = Xoshiro(17)
-    ps = PntSeq([point(rand(rng), rand(rng), rand(rng)) for _ in 1:120])
+    ps = PntSeq([point(rand(rng), rand(rng), rand(rng)) for _ = 1:120])
     tree = BasicCompGeometry.BBT.Tree_init(ps)
     pq = BasicCompGeometry.MVBB._init_node_pair_pq(tree.root, 0.0, Float64)
     @test isconcretetype(keytype(pq))

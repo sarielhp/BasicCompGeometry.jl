@@ -466,14 +466,7 @@ function draw_bspline!(
     n = length(pts)
     n >= 3 || throw(ArgumentError("B-spline requires at least 3 control points"))
     buf = IOBuffer(; sizehint = 96 + 24 * n)
-    _write_path_attrs!(
-        buf,
-        canvas;
-        stroke = stroke,
-        fill = fill,
-        pen = pen,
-        dash = dash,
-    )
+    _write_path_attrs!(buf, canvas; stroke = stroke, fill = fill, pen = pen, dash = dash)
     # Same layout as before: "x y m" first (open), operator on the last point's line.
     for (k, raw_pt) in enumerate(pts)
         _write_pt!(buf, _apply_tf(canvas, raw_pt))

@@ -73,7 +73,10 @@ function vertical_ray_segment(p, direction::Integer, a, b)
     y = ay + (px - ax) * (by - ay) // (bx - ax)
     t = s * (y - py)
     t < 0 && return NoHit()
-    return PointHit(_mkpoint(p, Rational{BigInt}(px), Rational{BigInt}(y)), Rational{BigInt}(t))
+    return PointHit(
+        _mkpoint(p, Rational{BigInt}(px), Rational{BigInt}(y)),
+        Rational{BigInt}(t),
+    )
 end
 
 function _vertical_overlap(p, s, px, py, ax, ay, by)
@@ -103,8 +106,11 @@ function first_positive_vertical_contact(segments, p, direction::Integer)
     best = nothing
     for (i, rec) in enumerate(segments)
         a, b, carrier = rec
-        _cx(a) == _cx(b) &&
-            throw(ArgumentError("record $i is a vertical segment; only nonvertical records are supported"))
+        _cx(a) == _cx(b) && throw(
+            ArgumentError(
+                "record $i is a vertical segment; only nonvertical records are supported",
+            ),
+        )
         hit = vertical_ray_segment(p, direction, a, b)
         hit isa PointHit && hit.t > 0 || continue
         if best === nothing || hit.t < best.t
@@ -118,7 +124,8 @@ _cross(a, b) = _exact(_cx(a)) * _exact(_cy(b)) - _exact(_cy(a)) * _exact(_cx(b))
 _dot(a, b) = _exact(_cx(a)) * _exact(_cx(b)) + _exact(_cy(a)) * _exact(_cy(b))
 
 function _check_nonzero(v, name)
-    (iszero(_cx(v)) && iszero(_cy(v))) && throw(ArgumentError("vector $name must be nonzero"))
+    (iszero(_cx(v)) && iszero(_cy(v))) &&
+        throw(ArgumentError("vector $name must be nonzero"))
     return nothing
 end
 
@@ -151,8 +158,12 @@ function open_sector_contains(v, u, d; coincident::Symbol = :full)
     _check_coincident(coincident)
     foreach(x -> _check_nonzero(x...), ((v, "v"), (u, "u"), (d, "d")))
     return _sector_decision(
-        sign(_cross(v, u)), sign(_dot(v, u)), sign(_cross(v, d)), sign(_cross(d, u)),
-        sign(_dot(v, d)), coincident,
+        sign(_cross(v, u)),
+        sign(_dot(v, u)),
+        sign(_cross(v, d)),
+        sign(_cross(d, u)),
+        sign(_dot(v, d)),
+        coincident,
     )
 end
 

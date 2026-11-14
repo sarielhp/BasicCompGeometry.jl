@@ -52,7 +52,11 @@ function visibility_polygon(
     n = length(poly)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
     area2 = twice_area(poly; kernel = kernel)
-    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
+    area2 > 0 || throw(
+        ArgumentError(
+            "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
+        ),
+    )
 
     R = _vis_coord_type(kernel, _scalar_type(poly), eltype(q))
     return _visibility_polygon_impl(poly, q, kernel, R)
@@ -68,19 +72,29 @@ function _visibility_polygon_impl(
     q_conv = point(R(q.x), R(q.y))
 
     loc_type, loc_idx = _point_in_polygon(kernel, q_conv, poly_conv)
-    loc_type != :exterior || throw(ArgumentError("vantage point q = $q must lie inside or on the boundary of the polygon"))
+    loc_type != :exterior || throw(
+        ArgumentError(
+            "vantage point q = $q must lie inside or on the boundary of the polygon",
+        ),
+    )
 
     unique_rays = _sorted_unique_rays(poly_conv, q_conv, kernel, R)
     m = length(unique_rays)
-    start_ray_idx, end_ray_idx = _sector_ray_range(kernel, loc_type, loc_idx, poly_conv, q_conv, unique_rays)
+    start_ray_idx, end_ray_idx =
+        _sector_ray_range(kernel, loc_type, loc_idx, poly_conv, q_conv, unique_rays)
 
-    raw_polygon = Point{2, R}[]
+    raw_polygon = Point{2,R}[]
     sizehint!(raw_polygon, 2 * m + 1)
     curr_ray_idx = start_ray_idx
     while true
         next_ray_idx = curr_ray_idx == m ? 1 : curr_ray_idx + 1
         hit, best_pt1, best_pt2 = _closest_sector_hit(
-            kernel, q_conv, unique_rays[curr_ray_idx], unique_rays[next_ray_idx], poly_conv, R
+            kernel,
+            q_conv,
+            unique_rays[curr_ray_idx],
+            unique_rays[next_ray_idx],
+            poly_conv,
+            R,
         )
         if hit
             push!(raw_polygon, best_pt1, best_pt2)
@@ -96,7 +110,7 @@ function _visibility_polygon_impl(
 
     loc_type != :interior && push!(raw_polygon, q_conv)
 
-    deduped = Point{2, R}[]
+    deduped = Point{2,R}[]
     sizehint!(deduped, length(raw_polygon))
     _collect_deduped_points!(deduped, raw_polygon, kernel, 1e-9)
     return _prune_collinear(deduped, kernel, 1e-9)
@@ -110,11 +124,7 @@ function visibility_polygon(
     return visibility_polygon(Points(poly), q; kernel = kernel)
 end
 
-function visibility_polygon(
-    poly,
-    q::Point{2};
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function visibility_polygon(poly, q::Point{2}; kernel::AbstractKernel = FloatingKernel())
     return visibility_polygon(collect(poly), q; kernel = kernel)
 end
 
@@ -123,7 +133,9 @@ function visibility_polygon(
     q::AbstractVector{<:Real};
     kernel::AbstractKernel = FloatingKernel(),
 )
-    length(q) == 2 || throw(ArgumentError("vantage point q must be 2-dimensional; got length = $(length(q))"))
+    length(q) == 2 || throw(
+        ArgumentError("vantage point q must be 2-dimensional; got length = $(length(q))"),
+    )
     return visibility_polygon(poly, point(q[1], q[2]); kernel = kernel)
 end
 
@@ -178,7 +190,11 @@ function polygon_kernel(
     n = length(poly)
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
     area2 = twice_area(poly; kernel = kernel)
-    area2 > 0 || throw(ArgumentError("polygon must be oriented counterclockwise with positive area; got twice_area = $area2"))
+    area2 > 0 || throw(
+        ArgumentError(
+            "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
+        ),
+    )
 
     T = _scalar_type(poly)
     R = _vis_coord_type(kernel, T, T)
@@ -194,20 +210,20 @@ function _polygon_kernel_impl(
     n = length(poly_conv)
     min_x, max_x, min_y, max_y = _bounding_rect(poly_conv)
 
-    curr_poly = Point{2, R}[
+    curr_poly = Point{2,R}[
         point(min_x, min_y),
         point(max_x, min_y),
         point(max_x, max_y),
         point(min_x, max_y),
     ]
-    next_poly = Point{2, R}[]
-    deduped = Point{2, R}[]
+    next_poly = Point{2,R}[]
+    deduped = Point{2,R}[]
     sizehint!(curr_poly, 16)
     sizehint!(next_poly, 16)
     sizehint!(deduped, 16)
 
     tol = 1e-11
-    for i in 1:n
+    for i = 1:n
         isempty(curr_poly) && break
         a = poly_conv[i]
         b = poly_conv[i == n ? 1 : i + 1]
@@ -220,17 +236,11 @@ function _polygon_kernel_impl(
     return _prune_collinear(curr_poly, kernel, tol)
 end
 
-function polygon_kernel(
-    poly::AbsPntSeq{2};
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function polygon_kernel(poly::AbsPntSeq{2}; kernel::AbstractKernel = FloatingKernel())
     return polygon_kernel(Points(poly); kernel = kernel)
 end
 
-function polygon_kernel(
-    poly;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function polygon_kernel(poly; kernel::AbstractKernel = FloatingKernel())
     return polygon_kernel(collect(poly); kernel = kernel)
 end
 
@@ -239,20 +249,17 @@ end
 
 Return `true` if simple polygon `poly` is star-shaped (i.e. has a non-empty kernel).
 """
-function is_star_shaped(
-    poly;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function is_star_shaped(poly; kernel::AbstractKernel = FloatingKernel())
     k = polygon_kernel(poly; kernel = kernel)
     return !isempty(k) && (length(k) < 3 || twice_area(k; kernel = kernel) > 0)
 end
 
 # Internal helpers
 
-@inline _scalar_type(::Point{2, T}) where {T} = T
-@inline _scalar_type(::Segment{2, T}) where {T} = T
-@inline _scalar_type(::AbsPntSeq{2, T}) where {T} = T
-@inline _scalar_type(::AbstractVector{<:Point{2, T}}) where {T} = T
+@inline _scalar_type(::Point{2,T}) where {T} = T
+@inline _scalar_type(::Segment{2,T}) where {T} = T
+@inline _scalar_type(::AbsPntSeq{2,T}) where {T} = T
+@inline _scalar_type(::AbstractVector{<:Point{2,T}}) where {T} = T
 function _scalar_type(poly)
     isempty(poly) && return Float64
     T = typeof(first(poly).x)
@@ -262,17 +269,17 @@ function _scalar_type(poly)
     return T
 end
 
-@inline _vis_coord_type(::ExactKernel, ::Type{T1}, ::Type{T2}) where {T1, T2} =
+@inline _vis_coord_type(::ExactKernel, ::Type{T1}, ::Type{T2}) where {T1,T2} =
     promote_type(T1, T2) <: Rational ? promote_type(T1, T2) : Rational{BigInt}
-@inline _vis_coord_type(::AbstractKernel, ::Type{T1}, ::Type{T2}) where {T1, T2} =
+@inline _vis_coord_type(::AbstractKernel, ::Type{T1}, ::Type{T2}) where {T1,T2} =
     float(promote_type(T1, T2))
 
-@inline _to_point2_vec(poly::Vector{Point{2, R}}, ::Type{R}) where {R} = poly
+@inline _to_point2_vec(poly::Vector{Point{2,R}}, ::Type{R}) where {R} = poly
 @inline _to_point2_vec(poly, ::Type{R}) where {R} =
-    Point{2, R}[point(R(p.x), R(p.y)) for p in poly]
+    Point{2,R}[point(R(p.x), R(p.y)) for p in poly]
 
 function _collect_deduped_points!(
-    out::Vector{Point{2, R}},
+    out::Vector{Point{2,R}},
     poly,
     kernel::AbstractKernel,
     tol::Float64,
@@ -288,21 +295,23 @@ function _collect_deduped_points!(
         end
     end
     if length(out) > 1
-        is_dup = kernel isa ExactKernel ? (first(out) == last(out)) : (dist(first(out), last(out)) < tol)
+        is_dup =
+            kernel isa ExactKernel ? (first(out) == last(out)) :
+            (dist(first(out), last(out)) < tol)
         is_dup && pop!(out)
     end
     return out
 end
 
 function _prune_collinear(
-    pts::Vector{Point{2, R}},
+    pts::Vector{Point{2,R}},
     kernel::AbstractKernel,
     tol::Float64,
 ) where {R}
     k = length(pts)
-    out = Point{2, R}[]
+    out = Point{2,R}[]
     sizehint!(out, k)
-    for i in 1:k
+    for i = 1:k
         pr = pts[i == 1 ? k : i - 1]
         cu = pts[i]
         nx = pts[i == k ? 1 : i + 1]
@@ -318,34 +327,35 @@ function _prune_collinear(
 end
 
 function _sorted_unique_rays(
-    poly_conv::Vector{Point{2, R}},
-    q_conv::Point{2, R},
+    poly_conv::Vector{Point{2,R}},
+    q_conv::Point{2,R},
     kernel::AbstractKernel,
     ::Type{R},
 ) where {R}
-    directions = Point{2, R}[]
+    directions = Point{2,R}[]
     sizehint!(directions, length(poly_conv))
     for p in poly_conv
         p != q_conv && push!(directions, p - q_conv)
     end
     sort!(directions, lt = (d1, d2) -> angle_less(kernel, d1, d2))
 
-    unique_rays = Point{2, R}[]
+    unique_rays = Point{2,R}[]
     sizehint!(unique_rays, length(directions))
     for d in directions
         if isempty(unique_rays) || compare_angle(kernel, d, last(unique_rays)) != 0
             push!(unique_rays, d)
         end
     end
-    length(unique_rays) >= 2 ||
-        throw(ArgumentError("polygon vertices must span at least 2 distinct directions from q"))
+    length(unique_rays) >= 2 || throw(
+        ArgumentError("polygon vertices must span at least 2 distinct directions from q"),
+    )
     return unique_rays
 end
 
 @inline function _find_ray_index(
     kernel::AbstractKernel,
-    unique_rays::Vector{Point{2, R}},
-    u::Point{2, R},
+    unique_rays::Vector{Point{2,R}},
+    u::Point{2,R},
 ) where {R}
     for idx in eachindex(unique_rays)
         compare_angle(kernel, unique_rays[idx], u) == 0 && return idx
@@ -357,9 +367,9 @@ function _sector_ray_range(
     kernel::AbstractKernel,
     loc_type::Symbol,
     loc_idx::Int,
-    poly_conv::Vector{Point{2, R}},
-    q_conv::Point{2, R},
-    unique_rays::Vector{Point{2, R}},
+    poly_conv::Vector{Point{2,R}},
+    q_conv::Point{2,R},
+    unique_rays::Vector{Point{2,R}},
 ) where {R}
     loc_type == :interior && return (1, 1)
     n = length(poly_conv)
@@ -367,13 +377,17 @@ function _sector_ray_range(
         cu = poly_conv[loc_idx]
         nx = poly_conv[loc_idx == n ? 1 : loc_idx + 1]
         pr = poly_conv[loc_idx == 1 ? n : loc_idx - 1]
-        return (_find_ray_index(kernel, unique_rays, nx - cu),
-                _find_ray_index(kernel, unique_rays, pr - cu))
+        return (
+            _find_ray_index(kernel, unique_rays, nx - cu),
+            _find_ray_index(kernel, unique_rays, pr - cu),
+        )
     end
     a = poly_conv[loc_idx]
     b = poly_conv[loc_idx == n ? 1 : loc_idx + 1]
-    return (_find_ray_index(kernel, unique_rays, b - q_conv),
-            _find_ray_index(kernel, unique_rays, a - q_conv))
+    return (
+        _find_ray_index(kernel, unique_rays, b - q_conv),
+        _find_ray_index(kernel, unique_rays, a - q_conv),
+    )
 end
 
 @inline function _is_closer_sector_hit(
@@ -395,10 +409,10 @@ end
 
 function _closest_sector_hit(
     kernel::AbstractKernel,
-    q_conv::Point{2, R},
-    u1::Point{2, R},
-    u2::Point{2, R},
-    poly_conv::Vector{Point{2, R}},
+    q_conv::Point{2,R},
+    u1::Point{2,R},
+    u2::Point{2,R},
+    poly_conv::Vector{Point{2,R}},
     ::Type{R},
 ) where {R}
     n = length(poly_conv)
@@ -408,7 +422,7 @@ function _closest_sector_hit(
     best_pt1 = q_conv
     best_pt2 = q_conv
 
-    for e_idx in 1:n
+    for e_idx = 1:n
         a = poly_conv[e_idx]
         b = poly_conv[e_idx == n ? 1 : e_idx + 1]
         hit1, t1, pt1 = _ray_edge_intersect(kernel, q_conv, u1, a, b, R)
@@ -427,11 +441,11 @@ function _closest_sector_hit(
     return (best_edge_idx != 0, best_pt1, best_pt2)
 end
 
-function _bounding_rect(pts::Vector{Point{2, R}}) where {R}
+function _bounding_rect(pts::Vector{Point{2,R}}) where {R}
     p1 = pts[1]
     min_x = max_x = p1.x
     min_y = max_y = p1.y
-    for idx in 2:length(pts)
+    for idx = 2:length(pts)
         p = pts[idx]
         min_x = min(min_x, p.x)
         max_x = max(max_x, p.x)
@@ -451,10 +465,10 @@ end
     turn_sign(kernel, a, b, p) >= thresh
 
 @inline function _halfplane_edge_intersect(
-    a::Point{2, R},
-    ab::Point{2, R},
-    p_prev::Point{2, R},
-    p_curr::Point{2, R},
+    a::Point{2,R},
+    ab::Point{2,R},
+    p_prev::Point{2,R},
+    p_curr::Point{2,R},
     kernel::AbstractKernel,
     ::Type{R},
 ) where {R}
@@ -469,10 +483,10 @@ end
 end
 
 function _clip_polygon_halfplane!(
-    next_poly::Vector{Point{2, R}},
-    curr_poly::Vector{Point{2, R}},
-    a::Point{2, R},
-    b::Point{2, R},
+    next_poly::Vector{Point{2,R}},
+    curr_poly::Vector{Point{2,R}},
+    a::Point{2,R},
+    b::Point{2,R},
     kernel::AbstractKernel,
     ::Type{R},
     tol::Float64,
@@ -484,7 +498,7 @@ function _clip_polygon_halfplane!(
 
     p_prev = curr_poly[m]
     prev_in = _halfplane_inside(kernel, a, b, p_prev, thresh)
-    for j in 1:m
+    for j = 1:m
         p_curr = curr_poly[j]
         curr_in = _halfplane_inside(kernel, a, b, p_curr, thresh)
         if curr_in != prev_in
@@ -500,10 +514,10 @@ end
 
 @inline function _ray_edge_intersect(
     kernel::AbstractKernel,
-    q::Point{2, R},
-    u::Point{2, R},
-    a::Point{2, R},
-    b::Point{2, R},
+    q::Point{2,R},
+    u::Point{2,R},
+    a::Point{2,R},
+    b::Point{2,R},
     ::Type{R},
 ) where {R}
     s_a = orient_sign(kernel, q, q + u, a)
@@ -544,12 +558,12 @@ end
 
 @inline function _point_in_polygon(kernel::AbstractKernel, q::Point{2}, poly)
     n = length(poly)
-    for i in 1:n
+    for i = 1:n
         q == poly[i] && return (:vertex, i)
     end
 
     wn = 0
-    for i in 1:n
+    for i = 1:n
         a = poly[i]
         b = poly[i == n ? 1 : i + 1]
 

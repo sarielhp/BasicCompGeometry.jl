@@ -233,7 +233,7 @@ function main()
                 num_faces,
                 length(traps),
                 length(hps)
-            )
+            ),
         )
         Cairo.restore(canvas)
 
@@ -297,7 +297,7 @@ function main()
                 "Arrangement Depth Heatmap (depths %d .. %d) with Inward Whiskers",
                 d_min,
                 d_max
-            )
+            ),
         )
 
         # Colorbar

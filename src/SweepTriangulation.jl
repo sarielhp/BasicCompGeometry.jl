@@ -120,7 +120,7 @@ end
     q_new = next_v[e_new]
     q_old = next_v[e_old]
     # `e_old != v` always holds: `_avl_insert!` rejects an edge that is already in the tree.
-    o =orient_sign(kernel, pts[e_old], pts[q_old], pts[v])
+    o = orient_sign(kernel, pts[e_old], pts[q_old], pts[v])
     o != 0 && return o > 0
     return orient_sign(kernel, pts[e_old], pts[q_old], pts[q_new]) > 0
 end
@@ -265,10 +265,10 @@ end
 # plane sweep under symbolic shear `(x', y') = (x + εy, y)`.
 function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     n = length(pts)
-    next_v = [mod1(i + 1, n) for i in 1:n]
+    next_v = [mod1(i + 1, n) for i = 1:n]
 
     edge_is_lower = falses(n)
-    for s in 1:n
+    for s = 1:n
         c = compare_xy(kernel, pts[s], pts[next_v[s]])
         c == 0 && throw(ArgumentError("polygon contains duplicate adjacent vertex $s"))
         edge_is_lower[s] = c < 0
@@ -277,8 +277,8 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     # Use MergeSort for deterministic worst-case O(n log n) event ordering.
     events = collect(1:n)
     sort!(events; alg = MergeSort, lt = (a, b) -> compare_xy(kernel, pts[a], pts[b]) < 0)
-    for i in 1:n-1
-        compare_xy(kernel, pts[events[i]], pts[events[i + 1]]) == 0 &&
+    for i = 1:(n-1)
+        compare_xy(kernel, pts[events[i]], pts[events[i+1]]) == 0 &&
             throw(ArgumentError("polygon contains duplicate vertex $(events[i])"))
     end
 
@@ -296,7 +296,9 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
         if !prev_left && next_right
             # Both incident edges go strictly right: START (convex) or SPLIT (reflex).
             o = orient_sign(kernel, pts[e_in], pts[v], pts[next_v[v]])
-            o == 0 && throw(ArgumentError("polygon has degenerate overlapping edges at vertex $v"))
+            o == 0 && throw(
+                ArgumentError("polygon has degenerate overlapping edges at vertex $v"),
+            )
             if o < 0
                 e_j = _require_edge_below(tree, kernel, pts, next_v, v)
                 _sweep_emit_diagonal!(diags, n, v, helper[e_j])
@@ -307,7 +309,9 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
         elseif prev_left && !next_right
             # Both incident edges come from the left: END (convex) or MERGE (reflex).
             o = orient_sign(kernel, pts[e_in], pts[v], pts[next_v[v]])
-            o == 0 && throw(ArgumentError("polygon has degenerate overlapping edges at vertex $v"))
+            o == 0 && throw(
+                ArgumentError("polygon has degenerate overlapping edges at vertex $v"),
+            )
             _sweep_connect_if_merge!(diags, n, v, helper[e_in], is_merge)
             _avl_delete!(tree, e_in)
             if o < 0
@@ -331,7 +335,9 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     end
 
     tree.root == 0 || throw(
-        ArgumentError("polygon edges intersect or do not form a simple counterclockwise polygon"),
+        ArgumentError(
+            "polygon edges intersect or do not form a simple counterclockwise polygon",
+        ),
     )
     return diags
 end
@@ -351,10 +357,7 @@ triangulates each piece in `O(k)` time.
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-function triangulate_sweep(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-)
+function triangulate_sweep(vertices; kernel::AbstractKernel = FloatingKernel())
     n = _validate_ccw_polygon(kernel, vertices; check_duplicates = false)
     if n == 3
         return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])

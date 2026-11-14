@@ -29,20 +29,16 @@ function _draw_bbt_node(canvas, node, fill_color, stroke_color)
     Cairo.stroke(canvas)
 end
 
-function _collect_bbt_levels!(
-    levels::Vector{Vector{N}},
-    node::N,
-    level::Int,
-) where {N}
+function _collect_bbt_levels!(levels::Vector{Vector{N}}, node::N, level::Int) where {N}
     node.f_leaf && return
-    push!(levels[level + 1], node)
+    push!(levels[level+1], node)
     !isnothing(node.left) && _collect_bbt_levels!(levels, node.left, level + 1)
     !isnothing(node.right) && _collect_bbt_levels!(levels, node.right, level + 1)
 end
 
 function _draw_bbt_levels!(canvas, levels, level_range)
     for lvl in level_range
-        for node in levels[lvl + 1]
+        for node in levels[lvl+1]
             _draw_bbt_node(canvas, node, _BBT_FILL_COLOR, _BBT_STROKE_COLOR)
         end
     end

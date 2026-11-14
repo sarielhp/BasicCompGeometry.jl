@@ -32,7 +32,7 @@ function _build_kdtree_reflex_index(
     py = Vector{T}(undef, reflex_cnt)
     orig_ids = Vector{Int32}(undef, reflex_cnt)
     k = 0
-    @inbounds for i in 1:n
+    @inbounds for i = 1:n
         if is_reflex[i]
             k += 1
             p = vertices[i]
@@ -42,12 +42,13 @@ function _build_kdtree_reflex_index(
         end
     end
 
-    tree = Kd_tree._build_flat_tree!(_kdtree_node_type(unshrunk, T), px, py, orig_ids, n, 16)
+    tree =
+        Kd_tree._build_flat_tree!(_kdtree_node_type(unshrunk, T), px, py, orig_ids, n, 16)
     num_nodes = length(tree.nodes)
     live_end = Vector{Int32}(undef, num_nodes)
     active_count = Vector{Int32}(undef, num_nodes)
     nodes = tree.nodes
-    @inbounds for id in 1:num_nodes
+    @inbounds for id = 1:num_nodes
         nd = nodes[id]
         live_end[id] = nd.r_end
         active_count[id] = nd.r_end - nd.r_start + Int32(1)
@@ -139,7 +140,7 @@ end
         end
     elseif !isempty(idx.overflow)
         ov = idx.overflow
-        @inbounds for j in 1:length(ov)
+        @inbounds for j = 1:length(ov)
             if ov[j] == i
                 ov[j] = ov[end]
                 pop!(ov)
@@ -398,12 +399,13 @@ end
     le::Int,
 )::Bool
     hit = false
-    @inbounds @simd for k in rs:le
+    @inbounds @simd for k = rs:le
         x = px[k]
         y = py[k]
-        inside = (q.dx1 * (y - q.ay) - q.dy1 * (x - q.ax) >= 0.0) &
-                 (q.dx2 * (y - q.by) - q.dy2 * (x - q.bx) >= 0.0) &
-                 (q.dx3 * (y - q.cy) - q.dy3 * (x - q.cx) >= 0.0)
+        inside =
+            (q.dx1 * (y - q.ay) - q.dy1 * (x - q.ax) >= 0.0) &
+            (q.dx2 * (y - q.by) - q.dy2 * (x - q.bx) >= 0.0) &
+            (q.dx3 * (y - q.cy) - q.dy3 * (x - q.cx) >= 0.0)
         is_end = ((x == q.ax) & (y == q.ay)) | ((x == q.cx) & (y == q.cy))
         hit |= inside & !is_end
     end
@@ -445,7 +447,7 @@ function _dfs_ear_blocked!(
             rs = Int(nd.r_start)
             le = Int(live_end[nid])
             _leaf_may_block(q, px_arr, py_arr, rs, le) || continue
-            for k in rs:le
+            for k = rs:le
                 pxk = px_arr[k]
                 pyk = py_arr[k]
                 (pxk >= min_tx && pxk <= max_tx && pyk >= min_ty && pyk <= max_ty) ||
@@ -563,7 +565,12 @@ function _triangulate_ear_cut_kd_tree_impl(
     n = _validate_ccw_polygon(kernel, vertices)
     return _ear_clip_with_index(vertices, n, kernel) do is_reflex, reflex_cnt
         reflex_cnt <= 16 && return _build_plain_reflex_index(is_reflex)
-        return _build_kdtree_reflex_index(vertices, Vector{Bool}(is_reflex), reflex_cnt, unshrunk)
+        return _build_kdtree_reflex_index(
+            vertices,
+            Vector{Bool}(is_reflex),
+            reflex_cnt,
+            unshrunk,
+        )
     end
 end
 
@@ -580,10 +587,8 @@ automatically to the direct reflex-list ear clipper.
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-triangulate_ear_cut_kd_tree(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-) = _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(false))
+triangulate_ear_cut_kd_tree(vertices; kernel::AbstractKernel = FloatingKernel()) =
+    _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(false))
 
 """
     triangulate_ear_cut_u_kd_tree(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
@@ -599,9 +604,7 @@ automatically to the direct reflex-list ear clipper.
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
-triangulate_ear_cut_u_kd_tree(
-    vertices;
-    kernel::AbstractKernel = FloatingKernel(),
-) = _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(true))
+triangulate_ear_cut_u_kd_tree(vertices; kernel::AbstractKernel = FloatingKernel()) =
+    _triangulate_ear_cut_kd_tree_impl(vertices, kernel, Val(true))
 
 export triangulate_ear_cut_kd_tree, triangulate_ear_cut_u_kd_tree

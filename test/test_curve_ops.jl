@@ -67,7 +67,8 @@ using Test
             # Type stability across dimensions, UTF-8 whitespace, trailing commas, and dim validation.
             @test (@inferred read_plt(f)).pnts == Q.pnts
             read_plt_3d(p) = read_plt(p; dim = 3)
-            @test (@inferred read_plt_3d(h)).pnts == [point(1.0, 2.0, 3.0), point(4.0, 5.0, 6.0)]
+            @test (@inferred read_plt_3d(h)).pnts ==
+                  [point(1.0, 2.0, 3.0), point(4.0, 5.0, 6.0)]
             @test (@inferred BasicCompGeometry.ReadWrite._read_plt(h, Val(3))).pnts ==
                   [point(1.0, 2.0, 3.0), point(4.0, 5.0, 6.0)]
             @test_throws ArgumentError read_plt(f; dim = 0)
@@ -77,8 +78,11 @@ using Test
             @test read_plt(extra).pnts == [point(1.0, 2.0), point(3.0, 4.0)]
 
             # Zero-allocation per-line point parsing.
-            @test BasicCompGeometry.ReadWrite._parse_point("1.0, 2.0", Val(2), "1.0, 2.0") ==
-                  point(1.0, 2.0)
+            @test BasicCompGeometry.ReadWrite._parse_point(
+                "1.0, 2.0",
+                Val(2),
+                "1.0, 2.0",
+            ) == point(1.0, 2.0)
             @test (@allocated BasicCompGeometry.ReadWrite._parse_point(
                 "1.0, 2.0",
                 Val(2),

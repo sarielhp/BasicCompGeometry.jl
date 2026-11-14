@@ -18,10 +18,12 @@ struct _SeidelDAGNode
     key::Int32   # vertex index (_SEIDEL_DAG_X), segment index (_SEIDEL_DAG_Y), or trap id (_SEIDEL_DAG_LEAF)
     left::Int32  # child for < x (_SEIDEL_DAG_X) or above (_SEIDEL_DAG_Y)
     right::Int32 # child for >= x (_SEIDEL_DAG_X) or below (_SEIDEL_DAG_Y)
-    _SeidelDAGNode(kind::Int8, key::Int, left::Int, right::Int) = new(kind, key, left, right)
+    _SeidelDAGNode(kind::Int8, key::Int, left::Int, right::Int) =
+        new(kind, key, left, right)
 end
 
-@inline Base.getproperty(d::_SeidelDAGNode, f::Symbol) = f === :kind ? getfield(d, :kind) : Int(getfield(d, f))
+@inline Base.getproperty(d::_SeidelDAGNode, f::Symbol) =
+    f === :kind ? getfield(d, :kind) : Int(getfield(d, f))
 
 const _SeidelDAG = Vector{_SeidelDAGNode}
 
@@ -30,7 +32,14 @@ function _seidel_push_node!(d::_SeidelDAG, kind::Int8, key::Int, left::Int, righ
     return length(d)
 end
 
-@inline function _seidel_set_node!(d::_SeidelDAG, i::Int, kind::Int8, key::Int, left::Int, right::Int)
+@inline function _seidel_set_node!(
+    d::_SeidelDAG,
+    i::Int,
+    kind::Int8,
+    key::Int,
+    left::Int,
+    right::Int,
+)
     d[i] = _SeidelDAGNode(kind, key, left, right)
     return nothing
 end
@@ -48,12 +57,24 @@ struct _SeidelTrap
     r1::Int32     # lower-right neighbor trap id (0 = none)
     sink::Int32   # index of corresponding node in query DAG
     alive::Bool
-    function _SeidelTrap(leftp::Int, rightp::Int, top::Int, bot::Int, l0::Int, l1::Int, r0::Int, r1::Int, sink::Int, alive::Bool)
+    function _SeidelTrap(
+        leftp::Int,
+        rightp::Int,
+        top::Int,
+        bot::Int,
+        l0::Int,
+        l1::Int,
+        r0::Int,
+        r1::Int,
+        sink::Int,
+        alive::Bool,
+    )
         return new(leftp, rightp, top, bot, l0, l1, r0, r1, sink, alive)
     end
 end
 
-@inline Base.getproperty(t::_SeidelTrap, f::Symbol) = f === :alive ? getfield(t, :alive) : Int(getfield(t, f))
+@inline Base.getproperty(t::_SeidelTrap, f::Symbol) =
+    f === :alive ? getfield(t, :alive) : Int(getfield(t, f))
 
 const _SeidelTraps = Vector{_SeidelTrap}
 
@@ -110,28 +131,49 @@ end
     return compare_xy(kernel, pts[a], pts[b])
 end
 
-@inline function _seidel_replace_right!(traps::_SeidelTraps, nb_id::Int, old_t::Int, new_t::Int)
+@inline function _seidel_replace_right!(
+    traps::_SeidelTraps,
+    nb_id::Int,
+    old_t::Int,
+    new_t::Int,
+)
     nb_id == 0 && return nothing
     t = traps[nb_id]
-    traps[nb_id] = _seidel_with(t; r0 = t.r0 == old_t ? new_t : t.r0, r1 = t.r1 == old_t ? new_t : t.r1)
+    traps[nb_id] = _seidel_with(
+        t;
+        r0 = t.r0 == old_t ? new_t : t.r0,
+        r1 = t.r1 == old_t ? new_t : t.r1,
+    )
     return nothing
 end
 
-@inline function _seidel_replace_left!(traps::_SeidelTraps, nb_id::Int, old_t::Int, new_t::Int)
+@inline function _seidel_replace_left!(
+    traps::_SeidelTraps,
+    nb_id::Int,
+    old_t::Int,
+    new_t::Int,
+)
     nb_id == 0 && return nothing
     t = traps[nb_id]
-    traps[nb_id] = _seidel_with(t; l0 = t.l0 == old_t ? new_t : t.l0, l1 = t.l1 == old_t ? new_t : t.l1)
+    traps[nb_id] = _seidel_with(
+        t;
+        l0 = t.l0 == old_t ? new_t : t.l0,
+        l1 = t.l1 == old_t ? new_t : t.l1,
+    )
     return nothing
 end
 
 function _seidel_init_map(kernel::AbstractKernel, pts)
     n = length(pts)
-    n <= _SEIDEL_MAX_N ||
-        throw(ArgumentError("Seidel triangulation supports at most $_SEIDEL_MAX_N vertices; got n = $n (use algorithm = :sweep)"))
+    n <= _SEIDEL_MAX_N || throw(
+        ArgumentError(
+            "Seidel triangulation supports at most $_SEIDEL_MAX_N vertices; got n = $n (use algorithm = :sweep)",
+        ),
+    )
     seg_p = Vector{Int}(undef, n)
     seg_q = Vector{Int}(undef, n)
     seg_ltr = Vector{Bool}(undef, n)
-    for s in 1:n
+    for s = 1:n
         nxt = mod1(s + 1, n)
         if compare_xy(kernel, pts[s], pts[nxt]) < 0
             seg_p[s] = s
@@ -278,7 +320,17 @@ function _seidel_split_vertical!(m::_SeidelMap, t_id::Int, v::Int)::Tuple{Int,In
     t_sink = T.sink
 
     tl_id = _seidel_new_trap!(traps, dag, t_leftp, v, t_top, t_bot; l0 = t_l0, l1 = t_l1)
-    tr_id = _seidel_new_trap!(traps, dag, v, t_rightp, t_top, t_bot; l0 = tl_id, r0 = t_r0, r1 = t_r1)
+    tr_id = _seidel_new_trap!(
+        traps,
+        dag,
+        v,
+        t_rightp,
+        t_top,
+        t_bot;
+        l0 = tl_id,
+        r0 = t_r0,
+        r1 = t_r1,
+    )
     traps[tl_id] = _seidel_with(traps[tl_id]; r0 = tr_id)
 
     _seidel_replace_right!(traps, t_l0, t_id, tl_id)
@@ -390,7 +442,7 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
     below_cur = 0
     k_len = length(hit)
 
-    for k in 1:k_len
+    for k = 1:k_len
         t_id = hit[k]
         T = traps[t_id]
         traps[t_id] = _seidel_with(T; alive = false)
@@ -410,7 +462,7 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
             above_cur = u_id
             below_cur = l_id
         else
-            prev_id = hit[k - 1]
+            prev_id = hit[k-1]
             prev_T = traps[prev_id]
             v = t_leftp
             other_r = (prev_T.r0 == t_id) ? prev_T.r1 : prev_T.r0
@@ -419,7 +471,16 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
             if orient_sign(kernel, pts[p], pts[q], pts[v]) < 0
                 traps[below_cur] = _seidel_with(traps[below_cur]; rightp = v)
                 u_id = above_cur
-                l_id = _seidel_new_trap!(traps, dag, v, 0, s, t_bot; l0 = below_cur, l1 = other_l)
+                l_id = _seidel_new_trap!(
+                    traps,
+                    dag,
+                    v,
+                    0,
+                    s,
+                    t_bot;
+                    l0 = below_cur,
+                    l1 = other_l,
+                )
 
                 traps[below_cur] = _seidel_with(traps[below_cur]; r0 = l_id, r1 = other_r)
                 _seidel_replace_left!(traps, other_r, prev_id, below_cur)
@@ -428,7 +489,16 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
             else
                 traps[above_cur] = _seidel_with(traps[above_cur]; rightp = v)
                 l_id = below_cur
-                u_id = _seidel_new_trap!(traps, dag, v, 0, t_top, s; l0 = other_l, l1 = above_cur)
+                u_id = _seidel_new_trap!(
+                    traps,
+                    dag,
+                    v,
+                    0,
+                    t_top,
+                    s;
+                    l0 = other_l,
+                    l1 = above_cur,
+                )
 
                 traps[above_cur] = _seidel_with(traps[above_cur]; r0 = other_r, r1 = u_id)
                 _seidel_replace_left!(traps, other_r, prev_id, above_cur)
@@ -440,7 +510,17 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
         if k == k_len
             traps[above_cur] = _seidel_with(traps[above_cur]; rightp = q)
             traps[below_cur] = _seidel_with(traps[below_cur]; rightp = q)
-            _seidel_wire_right_endpoint!(m, t_id, t_top, t_bot, t_r0, t_r1, above_cur, below_cur, q)
+            _seidel_wire_right_endpoint!(
+                m,
+                t_id,
+                t_top,
+                t_bot,
+                t_r0,
+                t_r1,
+                above_cur,
+                below_cur,
+                q,
+            )
         end
 
         _seidel_set_node!(dag, T.sink, _SEIDEL_DAG_Y, s, traps[u_id].sink, traps[l_id].sink)
@@ -515,13 +595,17 @@ function _seidel_walk_inserted(m::_SeidelMap, tr::Int, v::Int, nxt::Int, e::Int)
     if compare_xy(m.kernel, m.pts[v], m.pts[nxt]) < 0
         while traps[cur].rightp != nxt
             t = traps[cur]
-            cur = (t.r0 != 0 && (on_bot ? traps[t.r0].bot : traps[t.r0].top) == e) ? t.r0 : t.r1
+            cur =
+                (t.r0 != 0 && (on_bot ? traps[t.r0].bot : traps[t.r0].top) == e) ? t.r0 :
+                t.r1
             cur = _seidel_step(cur, steps += 1, limit)
         end
     else
         while traps[cur].leftp != nxt
             t = traps[cur]
-            cur = (t.l0 != 0 && (on_bot ? traps[t.l0].bot : traps[t.l0].top) == e) ? t.l0 : t.l1
+            cur =
+                (t.l0 != 0 && (on_bot ? traps[t.l0].bot : traps[t.l0].top) == e) ? t.l0 :
+                t.l1
             cur = _seidel_step(cur, steps += 1, limit)
         end
     end
@@ -540,12 +624,14 @@ function _seidel_start_after_inserted(m::_SeidelMap, tr::Int, i::Int, nxt::Int):
         # e_prev came from the left into i
         t_right = t.leftp == i ? tr : (t.r0 != 0 ? t.r0 : t.r1)
         compare_xy(kernel, pts[i], pts[nxt]) < 0 && return t_right
-        return orient_sign(kernel, pts[u], pts[i], pts[nxt]) > 0 ? traps[t_right].l0 : traps[t_right].l1
+        return orient_sign(kernel, pts[u], pts[i], pts[nxt]) > 0 ? traps[t_right].l0 :
+               traps[t_right].l1
     end
     # e_prev went right from i
     t_left = t.rightp == i ? tr : (t.l0 != 0 ? t.l0 : t.l1)
     compare_xy(kernel, pts[nxt], pts[i]) < 0 && return t_left
-    return orient_sign(kernel, pts[i], pts[u], pts[nxt]) > 0 ? traps[t_left].r0 : traps[t_left].r1
+    return orient_sign(kernel, pts[i], pts[u], pts[nxt]) > 0 ? traps[t_left].r0 :
+           traps[t_left].r1
 end
 
 # Trace the entire polygon boundary in the current trapezoidal map in O(n) expected time,
@@ -555,7 +641,7 @@ function _seidel_trace_polygon!(m::_SeidelMap)
     traps = m.traps
 
     tr = _seidel_locate_vertex_trap(m, 1)
-    for i in 1:n
+    for i = 1:n
         nxt = mod1(i + 1, n)
         if m.edge_inserted[i]
             tr = _seidel_walk_inserted(m, tr, i, nxt, i)
@@ -594,11 +680,7 @@ function _seidel_phase_bounds(n::Int)
     return bounds
 end
 
-function _seidel_build_trapezoidal_map(
-    kernel::AbstractKernel,
-    pts,
-    rng::AbstractRNG,
-)
+function _seidel_build_trapezoidal_map(kernel::AbstractKernel, pts, rng::AbstractRNG)
     n = length(pts)
     m = _seidel_init_map(kernel, pts)
     perm = randperm(rng, n)
@@ -608,9 +690,9 @@ function _seidel_build_trapezoidal_map(
 
     start_idx = 1
     num_phases = length(bounds)
-    for phase in 1:num_phases
+    for phase = 1:num_phases
         stop_idx = bounds[phase]
-        for idx in start_idx:stop_idx
+        for idx = start_idx:stop_idx
             _seidel_add_segment!(m, perm[idx], hit)
         end
         if phase < num_phases
@@ -641,23 +723,24 @@ function _seidel_extract_diagonals(m::_SeidelMap)
 end
 
 # Monotone pieces in compressed (CSR) form: piece `i` is `verts[start[i]:start[i + 1] - 1]`.
-struct _SeidelPieces <: AbstractVector{SubArray{Int,1,Vector{Int},Tuple{UnitRange{Int}},true}}
+struct _SeidelPieces <:
+       AbstractVector{SubArray{Int,1,Vector{Int},Tuple{UnitRange{Int}},true}}
     start::Vector{Int}
     verts::Vector{Int}
 end
 
 Base.size(p::_SeidelPieces) = (length(p.start) - 1,)
-Base.getindex(p::_SeidelPieces, i::Int) = view(p.verts, p.start[i]:p.start[i + 1] - 1)
+Base.getindex(p::_SeidelPieces, i::Int) = view(p.verts, p.start[i]:(p.start[i+1]-1))
 
 # Stable counting sort of `items` by `key(item)` into 1..n buckets; returns CSR (start, sorted).
 function _seidel_bucket(key::F, items, n::Int) where {F}
     start = zeros(Int, n + 1)
     for h in items
-        start[key(h) + 1] += 1
+        start[key(h)+1] += 1
     end
     start[1] = 1
-    for v in 1:n
-        start[v + 1] += start[v]
+    for v = 1:n
+        start[v+1] += start[v]
     end
     fill_pos = start[1:n]
     sorted = Vector{Int}(undef, length(items))
@@ -671,20 +754,30 @@ end
 
 # Link half-edges around vertex `v` in CCW order (boundary out-edge, diagonals by decreasing
 # angle, reverse boundary edge), setting `next_he` for the twins of its outgoing half-edges.
-function _seidel_link_vertex!(next_he, he_to, he_twin, adj, lo::Int, hi::Int, v::Int, n::Int, ccw_list)
+function _seidel_link_vertex!(
+    next_he,
+    he_to,
+    he_twin,
+    adj,
+    lo::Int,
+    hi::Int,
+    v::Int,
+    n::Int,
+    ccw_list,
+)
     empty!(ccw_list)
     push!(ccw_list, v) # forward CCW boundary edge v -> mod1(v + 1, n)
-    for idx in lo:hi
+    for idx = lo:hi
         he_to[adj[idx]] > v && push!(ccw_list, adj[idx])
     end
-    for idx in lo:hi
+    for idx = lo:hi
         he_to[adj[idx]] < v && push!(ccw_list, adj[idx])
     end
     push!(ccw_list, n + mod1(v - 1, n)) # reverse edge v -> mod1(v - 1, n)
 
     m_v = length(ccw_list)
-    for idx in 1:m_v
-        h_pred = idx == 1 ? ccw_list[m_v] : ccw_list[idx - 1]
+    for idx = 1:m_v
+        h_pred = idx == 1 ? ccw_list[m_v] : ccw_list[idx-1]
         next_he[he_twin[ccw_list[idx]]] = h_pred
     end
     return nothing
@@ -701,17 +794,17 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
     he_to = Vector{Int}(undef, total_he)
     he_twin = Vector{Int}(undef, total_he)
 
-    for i in 1:n
+    for i = 1:n
         nxt = mod1(i + 1, n)
         he_from[i] = i
         he_to[i] = nxt
         he_twin[i] = n + i
-        he_from[n + i] = nxt
-        he_to[n + i] = i
-        he_twin[n + i] = i
+        he_from[n+i] = nxt
+        he_to[n+i] = i
+        he_twin[n+i] = i
     end
 
-    for k in 1:d
+    for k = 1:d
         u, v = diags[k]
         h1 = 2 * n + 2 * k - 1
         h2 = h1 + 1
@@ -724,13 +817,23 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
     end
 
     # Diagonal half-edges grouped by origin, ordered by destination (ties in insertion order).
-    _, by_dest = _seidel_bucket(h -> he_to[h], (2 * n + 1):total_he, n)
+    _, by_dest = _seidel_bucket(h -> he_to[h], (2*n+1):total_he, n)
     adj_start, adj = _seidel_bucket(h -> he_from[h], by_dest, n)
 
     next_he = Vector{Int}(undef, total_he)
     ccw_list = Int[]
-    for v in 1:n
-        _seidel_link_vertex!(next_he, he_to, he_twin, adj, adj_start[v], adj_start[v + 1] - 1, v, n, ccw_list)
+    for v = 1:n
+        _seidel_link_vertex!(
+            next_he,
+            he_to,
+            he_twin,
+            adj,
+            adj_start[v],
+            adj_start[v+1] - 1,
+            v,
+            n,
+            ccw_list,
+        )
     end
 
     visited = falses(total_he)
@@ -738,7 +841,7 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
     sizehint!(start, d + 2)
     verts = Int[]
     sizehint!(verts, n + 2 * d)
-    for start_h in 1:total_he
+    for start_h = 1:total_he
         (n < start_h <= 2 * n) && continue # skip exterior reverse boundary edges
         visited[start_h] && continue
         cur = start_h
@@ -781,7 +884,7 @@ function _seidel_piece_order!(kernel::AbstractKernel, pts, pc, sc::_SeidelPieceS
     k = length(pc)
     lo = 1
     hi = 1
-    for i in 2:k
+    for i = 2:k
         compare_xy(kernel, pts[pc[i]], pts[pc[lo]]) < 0 && (lo = i)
         compare_xy(kernel, pts[pc[i]], pts[pc[hi]]) > 0 && (hi = i)
     end
@@ -797,7 +900,7 @@ function _seidel_piece_order!(kernel::AbstractKernel, pts, pc, sc::_SeidelPieceS
     is_upper = sc.is_upper
     resize!(is_upper, k)
     fill!(is_upper, false)
-    for idx in 2:length(upper)-1
+    for idx = 2:(length(upper)-1)
         is_upper[upper[idx]] = true
     end
 
@@ -857,7 +960,7 @@ function _seidel_triangulate_monotone_piece!(
     stack = sc.stack
     empty!(stack)
     push!(stack, order[1], order[2])
-    for idx in 3:k-1
+    for idx = 3:(k-1)
         v = order[idx]
         if is_upper[v] != is_upper[last(stack)]
             while length(stack) >= 2
@@ -867,7 +970,7 @@ function _seidel_triangulate_monotone_piece!(
                 emit_diag!(v, s_top)
             end
             pop!(stack)
-            push!(stack, order[idx - 1], v)
+            push!(stack, order[idx-1], v)
         else
             q = pop!(stack)
             while !isempty(stack)
@@ -886,7 +989,8 @@ function _seidel_triangulate_monotone_piece!(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        is_upper[s_top] ? emit_tri!(v_last, s_top, s_next) : emit_tri!(v_last, s_next, s_top)
+        is_upper[s_top] ? emit_tri!(v_last, s_top, s_next) :
+        emit_tri!(v_last, s_next, s_top)
         emit_diag!(v_last, s_top)
     end
     return nothing
@@ -907,7 +1011,14 @@ function _triangulate_from_partition(
 
     sc = _SeidelPieceScratch()
     for pc in pieces
-        _seidel_triangulate_monotone_piece!(kernel, vertices, pc, all_diagonals, all_triangles, sc)
+        _seidel_triangulate_monotone_piece!(
+            kernel,
+            vertices,
+            pc,
+            all_diagonals,
+            all_triangles,
+            sc,
+        )
     end
 
     return PolygonTriangulation(all_diagonals, all_triangles)

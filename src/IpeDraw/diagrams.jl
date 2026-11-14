@@ -71,9 +71,7 @@ function draw_label!(
     clean_text = text isa AbstractString ? text : string(text)
     trimmed = strip(clean_text)
     wrap_math =
-        style == :math &&
-        !startswith(trimmed, "\$") &&
-        !startswith(trimmed, "\\begin")
+        style == :math && !startswith(trimmed, "\$") && !startswith(trimmed, "\\begin")
 
     buf = IOBuffer(; sizehint = 128 + sizeof(clean_text))
     write(buf, "<text layer=\"", canvas.active_layer, "\" pos=\"")

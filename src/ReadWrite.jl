@@ -118,7 +118,7 @@ function _write_bin(filename::String, vecs::Matrix{T}) where {T<:Union{Float32,I
         while r <= nvecs
             count = min(chunk_rows, nvecs - r + 1)
             @inbounds for j = 1:dim, i = 1:count
-                buf[j, i] = vecs[r + i - 1, j]
+                buf[j, i] = vecs[r+i-1, j]
             end
             write(f, @view(buf[:, 1:count]))
             r += count
@@ -223,11 +223,7 @@ end
     return val, idx
 end
 
-function _parse_point(
-    text::AbstractString,
-    ::Val{D},
-    raw_line::AbstractString,
-) where {D}
+function _parse_point(text::AbstractString, ::Val{D}, raw_line::AbstractString) where {D}
     buf = MVector{D,Float64}(undef)
     idx = firstindex(text)
     last_idx = lastindex(text)

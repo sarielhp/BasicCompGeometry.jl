@@ -450,16 +450,33 @@ Aqua.test_all(BasicCompGeometry)
         @test (@inferred rand_point(Val(2), Float32)) isa Point{2,Float32}
         @test (@inferred rand_gaussian(Val(3))) isa Point{3,Float64}
         @test (@inferred rand_gaussian(Val(2), Float32)) isa Point{2,Float32}
-        let sample_points = () -> (rand_point(Val(3)), rand_gaussian(Val(3)), rand_gaussian(3))
+        let sample_points =
+                () -> (rand_point(Val(3)), rand_gaussian(Val(3)), rand_gaussian(3))
             sample_points()
             @test (@allocated sample_points()) == 0
         end
 
         # dist_subspace type stability across Int, Float32, Rational
-        @test (@inferred BasicCompGeometry.dist_subspace(point(0, 0), point(0, 0), point(1, 0))) === 0.0
-        @test (@inferred BasicCompGeometry.dist_subspace(point(0, 3), point(0, 0), point(1, 0))) === 3.0
-        @test (@inferred BasicCompGeometry.dist_subspace(point(0.0f0, 0.0f0), point(0.0f0, 0.0f0), point(1.0f0, 0.0f0))) === 0.0f0
-        @test (@inferred BasicCompGeometry.dist_subspace(point(0 // 1, 0 // 1), point(0 // 1, 0 // 1), point(1 // 1, 0 // 1))) === 0.0
+        @test (@inferred BasicCompGeometry.dist_subspace(
+            point(0, 0),
+            point(0, 0),
+            point(1, 0),
+        )) === 0.0
+        @test (@inferred BasicCompGeometry.dist_subspace(
+            point(0, 3),
+            point(0, 0),
+            point(1, 0),
+        )) === 3.0
+        @test (@inferred BasicCompGeometry.dist_subspace(
+            point(0.0f0, 0.0f0),
+            point(0.0f0, 0.0f0),
+            point(1.0f0, 0.0f0),
+        )) === 0.0f0
+        @test (@inferred BasicCompGeometry.dist_subspace(
+            point(0 // 1, 0 // 1),
+            point(0 // 1, 0 // 1),
+            point(1 // 1, 0 // 1),
+        )) === 0.0
 
         # Min/Max
         @test point_max(point(1, 5), point(2, 3)) == point(2, 5)
@@ -483,7 +500,8 @@ Aqua.test_all(BasicCompGeometry)
         # Segment distance
         seg2 = Segment(point(5.0, 2.0), point(5.0, 10.0))
         @test dist(seg, seg2) == 2.0
-        let seg_dist_bench = (a, b) -> BasicCompGeometry.dist_segment_segment(a.p, a.q, b.p, b.q)
+        let seg_dist_bench =
+                (a, b) -> BasicCompGeometry.dist_segment_segment(a.p, a.q, b.p, b.q)
             seg_dist_bench(seg, seg2)
             @test (@allocated seg_dist_bench(seg, seg2)) == 0
         end
@@ -491,13 +509,13 @@ Aqua.test_all(BasicCompGeometry)
             Segment(point(0.0, 0.0), point(1e-4, 0.0)),
             Segment(point(5e-5, -5e-5), point(5e-5, 5e-5)),
         ) == 0.0
-        @test dist(
-            Segment(point(0, 0), point(2, 0)),
-            Segment(point(0, 3), point(2, 3)),
-        ) == 3.0
+        @test dist(Segment(point(0, 0), point(2, 0)), Segment(point(0, 3), point(2, 3))) ==
+              3.0
         @test (@inferred BasicCompGeometry.dist_segment_segment(
-            point(0.0f0, 0.0f0), point(2.0f0, 0.0f0),
-            point(1.0f0, 1.0f0), point(1.0f0, 3.0f0),
+            point(0.0f0, 0.0f0),
+            point(2.0f0, 0.0f0),
+            point(1.0f0, 1.0f0),
+            point(1.0f0, 3.0f0),
         )) === 1.0f0
         # Crossing at a tiny angle: must not fall back to the endpoint distance.
         let L = 1e4, θ = 1e-7
@@ -507,15 +525,32 @@ Aqua.test_all(BasicCompGeometry)
             ) < 1e-9
         end
         @test BasicCompGeometry.dist_segment_segment(
-            point(0.0, 0.0), point(0.0, 0.0), point(1.0, 1.0), point(1.0, 1.0),
+            point(0.0, 0.0),
+            point(0.0, 0.0),
+            point(1.0, 1.0),
+            point(1.0, 1.0),
         ) ≈ sqrt(2)
 
         # nn_point type stability across Int, Float32, Rational
-        @test (@inferred nn_point(point(0, 0), point(0, 0), point(1, 1))) === point(0.0, 0.0)
-        @test (@inferred nn_point(point(0, 0), point(2, 0), point(1, 1))) === point(1.0, 0.0)
-        @test (@inferred nn_point(point(0.0f0, 0.0f0), point(2.0f0, 0.0f0), point(1.0f0, 1.0f0))) === point(1.0f0, 0.0f0)
-        @test (@inferred nn_point(point(0 // 1, 0 // 1), point(0 // 1, 0 // 1), point(1 // 1, 1 // 1))) === point(0 // 1, 0 // 1)
-        @test (@inferred nn_point(point(0 // 1, 0 // 1), point(2 // 1, 0 // 1), point(1 // 2, 1 // 1))) === point(1 // 2, 0 // 1)
+        @test (@inferred nn_point(point(0, 0), point(0, 0), point(1, 1))) ===
+              point(0.0, 0.0)
+        @test (@inferred nn_point(point(0, 0), point(2, 0), point(1, 1))) ===
+              point(1.0, 0.0)
+        @test (@inferred nn_point(
+            point(0.0f0, 0.0f0),
+            point(2.0f0, 0.0f0),
+            point(1.0f0, 1.0f0),
+        )) === point(1.0f0, 0.0f0)
+        @test (@inferred nn_point(
+            point(0 // 1, 0 // 1),
+            point(0 // 1, 0 // 1),
+            point(1 // 1, 1 // 1),
+        )) === point(0 // 1, 0 // 1)
+        @test (@inferred nn_point(
+            point(0 // 1, 0 // 1),
+            point(2 // 1, 0 // 1),
+            point(1 // 2, 1 // 1),
+        )) === point(1 // 2, 0 // 1)
 
         # Bisection
         # p_a, p_b define a vertical bisector at x=5
@@ -528,22 +563,29 @@ Aqua.test_all(BasicCompGeometry)
 
         # bisection_point type stability across Int, Float32, Rational
         @test (@inferred bisection_point(
-            Segment(point(0, 0), point(0, 10)), point(0, 0), point(10, 0),
+            Segment(point(0, 0), point(0, 10)),
+            point(0, 0),
+            point(10, 0),
         )) === (false, 0.0, point(0.0, 0.0))
         @test (@inferred bisection_point(
-            Segment(point(0, 0), point(10, 0)), point(0, 0), point(10, 0),
+            Segment(point(0, 0), point(10, 0)),
+            point(0, 0),
+            point(10, 0),
         )) === (true, 0.5, point(5.0, 0.0))
         @test (@inferred bisection_point(
             Segment(point(0.0f0, 0.0f0), point(10.0f0, 0.0f0)),
-            point(0.0f0, 0.0f0), point(10.0f0, 0.0f0),
+            point(0.0f0, 0.0f0),
+            point(10.0f0, 0.0f0),
         )) === (true, 0.5f0, point(5.0f0, 0.0f0))
         @test (@inferred bisection_point(
             Segment(point(0 // 1, 0 // 1), point(0 // 1, 1 // 1)),
-            point(0 // 1, 0 // 1), point(1 // 1, 0 // 1),
+            point(0 // 1, 0 // 1),
+            point(1 // 1, 0 // 1),
         )) === (false, 0 // 1, point(0 // 1, 0 // 1))
         @test (@inferred bisection_point(
             Segment(point(0 // 1, 0 // 1), point(1 // 1, 0 // 1)),
-            point(0 // 1, 0 // 1), point(1 // 1, 0 // 1),
+            point(0 // 1, 0 // 1),
+            point(1 // 1, 0 // 1),
         )) === (true, 1 // 2, point(1 // 2, 0 // 1))
 
         # Lines
@@ -838,7 +880,12 @@ Aqua.test_all(BasicCompGeometry)
         @test isempty(empty_ft)
         @test length(empty_ft) == 0
 
-        ft_pts = [Point(cos(0.37 * i) * (1.0 + 0.2 * (i % 5)), sin(0.37 * i) * (1.0 + 0.1 * (i % 7))) for i in 1:120]
+        ft_pts = [
+            Point(
+                cos(0.37 * i) * (1.0 + 0.2 * (i % 5)),
+                sin(0.37 * i) * (1.0 + 0.1 * (i % 7)),
+            ) for i = 1:120
+        ]
         ft = Kd_tree.Tree_init_flat(ft_pts; leaf_size = 8)
         ft_ps = Kd_tree.Tree_init_flat(PntSeq(ft_pts); leaf_size = 8)
         @test !isempty(ft)
@@ -862,7 +909,7 @@ Aqua.test_all(BasicCompGeometry)
             end
             if nd.is_leaf
                 @test (nd.r_end - nd.r_start + 1) <= 8 || (nd.x1 == nd.x0 && nd.y1 == nd.y0)
-                for slot in nd.r_start:nd.r_end
+                for slot = nd.r_start:nd.r_end
                     @test !seen_slots[slot]
                     seen_slots[slot] = true
                     orig = ft.perm[slot]
@@ -892,13 +939,18 @@ Aqua.test_all(BasicCompGeometry)
         @test count(!iszero, ft_sub.leaf_of) == 60
         @test all(i -> ft_sub.leaf_of[i] == 0 && ft_sub.slot_of[i] == 0, 2:2:120)
 
-        int_pts = [Point(i, (i * 17) % 41) for i in 1:40]
+        int_pts = [Point(i, (i * 17) % 41) for i = 1:40]
         ft_int = Kd_tree.Tree_init_flat(int_pts; leaf_size = 4)
         @test length(ft_int) == 40
         @test is_root(ft_int, 1)
 
         huge_scale = big(10)^320
-        big_pts = [Point{2,Rational{BigInt}}(big(i) * huge_scale // 1, big((i * 13) % 29) * huge_scale // 1) for i in 1:40]
+        big_pts = [
+            Point{2,Rational{BigInt}}(
+                big(i) * huge_scale // 1,
+                big((i * 13) % 29) * huge_scale // 1,
+            ) for i = 1:40
+        ]
         ft_big = Kd_tree.Tree_init_flat(big_pts; leaf_size = 4)
         @test length(ft_big) == 40
         @test is_root(ft_big, 1)
@@ -918,7 +970,7 @@ Aqua.test_all(BasicCompGeometry)
         @test fut_u.nodes[1].bound_mask == 0x00
         for nid in eachindex(fut_u.nodes)
             nd = fut_u.nodes[nid]
-            for k in nd.r_start:nd.r_end
+            for k = nd.r_start:nd.r_end
                 x = fut_u.px[k]
                 y = fut_u.py[k]
                 @test nd.ux0 < x <= nd.ux1
@@ -929,7 +981,13 @@ Aqua.test_all(BasicCompGeometry)
             end
         end
 
-        fut_sub = Kd_tree.Tree_init_flat_u([1.0, 3.0, 2.0, 4.0], [4.0, 2.0, 3.0, 1.0], Int32[2, 5, 7, 10], 12; leaf_size = 2)
+        fut_sub = Kd_tree.Tree_init_flat_u(
+            [1.0, 3.0, 2.0, 4.0],
+            [4.0, 2.0, 3.0, 1.0],
+            Int32[2, 5, 7, 10],
+            12;
+            leaf_size = 2,
+        )
         @test length(fut_sub) == 4
         @test fut_sub.n_total == 12
         @test fut_sub.leaf_of[5] != 0
@@ -943,7 +1001,7 @@ Aqua.test_all(BasicCompGeometry)
         @test is_root(fut_int, 1)
         for nd in fut_int.nodes
             bm = nd.bound_mask
-            for k in nd.r_start:nd.r_end
+            for k = nd.r_start:nd.r_end
                 @test ((bm & 0x01) == 0 || nd.ux0 < fut_int.px[k])
                 @test ((bm & 0x02) == 0 || fut_int.px[k] <= nd.ux1)
                 @test ((bm & 0x04) == 0 || nd.uy0 < fut_int.py[k])
@@ -956,7 +1014,7 @@ Aqua.test_all(BasicCompGeometry)
         @test is_root(fut_big, 1)
         for nd in fut_big.nodes
             bm = nd.bound_mask
-            for k in nd.r_start:nd.r_end
+            for k = nd.r_start:nd.r_end
                 @test ((bm & 0x01) == 0 || nd.ux0 < fut_big.px[k])
                 @test ((bm & 0x02) == 0 || fut_big.px[k] <= nd.ux1)
                 @test ((bm & 0x04) == 0 || nd.uy0 < fut_big.py[k])
@@ -966,11 +1024,11 @@ Aqua.test_all(BasicCompGeometry)
 
         # Multi-point leaves: nearest-neighbor queries must scan every point of a leaf.
         nn_rng = Xoshiro(7)
-        nn_pts = PntSeq([point(rand(nn_rng), rand(nn_rng)) for _ in 1:200])
+        nn_pts = PntSeq([point(rand(nn_rng), rand(nn_rng)) for _ = 1:200])
         nn_tree = Tree_init(nn_pts; leaf_size = 8)
         Tree_fully_expand(nn_tree)
         nn_ok = true
-        for _ in 1:100
+        for _ = 1:100
             q = point(rand(nn_rng), rand(nn_rng))
             d_tree, _, _ = BBT.approx_nn(nn_tree, q, 1.0)
             d_scan, _, _ = BBT.exact_naive_scan(nn_pts, q)
@@ -986,17 +1044,55 @@ Aqua.test_all(BasicCompGeometry)
         @test length(sprint(show, nn_tree)) < 200
 
         # Flat trees reject non-finite coordinates (they used to hang) and bad original ids.
-        @test_throws ArgumentError Kd_tree.Tree_init_flat([point(-Inf, 0.0), point(0.0, 0.0), point(Inf, 0.0)]; leaf_size = 1)
-        @test_throws ArgumentError Kd_tree.Tree_init_flat_u([point(0.0, 0.0), point(NaN, 0.0), point(1.0, 0.0)]; leaf_size = 1)
-        @test_throws ArgumentError Kd_tree.Tree_init_flat([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1, 2, 50], 3; leaf_size = 1)
-        @test_throws ArgumentError Kd_tree.Tree_init_flat([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [2, 2, 1], 3; leaf_size = 1)
-        @test_throws ArgumentError Kd_tree.Tree_init_flat_u([1.0, 2.0], [1.0, 2.0], [0, 1], 2; leaf_size = 1)
+        @test_throws ArgumentError Kd_tree.Tree_init_flat(
+            [point(-Inf, 0.0), point(0.0, 0.0), point(Inf, 0.0)];
+            leaf_size = 1,
+        )
+        @test_throws ArgumentError Kd_tree.Tree_init_flat_u(
+            [point(0.0, 0.0), point(NaN, 0.0), point(1.0, 0.0)];
+            leaf_size = 1,
+        )
+        @test_throws ArgumentError Kd_tree.Tree_init_flat(
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1, 2, 50],
+            3;
+            leaf_size = 1,
+        )
+        @test_throws ArgumentError Kd_tree.Tree_init_flat(
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [2, 2, 1],
+            3;
+            leaf_size = 1,
+        )
+        @test_throws ArgumentError Kd_tree.Tree_init_flat_u(
+            [1.0, 2.0],
+            [1.0, 2.0],
+            [0, 1],
+            2;
+            leaf_size = 1,
+        )
 
         # Integer coordinate spans beyond typemax must not overflow into a single huge leaf.
         wide_rng = Xoshiro(3)
-        wide_pts = [point(rand(wide_rng, (typemin(Int), typemax(Int) - 1, typemax(Int))), rand(wide_rng, 1:10)) for _ in 1:50]
-        for ft_wide in (Kd_tree.Tree_init_flat(wide_pts; leaf_size = 4), Kd_tree.Tree_init_flat_u(wide_pts; leaf_size = 4))
-            @test all(nd -> !nd.is_leaf || nd.r_end - nd.r_start + 1 <= 4 || (nd.x0 == nd.x1 && nd.y0 == nd.y1), ft_wide.nodes)
+        wide_pts = [
+            point(
+                rand(wide_rng, (typemin(Int), typemax(Int) - 1, typemax(Int))),
+                rand(wide_rng, 1:10),
+            ) for _ = 1:50
+        ]
+        for ft_wide in (
+            Kd_tree.Tree_init_flat(wide_pts; leaf_size = 4),
+            Kd_tree.Tree_init_flat_u(wide_pts; leaf_size = 4),
+        )
+            @test all(
+                nd ->
+                    !nd.is_leaf ||
+                    nd.r_end - nd.r_start + 1 <= 4 ||
+                    (nd.x0 == nd.x1 && nd.y0 == nd.y1),
+                ft_wide.nodes,
+            )
         end
     end
 
@@ -1016,8 +1112,8 @@ Aqua.test_all(BasicCompGeometry)
         pnts32 = PntSeq([Point{2,Float32}(p.x, p.y) for p in pnts])
         approx_diam32 = approx_diameter(pnts32, 0.1)
         @test approx_diam32 isa Float32
-        @test approx_diam32 <= exact_diam + 1f-5
-        @test approx_diam32 * 1.1f0 >= exact_diam - 1f-5
+        @test approx_diam32 <= exact_diam + 1.0f-5
+        @test approx_diam32 * 1.1f0 >= exact_diam - 1.0f-5
     end
 
     @testset "WSPD (Well-Separated Pairs Decomposition)" begin

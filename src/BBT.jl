@@ -98,7 +98,7 @@ end
     isempty(r) && throw(ArgumentError("cannot compute extremum over empty node range"))
     @inbounds begin
         best = orig_index(tree.PS, first(r))
-        for i in (first(r)+1):last(r)
+        for i = (first(r)+1):last(r)
             oi = orig_index(tree.PS, i)
             better(oi, best) && (best = oi)
         end
@@ -548,7 +548,7 @@ function silly_nn(tree::Tree{D,T,S,V}, q::Point{D}) where {D,T,S,V}
     idx = first(curr.r)
     pnt = tree.PS[idx]
     d = dist(q, pnt)
-    for i in (first(curr.r) + 1):last(curr.r)
+    for i = (first(curr.r)+1):last(curr.r)
         p_i = tree.PS[i]
         d_i = dist(q, p_i)
         if d_i < d
@@ -729,9 +729,9 @@ end
     span = e - s
     @inbounds begin
         v1 = arr[s]
-        v2 = arr[s + (span >> 2)]
-        v3 = arr[(s + e) >> 1]
-        v4 = arr[s + ((3 * span) >> 2)]
+        v2 = arr[s+(span>>2)]
+        v3 = arr[(s+e)>>1]
+        v4 = arr[s+((3*span)>>2)]
         v5 = arr[e]
     end
     s1, s2, s3, _, _ = _sort5(v1, v2, v3, v4, v5)
@@ -778,7 +778,8 @@ end
     return j
 end
 
-@inline _root_ubounds(::Type{FlatNode2D{T}}) where {T} = (zero(T), zero(T), zero(T), zero(T), UInt8(0))
+@inline _root_ubounds(::Type{FlatNode2D{T}}) where {T} =
+    (zero(T), zero(T), zero(T), zero(T), UInt8(0))
 @inline function _root_ubounds(::Type{FlatUNode2D{T}}) where {T}
     if T <: AbstractFloat
         return (T(-Inf), T(Inf), T(-Inf), T(Inf), UInt8(0))
@@ -953,16 +954,56 @@ end
     bmask::UInt8,
 ) where {T}
     if dim == 1
-        return (ux0, cutoff, uy0, uy1, bmask | UInt8(0x02), cutoff, ux1, uy0, uy1, bmask | UInt8(0x01))
+        return (
+            ux0,
+            cutoff,
+            uy0,
+            uy1,
+            bmask | UInt8(0x02),
+            cutoff,
+            ux1,
+            uy0,
+            uy1,
+            bmask | UInt8(0x01),
+        )
     end
-    return (ux0, ux1, uy0, cutoff, bmask | UInt8(0x08), ux0, ux1, cutoff, uy1, bmask | UInt8(0x04))
+    return (
+        ux0,
+        ux1,
+        uy0,
+        cutoff,
+        bmask | UInt8(0x08),
+        ux0,
+        ux1,
+        cutoff,
+        uy1,
+        bmask | UInt8(0x04),
+    )
 end
 
-@inline _wrap_flat_tree(::Type{FlatNode2D{T}}, nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total) where {T} =
-    FlatTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+@inline _wrap_flat_tree(
+    ::Type{FlatNode2D{T}},
+    nodes,
+    px,
+    py,
+    perm,
+    leaf_of,
+    slot_of,
+    leaf_size,
+    n_total,
+) where {T} = FlatTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
 
-@inline _wrap_flat_tree(::Type{FlatUNode2D{T}}, nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total) where {T} =
-    FlatUTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
+@inline _wrap_flat_tree(
+    ::Type{FlatUNode2D{T}},
+    nodes,
+    px,
+    py,
+    perm,
+    leaf_of,
+    slot_of,
+    leaf_size,
+    n_total,
+) where {T} = FlatUTree2D{T}(nodes, px, py, perm, leaf_of, slot_of, leaf_size, n_total)
 
 function _build_flat_node!(
     nodes::Vector{N},
@@ -988,7 +1029,7 @@ function _build_flat_node!(
         x1 = x0
         y0 = py[s]
         y1 = y0
-        for k in (s + 1):e
+        for k = (s+1):e
             xk = px[k]
             yk = py[k]
             if xk < x0
@@ -1010,7 +1051,7 @@ function _build_flat_node!(
     if n <= leaf_size || (dx <= zero(dx) && dy <= zero(dy))
         @inbounds nodes[id] =
             _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
-        @inbounds for k in s:e
+        @inbounds for k = s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
             slot_of[orig] = Int32(k)
@@ -1038,7 +1079,7 @@ function _build_flat_node!(
     if mid < s || mid >= e
         @inbounds nodes[id] =
             _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
-        @inbounds for k in s:e
+        @inbounds for k = s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
             slot_of[orig] = Int32(k)
@@ -1116,13 +1157,21 @@ end
 # Validate flat-tree inputs: finite coordinates (non-finite values break midpoint splits and
 # cell containment) and original ids that are distinct and lie in `1:n_total` (they index
 # `leaf_of` / `slot_of`).
-function _check_flat_inputs(px::Vector{T}, py::Vector{T}, perm::Vector{Int32}, n_total::Int) where {T}
+function _check_flat_inputs(
+    px::Vector{T},
+    py::Vector{T},
+    perm::Vector{Int32},
+    n_total::Int,
+) where {T}
     if T <: AbstractFloat
         (all(isfinite, px) && all(isfinite, py)) ||
             throw(ArgumentError("Kd_tree coordinates must be finite (no NaN or Inf)"))
     end
-    length(perm) <= n_total ||
-        throw(ArgumentError("n_total = $n_total is smaller than the number of points $(length(perm))"))
+    length(perm) <= n_total || throw(
+        ArgumentError(
+            "n_total = $n_total is smaller than the number of points $(length(perm))",
+        ),
+    )
     seen = falses(n_total)
     for id in perm
         1 <= id <= n_total || throw(ArgumentError("original id $id is outside 1:$n_total"))
@@ -1189,7 +1238,7 @@ function _extract_xy_perm(pts::Union{AbsPntSeq{2,T},AbstractVector{<:Point{2,T}}
     px = Vector{T}(undef, m)
     py = Vector{T}(undef, m)
     perm = Vector{Int32}(undef, m)
-    @inbounds for i in 1:m
+    @inbounds for i = 1:m
         p = pts[i]
         px[i] = p.x
         py[i] = p.y
