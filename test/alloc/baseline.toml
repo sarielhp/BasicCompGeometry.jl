@@ -1,0 +1,62 @@
+# Allocation baseline for test/alloc/alloc_check.jl (bytes per call).
+# Regenerate with: julia --project=. test/alloc/alloc_check.jl --update
+julia = "1.13"
+
+[allocations]
+"BBT.Tree_init @ n=10000" = 80856
+"BBT.Tree_init @ n=40000" = 320856
+"IpeDraw.draw_bezier! x2000 @ n=2000" = 7498904
+"IpeDraw.draw_box! x2000 @ n=2000" = 7338904
+"IpeDraw.draw_bspline! @ n=10000" = 241728
+"IpeDraw.draw_bspline! @ n=2500" = 61760
+"IpeDraw.draw_circle! x2000 @ n=2000" = 3882904
+"IpeDraw.draw_point! x2000 @ n=2000" = 2026904
+"IpeDraw.draw_polygon! @ n=10000" = 241760
+"IpeDraw.draw_polygon! @ n=2500" = 61792
+"IpeDraw.draw_segment! x2000 @ n=2000" = 3882904
+"IpeDraw.draw_spline! @ n=2000" = 129664
+"IpeDraw.draw_spline! @ n=500" = 33664
+"IpeDraw.label! x2000 @ n=2000" = 618904
+"IpeDraw.mark! x2000 @ n=2000" = 2026904
+"MVBB.approx_mvbb @ n=20000" = 14311048
+"MVBB.approx_mvbb @ n=5000" = 3637456
+"WSPD.init+expand! @ n=1000" = 1934424
+"WSPD.init+expand! @ n=4000" = 12921736
+"approx_diameter @ n=10000" = 104688
+"approx_diameter @ n=40000" = 342960
+"build_rmq @ n=10000" = 145648
+"build_rmq @ n=40000" = 565160
+"compute_largest_convex_subset @ n=25" = 45408
+"compute_largest_convex_subset @ n=50" = 128336
+"convex_hull @ n=10000" = 482344
+"convex_hull @ n=40000" = 1922520
+"convex_hull_3d @ n=2000" = 3406264
+"convex_hull_3d @ n=8000" = 15210392
+"dist_segment_segment x n @ n=10000" = 0
+"dist_segment_segment x n @ n=40000" = 0
+"hierarchy_init+hierarchy_build! @ n=2000" = 384968
+"hierarchy_init+hierarchy_build! @ n=500" = 137912
+"minkowski_sum @ n=2000" = 275568
+"minkowski_sum @ n=500" = 82184
+"minkowski_sum_decomposition @ n=100" = 55008
+"minkowski_sum_decomposition @ n=400" = 206536
+"polygon_kernel @ n=1000" = 1232
+"polygon_kernel @ n=4000" = 1184
+"sample_uniformly @ n=10000" = 180176
+"sample_uniformly @ n=40000" = 720144
+"triangulate_ear_cut_u_kd_tree @ n=1000" = 256584
+"triangulate_ear_cut_u_kd_tree @ n=4000" = 1017960
+"triangulate_monotone @ n=1000" = 73888
+"triangulate_monotone @ n=4000" = 319232
+"triangulate_polygon :ear_cut @ n=1000" = 162208
+"triangulate_polygon :ear_cut @ n=4000" = 643680
+"triangulate_polygon :seidel @ n=1000" = 666312
+"triangulate_polygon :seidel @ n=4000" = 2685904
+"triangulate_polygon :sweep @ n=1000" = 286480
+"triangulate_polygon :sweep @ n=4000" = 1128944
+"union_bbox @ n=10000" = 960096
+"union_bbox @ n=40000" = 3840096
+"vertical_decomposition @ n=10" = 11912
+"vertical_decomposition @ n=40" = 44640
+"visibility_polygon @ n=1000" = 112424
+"visibility_polygon @ n=4000" = 448360

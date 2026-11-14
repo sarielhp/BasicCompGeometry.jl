@@ -16,9 +16,14 @@ module ToolSettings
   GITHUB_REPO = nil # owner/Name.jl for tools/publish; nil reads it from the upstream remote.
   PUBLISH_WORKFLOW = 'CI.yml' # The workflow whose run on the commit must pass before registering.
   FAST_CHECKS = [].freeze
-  # JET runtime-dispatch check of the hot entry points, in its own environment
-  # (test/jet) so Pkg.test, CI and package users never install JET.
+  # Slower checks, run by tools/gate --full (tools/release, review-cycle):
+  # - property/reference tests on seeded random inputs (test/properties);
+  # - allocation baselines of the hot entry points (test/alloc);
+  # - JET runtime-dispatch check, in its own environment (test/jet) so
+  #   Pkg.test, CI and package users never install JET.
   FULL_CHECKS = [
+    ['julia', '--project=.', '--startup-file=no', '-e', 'using Test; include("test/properties/properties.jl")'],
+    ['julia', '--project=.', '--startup-file=no', 'test/alloc/alloc_check.jl'],
     ['julia', '--project=test/jet', '--startup-file=no', '-e', 'using Pkg; Pkg.instantiate()'],
     ['julia', '--project=test/jet', '--startup-file=no', 'test/jet/jet_opt.jl']
   ].freeze
