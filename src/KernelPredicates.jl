@@ -305,7 +305,7 @@ function twice_area(vertices; kernel::AbstractKernel = FloatingKernel())
     n = length(vertices)
     n < 3 && return zero(_kernel_scalar(kernel, 0))
     s = orient(kernel, point(0, 0), vertices[1], vertices[2])
-    for i = 2:n
+    for i in 2:n
         s += orient(kernel, point(0, 0), vertices[i], vertices[mod1(i + 1, n)])
     end
     return s

@@ -81,7 +81,7 @@ struct FarthestSplit <: SplitRule end
 function split_vertex(::FarthestSplit, P, i::Int, j::Int)
     best = 0
     best_d = -Inf
-    for k = (i+1):(j-1)
+    for k in (i+1):(j-1)
         d = dist_point_segment(P[k], P[i], P[j])
         if d > best_d
             best_d = d
@@ -204,7 +204,7 @@ function palette_extract(P::AbsPntSeq{D,T}, pal::Palette, w::Real) where {D,T}
     pout = PntSeq{D,T}()
     pout_is = Vector{Int}()
     if cardin(P) <= 4
-        for i = 1:len
+        for i in 1:len
             push!(pout, P[i])
             push!(pout_is, i)
         end
@@ -287,7 +287,7 @@ end
 
 function _hausdorff_certify(P, R, indices)
     m = 0.0
-    for t = 1:(length(indices)-1)
+    for t in 1:(length(indices)-1)
         m = max(m, hausdorff_dist_subseg(P, indices[t]:indices[t+1]))
     end
     return m
@@ -486,7 +486,7 @@ function hierarchy_build!(
     lmt = min(round(Int, cardin(P) * 0.95), lmt)
 
     w = h.widths[1]
-    for _ = 1:200
+    for _ in 1:200
         cardin(last(h.polys)) >= lmt && break
         w_a = w / ratio
 

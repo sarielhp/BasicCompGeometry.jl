@@ -371,7 +371,7 @@ end
     end
     @test isempty(canvas.active_style.values)
 
-    segs = [Segment(point(Float64(i), 0.0), point(Float64(i), 1.0)) for i = 1:5]
+    segs = [Segment(point(Float64(i), 0.0), point(Float64(i), 1.0)) for i in 1:5]
     n_before = length(canvas.elements)
     draw!(canvas, segs; style = st)
     @test length(canvas.elements) == n_before + 5
@@ -381,12 +381,12 @@ end
     empty!(canvas.elements)
     draw_polygon!(canvas, Point{2,Float64}[])
     draw_polygon!(canvas, [Point(1.0, 1.0)])
-    draw_polygon!(canvas, (Point(Float64(i), 0.0) for i = 1:1))
+    draw_polygon!(canvas, (Point(Float64(i), 0.0) for i in 1:1))
     @test isempty(canvas.elements)
 
     draw_polygon!(canvas, [Point(0, 0), Point(1, 0), Point(1, 1)]; close = false)
     @test !occursin("\nh\n", canvas.elements[end])
-    draw_polygon!(canvas, (Point(Float64(i), Float64(i % 2)) for i = 1:4); close = true)
+    draw_polygon!(canvas, (Point(Float64(i), Float64(i % 2)) for i in 1:4); close = true)
     @test occursin("\nh\n", canvas.elements[end])
 
     empty_spline = CubicSpline(CubicBezier{2,Float64}[])
@@ -395,7 +395,7 @@ end
     @test length(canvas.elements) == n_before
 
     @test_throws ArgumentError draw_bspline!(canvas, [Point(0.0, 0.0), Point(1.0, 1.0)])
-    draw_bspline!(canvas, (Point(Float64(i), Float64(i % 2)) for i = 1:4); closed = false)
+    draw_bspline!(canvas, (Point(Float64(i), Float64(i % 2)) for i in 1:4); closed = false)
     @test occursin(" m\n", canvas.elements[end]) &&
           occursin(" s\n</path>", canvas.elements[end])
     draw_bspline!(
@@ -406,7 +406,7 @@ end
     @test !occursin(" m\n", canvas.elements[end]) &&
           occursin(" u\n</path>", canvas.elements[end])
 
-    large_pts = [Point(Float64(i), Float64(i % 7)) for i = 1:2000]
+    large_pts = [Point(Float64(i), Float64(i % 7)) for i in 1:2000]
     function _measure_path_allocs(cv, pts)
         draw_polygon!(cv, pts)
         poly_bytes = sizeof(cv.elements[end])

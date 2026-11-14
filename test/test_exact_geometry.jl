@@ -213,8 +213,8 @@ using BasicCompGeometry
         v9 = point(big(1), big(-1))       # 315 deg
 
         seq = [v1, v2, v3, v4, v5, v6, v7, v8, v9]
-        for i = 1:(length(seq)-1)
-            for j = (i+1):length(seq)
+        for i in 1:(length(seq)-1)
+            for j in (i+1):length(seq)
                 @test compare_angle(seq[i], seq[j]; kernel = exact) == -1
                 @test compare_angle(seq[j], seq[i]; kernel = exact) == 1
                 @test angle_less(seq[i], seq[j]; kernel = exact)

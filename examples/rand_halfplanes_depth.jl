@@ -41,7 +41,7 @@ function run_rand_halfplanes_depth(
 
     # 1. Randomly pick n halfplanes
     println("[1/4] Generating random halfplanes...")
-    t_gen = @elapsed hps = [rand_halfplane(rng) for _ = 1:n]
+    t_gen = @elapsed hps = [rand_halfplane(rng) for _ in 1:n]
     @printf("      Generated %d halfplanes in %.3f s\n\n", n, t_gen)
 
     # 2. Compute default view
@@ -139,7 +139,7 @@ function render_plot(decomp, depths, min_d, max_d, outfile)
 
         poly = trap.corners
         Cairo.move_to(c, poly[1][1], poly[1][2])
-        for j = 2:4
+        for j in 2:4
             Cairo.line_to(c, poly[j][1], poly[j][2])
         end
         Cairo.close_path(c)
@@ -148,7 +148,7 @@ function render_plot(decomp, depths, min_d, max_d, outfile)
         # Trapezoid border
         Cairo.set_source_rgba(c, 0.2, 0.2, 0.2, 0.3)
         cairo_set_line_width(c, 0.5)
-        for j = 1:4
+        for j in 1:4
             j_next = j == 4 ? 1 : j + 1
             Cairo.move_to(c, poly[j][1], poly[j][2])
             Cairo.line_to(c, poly[j_next][1], poly[j_next][2])

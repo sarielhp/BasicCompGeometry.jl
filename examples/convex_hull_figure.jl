@@ -11,7 +11,7 @@ using Random
 # 1. Deterministic point generation
 Random.seed!(42)
 n = 35
-pts = [point(rand() * 10.0, rand() * 10.0) for _ = 1:n]
+pts = [point(rand() * 10.0, rand() * 10.0) for _ in 1:n]
 
 # 2. Geometric computations
 ch = convex_hull(pts)
@@ -19,7 +19,7 @@ ch = convex_hull(pts)
 # Compute the diameter pair among hull vertices
 max_d = 0.0
 p_diam, q_diam = pts[1], pts[2]
-for i = 1:(length(ch)-1), j = (i+1):length(ch)
+for i in 1:(length(ch)-1), j in (i+1):length(ch)
     d = dist(ch[i], ch[j])
     if d > max_d
         global max_d = d

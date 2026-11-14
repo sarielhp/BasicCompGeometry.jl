@@ -307,7 +307,7 @@ end
 
 function update_distances(M::AbsFMS, I, D, N, pos, sz)
     x = I[pos]
-    for i ∈ (pos+1):sz
+    for i in (pos+1):sz
         y = I[i]
         d = dist(M, x, y)
         if d < D[i] || D[i] < 0.0
@@ -337,7 +337,7 @@ function greedy_permutation_naive(M::AbsFMS, n::Int)
 
     update_distances(M, I, D, N, 1, sz)
 
-    for i ∈ 2:n
+    for i in 2:n
         pos = argmax(view(D, i:sz)) + i - 1
         D[i-1] = D[pos]
         I[i], I[pos] = I[pos], I[i]

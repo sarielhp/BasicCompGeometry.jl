@@ -64,7 +64,7 @@ end
 function pt_init(PS::P, loc::Int) where {T,P<:AbsPntSeq{2,T}}
     m = length(PS) - loc
     tail = Vector{Int}(undef, m)
-    @inbounds for k = 1:m
+    @inbounds for k in 1:m
         tail[k] = loc + k
     end
 
@@ -82,7 +82,7 @@ function lcs_init(PS::P) where {T,P<:AbsPntSeq{2,T}}
     n = length(PS)
     pt = Vector{PointTurn}(undef, n)
 
-    for i = n:-1:1
+    for i in n:-1:1
         pt[i] = pt_init(PS, i)
     end
 
@@ -166,7 +166,7 @@ function fill_vals_for_point!(lct::LCSContext, i::Int, target::Int)
         curr.tvals[len] = -1
     end
 
-    for j = len:-1:1
+    for j in len:-1:1
         t_j = curr.tail[j]
         mx, loc = get_max_chain(lct, i, t_j, target)
 
@@ -192,11 +192,11 @@ end
 function compute_dp_table!(lct::LCSContext, target::Int = -1)
     n = length(lct.PS)
 
-    for i = n:-1:1
+    for i in n:-1:1
         fill_vals_for_point!(lct, i, target)
     end
 
-    for i = 1:n
+    for i in 1:n
         curr = lct.turns[i]
         val = 1
         if length(curr.tvals) > 0
@@ -296,7 +296,7 @@ end
 function _best_start(lct_upper::LCSContext, lct_lower::LCSContext)
     best_start = -1
     max_val = -1
-    for i = 1:length(lct_upper.Lens)
+    for i in 1:length(lct_upper.Lens)
         if lct_upper.Lens[i] >= 0 && lct_lower.Lens[i] >= 0
             comb = lct_upper.Lens[i] + lct_lower.Lens[i]
             if comb > max_val
@@ -347,7 +347,7 @@ function compute_largest_convex_subset(ps::AbsPntSeq{2,T}) where {T}
     lct_lower = lcs_init(ps_reflected)
 
     # We iterate over every possible rightmost point (target)
-    for target = 1:n
+    for target in 1:n
         _reset_context!(lct_upper)
         compute_dp_table!(lct_upper, target)
 

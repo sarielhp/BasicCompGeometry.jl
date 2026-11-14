@@ -18,7 +18,7 @@ function hausdorff_dist_subseg(P::AbsPntSeq{D,T}, rng::UnitRange{Int} = 0:0)::T 
 
     s, t = P[first(rng)], P[last(rng)]
     leash = zero(T)
-    for i = (first(rng)+1):(last(rng)-1)
+    for i in (first(rng)+1):(last(rng)-1)
         leash = max(leash, dist_point_segment(P[i], s, t))
     end
 

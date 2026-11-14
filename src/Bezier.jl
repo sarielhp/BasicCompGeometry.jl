@@ -196,7 +196,7 @@ end
 function bbox(s::CubicSpline{D,T}) where {D,T}
     isempty(s.segments) && error("Empty spline has no bbox")
     bb = bbox(s.segments[1])
-    for i = 2:length(s.segments)
+    for i in 2:length(s.segments)
         mini, maxi = _bezier_extrema(s.segments[i])
         bound!(bb, mini)
         bound!(bb, maxi)
@@ -241,7 +241,7 @@ end
 # Appends the segments of the closed Catmull-Rom spline through `pts`.
 function _catmull_rom_closed!(segs, pts, scale)
     n = cardin(pts)
-    for i = 1:n
+    for i in 1:n
         im1 = i == 1 ? n : i - 1
         ip1 = i == n ? 1 : i + 1
         ip2 = ip1 == n ? 1 : ip1 + 1
@@ -260,7 +260,7 @@ end
 # tangents are one-sided.
 function _catmull_rom_open!(segs, pts, scale)
     n = cardin(pts)
-    for i = 1:(n-1)
+    for i in 1:(n-1)
         p_curr = pts[i]
         p_next = pts[i+1]
         v_curr = i == 1 ? scale * (p_next - p_curr) * 2 : scale * (p_next - pts[i-1])
@@ -282,20 +282,20 @@ function _solve_natural_tridiag!(
     b[1] = 2 * one(T)
     b[m] = 7 * one(T)
     r[1] = pts[1][k] + 2 * pts[2][k]
-    for i = 2:(m-1)
+    for i in 2:(m-1)
         r[i] = 4 * pts[i][k] + 2 * pts[i+1][k]
     end
     r[m] = 8 * pts[m][k] + pts[m+1][k]
 
     # Thomas forward elimination (superdiagonal is identically 1)
-    for i = 2:m
+    for i in 2:m
         a_i = i == m ? 2 * one(T) : one(T)
         w = a_i / b[i-1]
         b[i] -= w
         r[i] -= w * r[i-1]
     end
     p1k[m] = r[m] / b[m]
-    for i = (m-1):-1:1
+    for i in (m-1):-1:1
         p1k[i] = (r[i] - p1k[i+1]) / b[i]
     end
     return p1k
@@ -313,12 +313,12 @@ function interpolate_natural_spline(pts::AbsPntSeq{D,T}; closed::Bool = false) w
     P1_coords = ntuple(_ -> Vector{T}(undef, m), Val(D))
     b = Vector{T}(undef, m)
     r = Vector{T}(undef, m)
-    for k = 1:D
+    for k in 1:D
         _solve_natural_tridiag!(P1_coords[k], b, r, pts, k, m)
     end
 
     segs = Vector{CubicBezier{D,T}}(undef, m)
-    for i = 1:m
+    for i in 1:m
         p0 = pts[i]
         p3 = pts[i+1]
         p1 = Point{D,T}(ntuple(k -> P1_coords[k][i], Val(D)))

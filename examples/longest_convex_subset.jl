@@ -26,7 +26,7 @@ function draw_polygon(cr, P, f_close::Bool = false)
     nv::Int = length(P)
     (nv == 0) && return
 
-    for i = 2:nv
+    for i in 2:nv
         p = P[i-1]
         q = P[i]
         move_to(cr, p[1], p[2])
@@ -50,7 +50,7 @@ function draw_points(cr, P)
     nv::Int = length(P)
     rad::Float64 = 0.005
 
-    for i = 1:nv
+    for i in 1:nv
         p = P[i]
         move_to(cr, p[1] - rad, p[2])
         arc(cr, p[1], p[2], rad, 0.0, 2pi)
@@ -67,7 +67,7 @@ Draws the vertices of polygon `P` as filled circles with radius `r`.
 function draw_polygon_vertices(cr, P, r::Float64)
     nv::Int = length(P)
 
-    for i = 1:nv
+    for i in 1:nv
         p = P[i]
         Cairo.arc(cr, p[1], p[2], r, 0.0, 2pi)
         Cairo.fill(cr)

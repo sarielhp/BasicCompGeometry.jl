@@ -57,10 +57,10 @@ w.r.t. the four boundary lines of the unit square.
 function voronoi_cell_vertices(p::Point{2,T}) where {T}
     lines = square_boundary_lines()
     n = 4
-    parabolas = [Parabola(p, lines[i]) for i = 1:n]
+    parabolas = [Parabola(p, lines[i]) for i in 1:n]
     interior = point(T(0.5), T(0.5))
     normals = Vector{Point{2,T}}(undef, n)
-    for i = 1:n
+    for i in 1:n
         ni = Point{2,T}(-lines[i].u.y, lines[i].u.x)
         ni = ni / norm(ni)
         if dot(interior - lines[i].p, ni) < 0
@@ -69,8 +69,8 @@ function voronoi_cell_vertices(p::Point{2,T}) where {T}
         normals[i] = ni
     end
     candidates = Point{2,T}[]
-    for i = 1:n
-        for j = (i+1):n
+    for i in 1:n
+        for j in (i+1):n
             nd = normals[i] - normals[j]
             if norm(nd) < 1e-12
                 continue
@@ -90,7 +90,7 @@ function voronoi_cell_vertices(p::Point{2,T}) where {T}
             for (pt, _) in pts
                 d_p = dist(pt, p)
                 ok = true
-                for kk = 1:n
+                for kk in 1:n
                     sd = dot(pt - lines[kk].p, normals[kk])
                     if sd < d_p - 1e-8
                         ok = false
@@ -125,13 +125,13 @@ function voronoi_curved_polygon(p::Point{2,T}) where {T}
     length(verts) < 3 && return CurvePolygon2D(ParabolaArc{T}[])
     m = length(verts)
     arcs = ParabolaArc{T}[]
-    for idx = 1:m
+    for idx in 1:m
         p_cur = verts[idx]
         p_next = verts[mod1(idx + 1, m)]
         mid = (p_cur + p_next) / 2
         best_k = 0
         best_diff = Inf
-        for k = 1:4
+        for k in 1:4
             d = abs(dist(mid, p) - distance_to_line(mid, lines[k]))
             if d < best_diff
                 best_diff = d
@@ -171,7 +171,7 @@ function computed_cell_area(cp::CurvePolygon2D{T}) where {T}
     boundary = sample_cell_boundary(cp, 800)
     isempty(boundary) && return 0.0
     area = 0.0
-    for i = 1:length(boundary)
+    for i in 1:length(boundary)
         j = mod1(i + 1, length(boundary))
         area += boundary[i].x * boundary[j].y
         area -= boundary[j].x * boundary[i].y
@@ -187,7 +187,7 @@ and testing inside/outside status with `is_inside(q, cp)`.
 """
 function estimate_area_monte_carlo(cp::CurvePolygon2D{T}, n_samples::Int) where {T}
     inside_count = 0
-    for _ = 1:n_samples
+    for _ in 1:n_samples
         q = point(rand(T), rand(T))
         if is_inside(q, cp)
             inside_count += 1

@@ -164,11 +164,11 @@ struct ConvexPolygonBody <: AbsLatticeBody
         ]
         n = length(V)
         n >= 3 || throw(ArgumentError("need at least three vertices"))
-        sum(_lat_cross(V[i], V[mod1(i + 1, n)]) for i = 1:n) > 0 ||
+        sum(_lat_cross(V[i], V[mod1(i + 1, n)]) for i in 1:n) > 0 ||
             throw(ArgumentError("vertices must be counterclockwise and not all collinear"))
         all(
             _lat_cross(V[mod1(i + 1, n)] - V[i], V[mod1(i + 2, n)] - V[mod1(i + 1, n)]) >=
-            0 for i = 1:n
+            0 for i in 1:n
         ) || throw(ArgumentError("polygon is not convex"))
         return new(V, Int128(common))
     end
@@ -187,7 +187,7 @@ function chord_range(P::ConvexPolygonBody, o::Point2I, d::Point2I)
     O = P.den * Point{2,Int128}(o)
     lo_num, lo_den = Int128(-1), Int128(0)   # -∞ as (-1)/0
     hi_num, hi_den = Int128(1), Int128(0)    # +∞ as 1/0
-    for i = 1:n
+    for i in 1:n
         e = V[mod1(i + 1, n)] - V[i]
         α = P.den * _lat_cross(e, d)         # constraint: α t ≥ β
         β = -_lat_cross(e, O - V[i])
@@ -208,7 +208,7 @@ end
 function Base.in(p::Point{2,<:Integer}, P::ConvexPolygonBody)
     V, n = P.vertices, length(P.vertices)
     q = P.den * Point{2,Int128}(p)
-    return all(_lat_cross(V[mod1(i + 1, n)] - V[i], q - V[i]) >= 0 for i = 1:n)
+    return all(_lat_cross(V[mod1(i + 1, n)] - V[i], q - V[i]) >= 0 for i in 1:n)
 end
 
 ###################################################################
@@ -278,7 +278,7 @@ least doubles the basis vectors, so O(log diam(C)) chord queries suffice.
 function find_edge_direction(C, p::Point2I, L::Point2I, U::Point2I)
     _offset_in(C, p, L) && return L
     best = _offset_in(C, p, U) ? U : nothing
-    for _ = 1:256
+    for _ in 1:256
         # Column step: candidates p + L + tU, t ≥ 0. Feasible vectors αL + βU
         # (α ≥ 1) have β/α in [t_lo, t_hi]; c = ⌈t_lo⌉ ≥ 1 since p + L ∉ C.
         r = chord_range(C, p + L, U)
@@ -302,7 +302,7 @@ end
 # Next counterclockwise hull vertex after the vertex p, searching the quadrants
 # q, q+1, q+2 in order (q = quadrant of the previous edge direction).
 function _next_hull_vertex(C, p::Point2I, q::Int)
-    for k = 0:2
+    for k in 0:2
         j = mod(q + k, 4)
         L, U = _QUADRANT_BASES[j+1]
         e = find_edge_direction(C, p, L, U)
@@ -355,7 +355,7 @@ end
 # Row scan over the y-extent, for bodies without a connectivity guarantee.
 function _scan_start(P::ConvexPolygonBody)
     ys = [v[2] for v in P.vertices]
-    for y = fld(minimum(ys), P.den):cld(maximum(ys), P.den)
+    for y in fld(minimum(ys), P.den):cld(maximum(ys), P.den)
         _row_has_lattice_point(P, Int(y)) &&
             return Point2I(something(chord_range(P, Point2I(0, y), Point2I(1, 0)))[1], y)
     end
@@ -445,7 +445,7 @@ end
 function _lattice_hull_sorted(P::Vector{Point2I})
     length(P) <= 2 && return sort!(copy(P); by = p -> (p[2], p[1]))
     H = Point2I[]
-    for pass = 1:2
+    for pass in 1:2
         start = length(H)
         for p in (pass == 1 ? P : Iterators.reverse(P))
             while length(H) >= start + 2 && _lat_cross(H[end] - H[end-1], p - H[end-1]) <= 0

@@ -265,10 +265,10 @@ end
 # plane sweep under symbolic shear `(x', y') = (x + εy, y)`.
 function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     n = length(pts)
-    next_v = [mod1(i + 1, n) for i = 1:n]
+    next_v = [mod1(i + 1, n) for i in 1:n]
 
     edge_is_lower = falses(n)
-    for s = 1:n
+    for s in 1:n
         c = compare_xy(kernel, pts[s], pts[next_v[s]])
         c == 0 && throw(ArgumentError("polygon contains duplicate adjacent vertex $s"))
         edge_is_lower[s] = c < 0
@@ -277,7 +277,7 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     # Use MergeSort for deterministic worst-case O(n log n) event ordering.
     events = collect(1:n)
     sort!(events; alg = MergeSort, lt = (a, b) -> compare_xy(kernel, pts[a], pts[b]) < 0)
-    for i = 1:(n-1)
+    for i in 1:(n-1)
         compare_xy(kernel, pts[events[i]], pts[events[i+1]]) == 0 &&
             throw(ArgumentError("polygon contains duplicate vertex $(events[i])"))
     end

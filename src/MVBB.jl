@@ -23,7 +23,7 @@ mutable struct OBBox{D,T}
 end
 
 function OBBox{D,T}() where {D,T}
-    axes = SVector{D,Point{D,T}}([Point{D,T}(i == j ? 1 : 0 for j = 1:D) for i = 1:D])
+    axes = SVector{D,Point{D,T}}([Point{D,T}(i == j ? 1 : 0 for j in 1:D) for i in 1:D])
     return OBBox{D,T}(axes, zeros(MVector{D,T}), zeros(MVector{D,T}), false)
 end
 
@@ -34,7 +34,7 @@ end
 function volume(obb::OBBox{D,T}) where {D,T}
     !obb.f_init && return zero(T)
     vol = one(T)
-    for i = 1:D
+    for i in 1:D
         vol *= (obb.high[i] - obb.low[i])
     end
     return vol
@@ -42,14 +42,14 @@ end
 
 function bound!(obb::OBBox{D,T}, pnt::Point{D,T}) where {D,T}
     if !obb.f_init
-        for i = 1:D
+        for i in 1:D
             val = dot(obb.axes[i], pnt)
             obb.low[i] = val
             obb.high[i] = val
         end
         obb.f_init = true
     else
-        for i = 1:D
+        for i in 1:D
             val = dot(obb.axes[i], pnt)
             if val < obb.low[i]
                 obb.low[i] = val
@@ -144,7 +144,7 @@ function rotating_calipers_min_area(hull::AbsPntSeq{2,T}) where {T}
 
     # Precompute edge angles
     angles = Vector{T}(undef, n)
-    for i = 1:n
+    for i in 1:n
         p1 = hull[i]
         p2 = hull[i%n+1]
         angles[i] = atan(p2[2] - p1[2], p2[1] - p1[1])
@@ -187,7 +187,7 @@ function rotating_calipers_min_area(hull::AbsPntSeq{2,T}) where {T}
     v = 1
     t = 1
 
-    for u = 1:n
+    for u in 1:n
         ang0 = angles[u]
         ang1 = mod(ang0 + pi / 2, 2 * pi)
         ang2 = mod(ang0 + pi, 2 * pi)
@@ -335,7 +335,7 @@ end
 function get_longest_dim(bb::BBox{D,T}) where {D,T}
     dim = 1
     max_w = width(bb, 1)
-    for i = 2:D
+    for i in 2:D
         w = width(bb, i)
         if w > max_w
             max_w = w
@@ -432,7 +432,7 @@ function optimize(PS::AbsPntSeq{3,T}, obb::OBBox{3,T}, iterations::Int) where {T
     best_obb = obb
     best_vol = volume(best_obb)
 
-    for i = 1:iterations
+    for i in 1:iterations
         # Cycle through axes as projection normals
         axis_idx = (i - 1) % 3 + 1
         new_obb = solve_2d_subspace(PS, best_obb.axes[axis_idx])

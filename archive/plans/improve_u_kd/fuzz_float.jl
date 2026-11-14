@@ -1,19 +1,19 @@
 include("lib.jl")
 function randpoly(rng, n, G, scale)
-    for _ = 1:500
+    for _ in 1:500
         pts = unique([
             point(
                 Rational{BigInt}(Float64(rand(rng, 0:G)*scale)),
                 Rational{BigInt}(Float64(rand(rng, 0:G)*scale)),
-            ) for _ = 1:n
+            ) for _ in 1:n
         ])
         length(pts)<3 && continue
         P=copy(pts)
         shuffle!(rng, P)
         m=length(P)
-        for it = 1:2000
+        for it in 1:2000
             changed=false
-            for i = 1:m, j = (i+2):m
+            for i in 1:m, j in (i+2):m
                 (i==1 && j==m) && continue
                 if seg_intersect(P[i], P[i+1], P[j], P[mod1(j+1, m)])
                     reverse!(P, i+1, j)
@@ -40,14 +40,14 @@ log = open(
     ),
     "w",
 )
-for trial = 1:parse(Int, ARGS[2])
+for trial in 1:parse(Int, ARGS[2])
     n=rand(rng, 4:25)
     G=rand(rng, [4, 6, 10])
     sc=rand(rng, [0.1, 0.3, 1/3, 0.7, 1e-9*0.1])
     P=randpoly(rng, n, G, sc)
     P===nothing && continue
     Pf=[point(Float64(p.x), Float64(p.y)) for p in P]
-    for s = 1:3
+    for s in 1:3
         global tried+=1
         seekstart(log)
         println(log, "seed=$s Pf=", Pf)

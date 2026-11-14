@@ -20,7 +20,7 @@ using Random
 """
 function generate_random_points(n, rng)
     pts = Point{3,Float64}[]
-    for _ = 1:n
+    for _ in 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     return PntSeq(pts)
@@ -30,7 +30,7 @@ function run_benchmark(n, num_tests, ε, run_exact = true)
     rng_data = Random.Xoshiro(123)
     datasets = []
     directions = []
-    for i = 1:num_tests
+    for i in 1:num_tests
         push!(datasets, generate_random_points(n, rng_data))
         push!(directions, normalize(Point{3,Float64}(randn(rng_data, 3))))
     end
@@ -40,7 +40,7 @@ function run_benchmark(n, num_tests, ε, run_exact = true)
     t_exact = 0.0
     if run_exact
         t_start_exact = time()
-        for i = 1:num_tests
+        for i in 1:num_tests
             results_exact[i] = exact_diameter_subspace(datasets[i], directions[i])
         end
         t_exact = (time() - t_start_exact) / num_tests
@@ -49,7 +49,7 @@ function run_benchmark(n, num_tests, ε, run_exact = true)
     # 2. WSPD Standard
     results_wspd = zeros(num_tests)
     t_start_wspd = time()
-    for i = 1:num_tests
+    for i in 1:num_tests
         results_wspd[i] = approx_diameter_subspace(datasets[i], ε, directions[i])
     end
     t_wspd = (time() - t_start_wspd) / num_tests
@@ -57,7 +57,7 @@ function run_benchmark(n, num_tests, ε, run_exact = true)
     # 3. FST
     results_fst = zeros(num_tests)
     t_start_fst = time()
-    for i = 1:num_tests
+    for i in 1:num_tests
         res = MVBB.approx_diam_subspace(datasets[i], ε, directions[i])
         results_fst[i] = res.distance
         if EXAMPLE_SMOKE

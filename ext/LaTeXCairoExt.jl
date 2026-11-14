@@ -375,7 +375,7 @@ $body
         write(io, tex_content)
     end
 
-    for _ = 1:max(1, passes)
+    for _ in 1:max(1, passes)
         _run_silent(
             Cmd(
                 `$compiler -interaction=nonstopmode -output-directory=$temp_dir $tex_path`,

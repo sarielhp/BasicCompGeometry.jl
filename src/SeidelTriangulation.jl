@@ -173,7 +173,7 @@ function _seidel_init_map(kernel::AbstractKernel, pts)
     seg_p = Vector{Int}(undef, n)
     seg_q = Vector{Int}(undef, n)
     seg_ltr = Vector{Bool}(undef, n)
-    for s = 1:n
+    for s in 1:n
         nxt = mod1(s + 1, n)
         if compare_xy(kernel, pts[s], pts[nxt]) < 0
             seg_p[s] = s
@@ -442,7 +442,7 @@ function _seidel_add_segment!(m::_SeidelMap, s::Int, hit::Vector{Int})
     below_cur = 0
     k_len = length(hit)
 
-    for k = 1:k_len
+    for k in 1:k_len
         t_id = hit[k]
         T = traps[t_id]
         traps[t_id] = _seidel_with(T; alive = false)
@@ -641,7 +641,7 @@ function _seidel_trace_polygon!(m::_SeidelMap)
     traps = m.traps
 
     tr = _seidel_locate_vertex_trap(m, 1)
-    for i = 1:n
+    for i in 1:n
         nxt = mod1(i + 1, n)
         if m.edge_inserted[i]
             tr = _seidel_walk_inserted(m, tr, i, nxt, i)
@@ -690,9 +690,9 @@ function _seidel_build_trapezoidal_map(kernel::AbstractKernel, pts, rng::Abstrac
 
     start_idx = 1
     num_phases = length(bounds)
-    for phase = 1:num_phases
+    for phase in 1:num_phases
         stop_idx = bounds[phase]
-        for idx = start_idx:stop_idx
+        for idx in start_idx:stop_idx
             _seidel_add_segment!(m, perm[idx], hit)
         end
         if phase < num_phases
@@ -739,7 +739,7 @@ function _seidel_bucket(key::F, items, n::Int) where {F}
         start[key(h)+1] += 1
     end
     start[1] = 1
-    for v = 1:n
+    for v in 1:n
         start[v+1] += start[v]
     end
     fill_pos = start[1:n]
@@ -767,16 +767,16 @@ function _seidel_link_vertex!(
 )
     empty!(ccw_list)
     push!(ccw_list, v) # forward CCW boundary edge v -> mod1(v + 1, n)
-    for idx = lo:hi
+    for idx in lo:hi
         he_to[adj[idx]] > v && push!(ccw_list, adj[idx])
     end
-    for idx = lo:hi
+    for idx in lo:hi
         he_to[adj[idx]] < v && push!(ccw_list, adj[idx])
     end
     push!(ccw_list, n + mod1(v - 1, n)) # reverse edge v -> mod1(v - 1, n)
 
     m_v = length(ccw_list)
-    for idx = 1:m_v
+    for idx in 1:m_v
         h_pred = idx == 1 ? ccw_list[m_v] : ccw_list[idx-1]
         next_he[he_twin[ccw_list[idx]]] = h_pred
     end
@@ -794,7 +794,7 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
     he_to = Vector{Int}(undef, total_he)
     he_twin = Vector{Int}(undef, total_he)
 
-    for i = 1:n
+    for i in 1:n
         nxt = mod1(i + 1, n)
         he_from[i] = i
         he_to[i] = nxt
@@ -804,7 +804,7 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
         he_twin[n+i] = i
     end
 
-    for k = 1:d
+    for k in 1:d
         u, v = diags[k]
         h1 = 2 * n + 2 * k - 1
         h2 = h1 + 1
@@ -822,7 +822,7 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
 
     next_he = Vector{Int}(undef, total_he)
     ccw_list = Int[]
-    for v = 1:n
+    for v in 1:n
         _seidel_link_vertex!(
             next_he,
             he_to,
@@ -841,7 +841,7 @@ function _seidel_extract_pieces(n::Int, diags::Vector{Tuple{Int,Int}})
     sizehint!(start, d + 2)
     verts = Int[]
     sizehint!(verts, n + 2 * d)
-    for start_h = 1:total_he
+    for start_h in 1:total_he
         (n < start_h <= 2 * n) && continue # skip exterior reverse boundary edges
         visited[start_h] && continue
         cur = start_h
@@ -884,7 +884,7 @@ function _seidel_piece_order!(kernel::AbstractKernel, pts, pc, sc::_SeidelPieceS
     k = length(pc)
     lo = 1
     hi = 1
-    for i = 2:k
+    for i in 2:k
         compare_xy(kernel, pts[pc[i]], pts[pc[lo]]) < 0 && (lo = i)
         compare_xy(kernel, pts[pc[i]], pts[pc[hi]]) > 0 && (hi = i)
     end
@@ -900,7 +900,7 @@ function _seidel_piece_order!(kernel::AbstractKernel, pts, pc, sc::_SeidelPieceS
     is_upper = sc.is_upper
     resize!(is_upper, k)
     fill!(is_upper, false)
-    for idx = 2:(length(upper)-1)
+    for idx in 2:(length(upper)-1)
         is_upper[upper[idx]] = true
     end
 
@@ -960,7 +960,7 @@ function _seidel_triangulate_monotone_piece!(
     stack = sc.stack
     empty!(stack)
     push!(stack, order[1], order[2])
-    for idx = 3:(k-1)
+    for idx in 3:(k-1)
         v = order[idx]
         if is_upper[v] != is_upper[last(stack)]
             while length(stack) >= 2

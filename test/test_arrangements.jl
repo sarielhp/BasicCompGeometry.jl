@@ -108,7 +108,7 @@ end
 
     # 6. Random halfplanes test
     rng = Random.Xoshiro(12345)
-    rand_hps = [rand_halfplane(rng) for _ = 1:6]
+    rand_hps = [rand_halfplane(rng) for _ in 1:6]
     rand_view = default_view(rand_hps; factor = 1.1)
     rand_decomp = ArrVertDecomp(rand_hps, rand_view)
 

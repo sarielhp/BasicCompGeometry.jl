@@ -64,7 +64,7 @@ function prefix_lengths(cp::CurvePolygon2D{T}) where {T}
     n = length(cp.curves)
     v = Vector{Float64}(undef, n + 1)
     v[1] = 0.0
-    for i = 1:n
+    for i in 1:n
         v[i+1] = v[i] + geom_length(cp.curves[i])
     end
     return v
@@ -127,7 +127,7 @@ function _point_on_closed(
     need_close = pnts[1] != pnts[end]
     n_edges = need_close ? n : n - 1
     total_len = zero(R)
-    for i = 1:n_edges
+    for i in 1:n_edges
         p_next = (need_close && i == n) ? pnts[1] : pnts[i+1]
         total_len += R(dist(pnts[i], p_next))
     end
@@ -138,7 +138,7 @@ function _point_on_closed(
     target >= total_len && return end_pt
 
     acc = zero(R)
-    for i = 1:n_edges
+    for i in 1:n_edges
         p_next = (need_close && i == n) ? pnts[1] : pnts[i+1]
         seg_len = R(dist(pnts[i], p_next))
         if acc + seg_len >= target
@@ -364,7 +364,7 @@ function tangent_intersections_cp(CP::CurvePolygon2D, Q, alpha::Real)
     for curve in CP.curves
         curve_len = Float64(_curve_length(curve))
         hits = _dispatch_line_curve_hits(line, curve)
-        for k = 1:hits.n
+        for k in 1:hits.n
             pt, local_t = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
             t_line = dot(pt - q, line.u) / u_norm_sq
             if t_line < -1e-9 && t_line > max_t_neg
@@ -418,7 +418,7 @@ function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
     qy = Float64(q.y)
     for c in cp.curves
         hits = _dispatch_line_curve_hits(ray, c)
-        for k = 1:hits.n
+        for k in 1:hits.n
             pt, s = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
             if pt.y < qy - 1e-11
                 if s < 1.0 - 1e-9

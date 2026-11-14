@@ -13,7 +13,7 @@ using Random
 """Build a CCW non-monotone horizontal comb polygon with `4m + 4` vertices and `2m` reflex notches."""
 function make_comb_polygon(m_prongs::Int)
     pts = Point2F[point(0.0, 0.0)]
-    for i = 1:m_prongs
+    for i in 1:m_prongs
         y_bot = 2.0 * (i - 1)
         x_notch = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
         push!(pts, point(10.0, y_bot))

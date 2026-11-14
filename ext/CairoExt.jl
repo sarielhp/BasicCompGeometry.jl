@@ -90,7 +90,7 @@ function BasicCompGeometry.cairo_draw_polygon(
     !isnothing(line_width) && BasicCompGeometry.cairo_set_line_width(cr, line_width)
     C.new_path(cr)
     C.move_to(cr, poly[1][1], poly[1][2])
-    for i = 2:n
+    for i in 2:n
         C.line_to(cr, poly[i][1], poly[i][2])
     end
     if close && n > 2
@@ -161,7 +161,7 @@ function BasicCompGeometry.cairo_draw_halfplane(
     # Draw perpendicular ticks along the segment pointing inward
     L = dist(seg.p, seg.q)
     num_ticks = max(1, round(Int, L / eff_spacing))
-    for i = 1:num_ticks
+    for i in 1:num_ticks
         t = (Float64(i) - 0.5) / num_ticks
         pt = at(seg, t)
         C.move_to(cr, pt[1], pt[2])
@@ -679,7 +679,7 @@ function _write_html_presentation(c::Canvas)
     end
 
     slides_json = "[" * join(["\"$f\"" for f in svg_files], ", ") * "]"
-    desc_array = [get(c.descriptions, i, "") for i = 1:length(svg_files)]
+    desc_array = [get(c.descriptions, i, "") for i in 1:length(svg_files)]
     desc_json = "[" * join(["\"" * escape_string(d) * "\"" for d in desc_array], ", ") * "]"
 
     page_title = isempty(c.title) ? "Presentation" : c.title

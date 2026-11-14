@@ -42,7 +42,7 @@ function _sparse_levels(keys::V, less::F, minima::Vector{Int}) where {V,F}
         previous = last(levels)
         m = n - 2 * half + 1
         row = Vector{Int}(undef, m)
-        @inbounds for i = 1:m
+        @inbounds for i in 1:m
             row[i] = _better_index(keys, less, previous[i], previous[i+half])
         end
         push!(levels, row)
@@ -54,10 +54,10 @@ end
 function _block_masks(keys::V, less::F, block_size::Int) where {V,F}
     masks = Vector{UInt}(undef, length(keys))
     minima = Int[]
-    for first = 1:block_size:length(keys)
+    for first in 1:block_size:length(keys)
         stop = first + min(block_size, length(keys) - first + 1) - 1
         mask = zero(UInt)
-        for j = first:stop
+        for j in first:stop
             while !iszero(mask)
                 top = _RMQ_WORD_BITS - leading_zeros(mask) - 1
                 less(keys[first+top], keys[j]) && break

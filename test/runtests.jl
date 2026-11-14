@@ -633,7 +633,7 @@ Aqua.test_all(BasicCompGeometry)
         @test size(mat) == (2, 4)
 
         # Simplification
-        poly_big = Polygon([point(x, 0.0) for x = 0:0.01:1])
+        poly_big = Polygon([point(x, 0.0) for x in 0:0.01:1])
         poly_sim, indices = simplify(poly_big, 0.1)
         @test length(poly_sim) < length(poly_big)
 
@@ -643,7 +643,7 @@ Aqua.test_all(BasicCompGeometry)
         @test geom_length(poly_uniform) ≈ geom_length(poly)
 
         # Type stability and O(m + n) allocation for dist, at, and sample_uniformly
-        p32 = PntSeq([Point{2,Float32}(Float32(i), Float32(i % 3)) for i = 1:20])
+        p32 = PntSeq([Point{2,Float32}(Float32(i), Float32(i % 3)) for i in 1:20])
         @test (@inferred dist(p32, 1, 1)) === 0.0f0
         @test (@inferred dist(p32, 1, 2)) isa Float32
         @test (@inferred at(p32, 0.0f0)) isa Point{2,Float32}
@@ -658,7 +658,7 @@ Aqua.test_all(BasicCompGeometry)
         @test (@inferred at(pint, 0.5)) === point(2.0, 0.0)
         @test (@inferred sample_uniformly(pint, 5)) isa PntSeq{2,Float64}
 
-        p1k = PntSeq([point(Float64(i), sin(i)) for i = 1:1000])
+        p1k = PntSeq([point(Float64(i), sin(i)) for i in 1:1000])
         _run_su(p, n) = sample_uniformly(p, n)
         _run_su(p1k, 1000)
         @test (@allocated _run_su(p1k, 1000)) < 100_000
@@ -727,8 +727,8 @@ Aqua.test_all(BasicCompGeometry)
 
     @testset "Algorithms & Module Level" begin
         # Hausdorff
-        pnts1 = [point(x, 0.0) for x = 0:10]
-        pnts2 = [point(x, 0.1) for x = 0:10]
+        pnts1 = [point(x, 0.0) for x in 0:10]
+        pnts2 = [point(x, 0.1) for x in 0:10]
         poly1, poly2 = PntSeq(pnts1), PntSeq(pnts2)
 
         @test hausdorff_dist_subseg(poly1) == 0.0
@@ -774,7 +774,7 @@ Aqua.test_all(BasicCompGeometry)
 
     @testset "BBT (Bounding Box Tree)" begin
         using BasicCompGeometry.BBT
-        pnts = [point(x, y) for x = 0:10 for y = 0:10]
+        pnts = [point(x, y) for x in 0:10 for y in 0:10]
         poly = PntSeq(pnts)
         tree = Tree_init(poly)
 
@@ -795,7 +795,7 @@ Aqua.test_all(BasicCompGeometry)
         @test (@allocated get_max_orig_index(tree_uncached, tree_uncached.root)) == 0
 
         # Test 1000 random points in 3D
-        pnts3d = [rand_point(3) for _ = 1:1000]
+        pnts3d = [rand_point(3) for _ in 1:1000]
         tree3d = Tree_init(PntSeq(pnts3d))
         Tree_fully_expand(tree3d)
 
@@ -884,7 +884,7 @@ Aqua.test_all(BasicCompGeometry)
             Point(
                 cos(0.37 * i) * (1.0 + 0.2 * (i % 5)),
                 sin(0.37 * i) * (1.0 + 0.1 * (i % 7)),
-            ) for i = 1:120
+            ) for i in 1:120
         ]
         ft = Kd_tree.Tree_init_flat(ft_pts; leaf_size = 8)
         ft_ps = Kd_tree.Tree_init_flat(PntSeq(ft_pts); leaf_size = 8)
@@ -909,7 +909,7 @@ Aqua.test_all(BasicCompGeometry)
             end
             if nd.is_leaf
                 @test (nd.r_end - nd.r_start + 1) <= 8 || (nd.x1 == nd.x0 && nd.y1 == nd.y0)
-                for slot = nd.r_start:nd.r_end
+                for slot in nd.r_start:nd.r_end
                     @test !seen_slots[slot]
                     seen_slots[slot] = true
                     orig = ft.perm[slot]
@@ -939,7 +939,7 @@ Aqua.test_all(BasicCompGeometry)
         @test count(!iszero, ft_sub.leaf_of) == 60
         @test all(i -> ft_sub.leaf_of[i] == 0 && ft_sub.slot_of[i] == 0, 2:2:120)
 
-        int_pts = [Point(i, (i * 17) % 41) for i = 1:40]
+        int_pts = [Point(i, (i * 17) % 41) for i in 1:40]
         ft_int = Kd_tree.Tree_init_flat(int_pts; leaf_size = 4)
         @test length(ft_int) == 40
         @test is_root(ft_int, 1)
@@ -949,7 +949,7 @@ Aqua.test_all(BasicCompGeometry)
             Point{2,Rational{BigInt}}(
                 big(i) * huge_scale // 1,
                 big((i * 13) % 29) * huge_scale // 1,
-            ) for i = 1:40
+            ) for i in 1:40
         ]
         ft_big = Kd_tree.Tree_init_flat(big_pts; leaf_size = 4)
         @test length(ft_big) == 40
@@ -970,7 +970,7 @@ Aqua.test_all(BasicCompGeometry)
         @test fut_u.nodes[1].bound_mask == 0x00
         for nid in eachindex(fut_u.nodes)
             nd = fut_u.nodes[nid]
-            for k = nd.r_start:nd.r_end
+            for k in nd.r_start:nd.r_end
                 x = fut_u.px[k]
                 y = fut_u.py[k]
                 @test nd.ux0 < x <= nd.ux1
@@ -1001,7 +1001,7 @@ Aqua.test_all(BasicCompGeometry)
         @test is_root(fut_int, 1)
         for nd in fut_int.nodes
             bm = nd.bound_mask
-            for k = nd.r_start:nd.r_end
+            for k in nd.r_start:nd.r_end
                 @test ((bm & 0x01) == 0 || nd.ux0 < fut_int.px[k])
                 @test ((bm & 0x02) == 0 || fut_int.px[k] <= nd.ux1)
                 @test ((bm & 0x04) == 0 || nd.uy0 < fut_int.py[k])
@@ -1014,7 +1014,7 @@ Aqua.test_all(BasicCompGeometry)
         @test is_root(fut_big, 1)
         for nd in fut_big.nodes
             bm = nd.bound_mask
-            for k = nd.r_start:nd.r_end
+            for k in nd.r_start:nd.r_end
                 @test ((bm & 0x01) == 0 || nd.ux0 < fut_big.px[k])
                 @test ((bm & 0x02) == 0 || fut_big.px[k] <= nd.ux1)
                 @test ((bm & 0x04) == 0 || nd.uy0 < fut_big.py[k])
@@ -1024,11 +1024,11 @@ Aqua.test_all(BasicCompGeometry)
 
         # Multi-point leaves: nearest-neighbor queries must scan every point of a leaf.
         nn_rng = Xoshiro(7)
-        nn_pts = PntSeq([point(rand(nn_rng), rand(nn_rng)) for _ = 1:200])
+        nn_pts = PntSeq([point(rand(nn_rng), rand(nn_rng)) for _ in 1:200])
         nn_tree = Tree_init(nn_pts; leaf_size = 8)
         Tree_fully_expand(nn_tree)
         nn_ok = true
-        for _ = 1:100
+        for _ in 1:100
             q = point(rand(nn_rng), rand(nn_rng))
             d_tree, _, _ = BBT.approx_nn(nn_tree, q, 1.0)
             d_scan, _, _ = BBT.exact_naive_scan(nn_pts, q)
@@ -1080,7 +1080,7 @@ Aqua.test_all(BasicCompGeometry)
             point(
                 rand(wide_rng, (typemin(Int), typemax(Int) - 1, typemax(Int))),
                 rand(wide_rng, 1:10),
-            ) for _ = 1:50
+            ) for _ in 1:50
         ]
         for ft_wide in (
             Kd_tree.Tree_init_flat(wide_pts; leaf_size = 4),
@@ -1137,20 +1137,20 @@ Aqua.test_all(BasicCompGeometry)
             end
 
             covered = reduce(vcat, (covered_point_pairs(W, pair) for pair in finals))
-            expected = [(i, j) for i = 1:(length(points)-1) for j = (i+1):length(points)]
+            expected = [(i, j) for i in 1:(length(points)-1) for j in (i+1):length(points)]
             @test sort(covered) == expected
             @test length(unique(covered)) == length(covered)
             return length(finals)
         end
 
-        line = [point(Float64(x), 0.0) for x = 1:10]
-        cloud = [point(randn(), randn(), randn()) for _ = 1:24]
+        line = [point(Float64(x), 0.0) for x in 1:10]
+        cloud = [point(randn(), randn(), randn()) for _ in 1:24]
         @test test_wspd(line, 2.0) < length(line)^2
         @test test_wspd(cloud, 0.5) < length(cloud)^2
         @test test_wspd(reverse(cloud), 0.5) < length(cloud)^2
 
         # Type stability for Float32 points and mismatched sep types (e.g. Int or Float64)
-        line32 = [Point{2,Float32}(Float32(x), 0.0f0) for x = 1:10]
+        line32 = [Point{2,Float32}(Float32(x), 0.0f0) for x in 1:10]
         W32 = @inferred WSPD.init(PntSeq(line32), 2)
         @test isconcretetype(typeof(W32))
         @test typeof(W32.pnts) == PntSeq{2,Float32}
@@ -1188,9 +1188,9 @@ Aqua.test_all(BasicCompGeometry)
     @testset "Subspace Diameter Exactness (ε=0.0)" begin
         using Random
         rng = Random.Xoshiro(42)
-        for _ = 1:100
+        for _ in 1:100
             n = 100
-            pts = [point(rand(rng), rand(rng), rand(rng)) for _ = 1:n]
+            pts = [point(rand(rng), rand(rng), rand(rng)) for _ in 1:n]
             ps = PntSeq(pts)
             dir = normalize(point(randn(rng), randn(rng), randn(rng)))
 

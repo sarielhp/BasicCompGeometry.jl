@@ -55,8 +55,8 @@ function run_prune_halfplanes_depth(
         m = multiplier * k
         @printf("\n[1/5] Generating %d random halfplanes (6*k, seed = %d)...\n", m, seed)
         # Ensure initial min depth >= k by retrying if needed
-        for attempt = 1:10
-            candidate_hps = [rand_halfplane(rng) for _ = 1:m]
+        for attempt in 1:10
+            candidate_hps = [rand_halfplane(rng) for _ in 1:m]
             cand_view = default_view(candidate_hps; factor = 1.1)
             cand_decomp = vertical_decomposition(candidate_hps, cand_view)
             cand_centers = [centroid(t.corners) for t in cand_decomp]
@@ -122,17 +122,17 @@ function run_prune_halfplanes_depth(
     # inside_matrix[i, j] = is center j inside halfplane i?
     t_inc = @elapsed begin
         inside_matrix = BitMatrix(undef, m, num_centers)
-        for i = 1:m
+        for i in 1:m
             h = hps[i]
-            for j = 1:num_centers
+            for j in 1:num_centers
                 inside_matrix[i, j] = is_inside(centers[j], h)
             end
         end
         # Map each halfplane to the list of centers it contains
         halfplane_centers =
-            [findall(j -> inside_matrix[i, j], 1:num_centers) for i = 1:m]
+            [findall(j -> inside_matrix[i, j], 1:num_centers) for i in 1:m]
         # Current depth at each center
-        depths = [count(i -> inside_matrix[i, j], 1:m) for j = 1:num_centers]
+        depths = [count(i -> inside_matrix[i, j], 1:m) for j in 1:num_centers]
     end
 
     init_min_depth = minimum(depths)
@@ -162,7 +162,7 @@ function run_prune_halfplanes_depth(
         pass_num += 1
         removed_in_pass = 0
 
-        for i = 1:m
+        for i in 1:m
             !active[i] && continue
 
             # Removal is legal iff for all centers contained in halfplane i,

@@ -32,7 +32,7 @@ function _build_kdtree_reflex_index(
     py = Vector{T}(undef, reflex_cnt)
     orig_ids = Vector{Int32}(undef, reflex_cnt)
     k = 0
-    @inbounds for i = 1:n
+    @inbounds for i in 1:n
         if is_reflex[i]
             k += 1
             p = vertices[i]
@@ -48,7 +48,7 @@ function _build_kdtree_reflex_index(
     live_end = Vector{Int32}(undef, num_nodes)
     active_count = Vector{Int32}(undef, num_nodes)
     nodes = tree.nodes
-    @inbounds for id = 1:num_nodes
+    @inbounds for id in 1:num_nodes
         nd = nodes[id]
         live_end[id] = nd.r_end
         active_count[id] = nd.r_end - nd.r_start + Int32(1)
@@ -140,7 +140,7 @@ end
         end
     elseif !isempty(idx.overflow)
         ov = idx.overflow
-        @inbounds for j = 1:length(ov)
+        @inbounds for j in 1:length(ov)
             if ov[j] == i
                 ov[j] = ov[end]
                 pop!(ov)
@@ -399,7 +399,7 @@ end
     le::Int,
 )::Bool
     hit = false
-    @inbounds @simd for k = rs:le
+    @inbounds @simd for k in rs:le
         x = px[k]
         y = py[k]
         inside =
@@ -447,7 +447,7 @@ function _dfs_ear_blocked!(
             rs = Int(nd.r_start)
             le = Int(live_end[nid])
             _leaf_may_block(q, px_arr, py_arr, rs, le) || continue
-            for k = rs:le
+            for k in rs:le
                 pxk = px_arr[k]
                 pyk = py_arr[k]
                 (pxk >= min_tx && pxk <= max_tx && pyk >= min_ty && pyk <= max_ty) ||

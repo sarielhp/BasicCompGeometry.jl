@@ -75,7 +75,7 @@ end
     @test occursin("uninitialized", sprint(show, BBox2F()))
     @test union_bbox([box, bbox(Segment(points[1], points[3]))]) == box
     let large_boxes =
-            [BBox(point(Float64(i), 0.0), point(Float64(i) + 1.0, 1.0)) for i = 1:10_000]
+            [BBox(point(Float64(i), 0.0), point(Float64(i) + 1.0, 1.0)) for i in 1:10_000]
         expected_large = BBox(point(1.0, 0.0), point(10_001.0, 1.0))
         @test (@inferred union_bbox(large_boxes)) == expected_large
         @test (@allocated union_bbox(large_boxes)) <= 1024
@@ -108,14 +108,14 @@ end
     singleton, indexes = hausdorff_simplify(PntSeq(points[1:1]), 0.1)
     @test collect(singleton) == points[1:1]
     @test indexes == [1]
-    zigzag = PntSeq([point(Float64(i), isodd(i) ? 1.0 : 0.0) for i = 0:30])
+    zigzag = PntSeq([point(Float64(i), isodd(i) ? 1.0 : 0.0) for i in 0:30])
     for tolerance in (0.1, 0.6, 1.0)
         simplified, indexes = hausdorff_simplify(zigzag, tolerance)
         @test first(indexes) == 1 && last(indexes) == length(zigzag)
         @test collect(simplified) == [zigzag[i] for i in indexes]
         @test all(
             r -> BasicCompGeometry.hausdorff_dist_subseg(zigzag, r) <= tolerance,
-            (indexes[i]:indexes[i+1] for i = 1:(length(indexes)-1)),
+            (indexes[i]:indexes[i+1] for i in 1:(length(indexes)-1)),
         )
     end
 end

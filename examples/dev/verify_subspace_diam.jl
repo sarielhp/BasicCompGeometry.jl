@@ -20,7 +20,7 @@ using Random
 """
 function generate_random_points(n, rng)
     pts = Point{3,Float64}[]
-    for _ = 1:n
+    for _ in 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     return PntSeq(pts)
@@ -37,7 +37,7 @@ function (@main)(args)
     rng_data = Random.Xoshiro(123)
     datasets = []
     directions = []
-    for i = 1:num_tests
+    for i in 1:num_tests
         push!(datasets, generate_random_points(n, rng_data))
         push!(directions, normalize(Point{3,Float64}(randn(rng_data, 3))))
     end
@@ -48,17 +48,17 @@ function (@main)(args)
     res_fst = zeros(num_tests)
 
     # 1. Exact
-    for i = 1:num_tests
+    for i in 1:num_tests
         res_exact[i] = exact_diameter_subspace(datasets[i], directions[i])
     end
 
     # 2. WSPD
-    for i = 1:num_tests
+    for i in 1:num_tests
         res_wspd[i] = approx_diameter_subspace(datasets[i], ε, directions[i])
     end
 
     # 3. FST
-    for i = 1:num_tests
+    for i in 1:num_tests
         res = MVBB.approx_diam_subspace(datasets[i], ε, directions[i])
         res_fst[i] = res.distance
     end

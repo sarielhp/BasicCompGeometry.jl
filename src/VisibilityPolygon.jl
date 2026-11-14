@@ -223,7 +223,7 @@ function _polygon_kernel_impl(
     sizehint!(deduped, 16)
 
     tol = 1e-11
-    for i = 1:n
+    for i in 1:n
         isempty(curr_poly) && break
         a = poly_conv[i]
         b = poly_conv[i == n ? 1 : i + 1]
@@ -311,7 +311,7 @@ function _prune_collinear(
     k = length(pts)
     out = Point{2,R}[]
     sizehint!(out, k)
-    for i = 1:k
+    for i in 1:k
         pr = pts[i == 1 ? k : i - 1]
         cu = pts[i]
         nx = pts[i == k ? 1 : i + 1]
@@ -422,7 +422,7 @@ function _closest_sector_hit(
     best_pt1 = q_conv
     best_pt2 = q_conv
 
-    for e_idx = 1:n
+    for e_idx in 1:n
         a = poly_conv[e_idx]
         b = poly_conv[e_idx == n ? 1 : e_idx + 1]
         hit1, t1, pt1 = _ray_edge_intersect(kernel, q_conv, u1, a, b, R)
@@ -445,7 +445,7 @@ function _bounding_rect(pts::Vector{Point{2,R}}) where {R}
     p1 = pts[1]
     min_x = max_x = p1.x
     min_y = max_y = p1.y
-    for idx = 2:length(pts)
+    for idx in 2:length(pts)
         p = pts[idx]
         min_x = min(min_x, p.x)
         max_x = max(max_x, p.x)
@@ -498,7 +498,7 @@ function _clip_polygon_halfplane!(
 
     p_prev = curr_poly[m]
     prev_in = _halfplane_inside(kernel, a, b, p_prev, thresh)
-    for j = 1:m
+    for j in 1:m
         p_curr = curr_poly[j]
         curr_in = _halfplane_inside(kernel, a, b, p_curr, thresh)
         if curr_in != prev_in
@@ -558,12 +558,12 @@ end
 
 @inline function _point_in_polygon(kernel::AbstractKernel, q::Point{2}, poly)
     n = length(poly)
-    for i = 1:n
+    for i in 1:n
         q == poly[i] && return (:vertex, i)
     end
 
     wn = 0
-    for i = 1:n
+    for i in 1:n
         a = poly[i]
         b = poly[i == n ? 1 : i + 1]
 

@@ -78,7 +78,7 @@ function distance_infty(P::AbsPntSeq{D,T}, Q::AbsPntSeq{D,T}) where {D,T}
     n == 0 && return 0.0
 
     d = 0.0
-    for i = 1:n
+    for i in 1:n
         d = max(d, dist(P[i], Q[i]))
     end
     return d

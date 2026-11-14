@@ -76,7 +76,7 @@ using Cairo
         # Test 5: PNG Sequence
         png_pat = joinpath(temp_dir, "frame_%03d.png")
         open_canvas(png_pat, 200, 200) do canvas
-            for _ = 1:3
+            for _ in 1:3
                 cairo_draw_setup(canvas, bb, 200, 200)
                 cairo_draw_points(canvas, pts, 2.0)
                 Cairo.show_page(canvas)
@@ -93,7 +93,7 @@ using Cairo
         if Sys.which("ffmpeg") !== nothing
             gif_file = joinpath(temp_dir, "anim.gif")
             open_canvas(gif_file, 200, 200; fps = 5) do canvas
-                for _ = 1:4
+                for _ in 1:4
                     cairo_draw_setup(canvas, bb, 200, 200)
                     cairo_draw_points(canvas, pts, 2.0)
                     Cairo.show_page(canvas)
@@ -153,7 +153,7 @@ if Base.find_package("Colors") !== nothing
     @eval using Colors
     @testset "BBT.Tree_draw (BBTCairoExt)" begin
         mktempdir(mkpath(joinpath(@__DIR__, "..", "output", "tmp"))) do dir
-            pnts = [point(Float64(i), Float64((i * 7) % 13)) for i = 1:32]
+            pnts = [point(Float64(i), Float64((i * 7) % 13)) for i in 1:32]
             tree = BBT.Tree_init(PntSeq(pnts))
             BBT.Tree_fully_expand(tree)
 

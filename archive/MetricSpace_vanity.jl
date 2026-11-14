@@ -6,7 +6,7 @@
 function get_points_assigned_to_pos(M, I, D, N, pos, sz)
     J = Int[]
     x = I[pos]
-    for i ∈ 1:sz
+    for i in 1:sz
         y = I[i]
         d = dist(M, x, y)
         if d < D[i] || D[i] < 0.0
@@ -35,10 +35,10 @@ function greedy_permutation_vanity(M::AbsFMS, vanity::Vector{Float64}, n::Int)
 
     update_distances(M, I, D, N, 1, sz)
 
-    for i ∈ 2:n
+    for i in 2:n
         tpos = argmax(view(D, i:sz)) + i - 1
         J = get_points_assigned_to_pos(M, I, D, N, tpos, sz)
-        j_min = argmin(vanity[j] for j ∈ J)
+        j_min = argmin(vanity[j] for j in J)
         pos = J[j_min]
 
         D[i-1] = D[pos]

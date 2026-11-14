@@ -40,7 +40,7 @@ function monotone_chain_indices(p; kernel::AbstractKernel = FloatingKernel())
 
     lo = 1
     hi = 1
-    for i = 2:k
+    for i in 2:k
         p[i].x < p[lo].x && (lo = i)
         p[i].x > p[hi].x && (hi = i)
     end
@@ -164,7 +164,7 @@ function triangulate_monotone(vertices; kernel::AbstractKernel = FloatingKernel(
     stack = Int[]
     sizehint!(stack, k)
     push!(stack, order[1], order[2])
-    for j = 3:(k-1)
+    for j in 3:(k-1)
         v = order[j]
         if is_upper[v] != is_upper[last(stack)]
             while length(stack) >= 2
@@ -224,7 +224,7 @@ function is_x_monotone(p)
 
     lo = 1
     hi = 1
-    for i = 2:n
+    for i in 2:n
         p[i].x < p[lo].x && (lo = i)
         p[i].x > p[hi].x && (hi = i)
     end
@@ -259,7 +259,7 @@ function is_y_monotone(p)
 
     lo = 1
     hi = 1
-    for i = 2:n
+    for i in 2:n
         p[i].y < p[lo].y && (lo = i)
         p[i].y > p[hi].y && (hi = i)
     end
@@ -308,7 +308,7 @@ function _build_plain_reflex_index(is_reflex::BitVector)
     r_prev = zeros(Int, n)
     r_next = zeros(Int, n)
     r_head = 0
-    @inbounds for i = n:-1:1
+    @inbounds for i in n:-1:1
         if is_reflex[i]
             r_next[i] = r_head
             r_head != 0 && (r_prev[r_head] = i)
@@ -379,7 +379,7 @@ end
 @inline function _init_ear_clip_ring(n::Int)
     prev_v = Vector{Int}(undef, n)
     next_v = Vector{Int}(undef, n)
-    @inbounds for i = 1:n
+    @inbounds for i in 1:n
         prev_v[i] = i == 1 ? n : i - 1
         next_v[i] = i == n ? 1 : i + 1
     end
@@ -444,7 +444,7 @@ function _check_distinct_vertices(kernel::AbstractKernel, vertices)
     else
         sort!(collect(1:n); alg = MergeSort, by = i -> (vertices[i][1], vertices[i][2]))
     end
-    for i = 1:(n-1)
+    for i in 1:(n-1)
         a = vertices[order[i]]
         b = vertices[order[i+1]]
         (a[1] == b[1] && a[2] == b[2]) && throw(
@@ -480,7 +480,7 @@ function _ear_clip_run!(st::_EarClipState)
     entry_ver = zeros(Int, n)
     vert_ver = ones(Int, n)
     verified = zeros(Int, n)
-    for i = 1:n
+    for i in 1:n
         if _is_ear_vertex(st, i)
             push!(ear_queue, i)
             entry_ver[i] = 1
@@ -564,7 +564,7 @@ function _ear_clip_with_index(make_index, poly, n::Int, kernel::AbstractKernel)
     prev_v, next_v, is_active = _init_ear_clip_ring(n)
     is_reflex = falses(n)
     reflex_cnt = 0
-    @inbounds for i = 1:n
+    @inbounds for i in 1:n
         if orient_sign(kernel, poly[prev_v[i]], poly[i], poly[next_v[i]]) <= 0
             is_reflex[i] = true
             reflex_cnt += 1

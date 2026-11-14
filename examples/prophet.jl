@@ -70,7 +70,7 @@ function clip_polygon_halfplane(
     out = Point2F[]
     nv = length(poly)
 
-    for i = 1:nv
+    for i in 1:nv
         A = poly[i]
         B = poly[mod1(i + 1, nv)]
         sA = dot(A - M, n)
@@ -138,12 +138,12 @@ function compute_voronoi_cells_periodic(pts::Vector{Point2F}, outer_box::Vector{
     cells = Vector{Vector{Point2F}}(undef, N)
     search_radius = max(0.12, 4.5 / sqrt(N))
 
-    for j = 1:N
+    for j in 1:N
         p_j = all_pts[j]
         poly = copy(outer_box)
 
         candidates = Int[]
-        for k = 1:length(all_pts)
+        for k in 1:length(all_pts)
             k == j && continue
             p_k = all_pts[k]
             if abs(p_k[1] - p_j[1]) <= search_radius &&
@@ -251,7 +251,7 @@ function polygon_area(poly::Vector{Point2F})
     nv = length(poly)
     nv < 3 && return 0.0
     s = 0.0
-    for i = 1:nv
+    for i in 1:nv
         p1 = poly[i]
         p2 = poly[mod1(i + 1, nv)]
         s += p1[1] * p2[2] - p2[1] * p1[2]
@@ -272,7 +272,7 @@ function compute_total_unique_edge_length(
     for cell in cells
         nv = length(cell)
         nv < 2 && continue
-        for i = 1:nv
+        for i in 1:nv
             p1 = cell[i]
             p2 = cell[mod1(i + 1, nv)]
             k1 = (round(Int, p1[1] / eps), round(Int, p1[2] / eps))
@@ -469,7 +469,7 @@ function render_voronoi_page!(
 
     # 6. Draw points in the middle square (if show_points is true)
     if show_points
-        for j = 1:N
+        for j in 1:N
             (highlight_k_star && j == k_star) && continue
             pj = pts[j]
             set_source_rgb(cr, 0.85, 0.15, 0.15)
@@ -626,7 +626,7 @@ function render_voronoi_vertex_page!(
     Cairo.stroke(cr)
 
     # 7. Draw sites as red dots
-    for j = 1:N10
+    for j in 1:N10
         pj = pts10[j]
         set_source_rgb(cr, 0.85, 0.15, 0.15)
         Cairo.new_path(cr)
@@ -664,7 +664,7 @@ function _render_mode1_content!(
     usable_h = ch - 2 * margin
     scale_factor = min(usable_w, usable_h) / 1.2
 
-    for i = 4:N
+    for i in 4:N
         page_num = i - 3
         prefix_pts = pts[1:i]
         prefix_cells = compute_voronoi_cells_periodic(prefix_pts, outer_box)
@@ -743,7 +743,7 @@ function generate_mode1(
         throw(ArgumentError("N must be at least 4 for Mode 1 (requested N = $N)"))
     end
 
-    pts = [point(rand(), rand()) for _ = 1:N]
+    pts = [point(rand(), rand()) for _ in 1:N]
     outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
 
     println("Precomputing final Voronoi diagram for N = $N points...")
@@ -831,7 +831,7 @@ function _render_mode2_content!(canvas, powers, seed, cw, ch, margin)
     last_k_star = 0
     for (page_idx, p) in enumerate(powers)
         N = 2^p
-        pts = [point(rand(), rand()) for _ = 1:N]
+        pts = [point(rand(), rand()) for _ in 1:N]
         cells = compute_voronoi_cells_periodic(pts, outer_box)
         areas = [polygon_area(c) for c in cells]
 
@@ -1314,7 +1314,7 @@ function generate_mode3(
         throw(ArgumentError("N must be at least 4 for Mode 3 (requested N = $N)"))
     end
 
-    pts = [point(rand(), rand()) for _ = 1:N]
+    pts = [point(rand(), rand()) for _ in 1:N]
     outer_box = [point(-0.1, -0.1), point(1.1, -0.1), point(1.1, 1.1), point(-0.1, 1.1)]
 
     # 1. Compute final Voronoi diagram for N points

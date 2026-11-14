@@ -18,7 +18,7 @@ Run a single comparison test and return (d_wspd, d_fst, t_wspd, t_fst).
 function run_comparison_test(n, ε, rng)
     # Generate points
     pts = Point{3,Float64}[]
-    for _ = 1:n
+    for _ in 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     ps = PntSeq(pts)
@@ -61,7 +61,7 @@ function (@main)(args)
     max_diff = 0.0
 
     @printf("Running %d tests...\n", num_tests)
-    for i = 1:num_tests
+    for i in 1:num_tests
         d1, d2, t1, t2 = run_comparison_test(n, ε, rng)
 
         total_t_wspd += t1

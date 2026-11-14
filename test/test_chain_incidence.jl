@@ -5,10 +5,10 @@ import BasicCompGeometry as CG
 
 @testset "Static RMQ" begin
     @test_throws BoundsError range_argmin(build_rmq(Int[]), 1, 1)
-    for backend in (:blocked, :sparse), n in (1, 2, 5, 17, 70), trial = 1:3
+    for backend in (:blocked, :sparse), n in (1, 2, 5, 17, 70), trial in 1:3
         keys = rand(MersenneTwister(n + trial), 1:4, n)
         idx = build_rmq(keys; backend)
-        for lo = 1:n, hi = lo:n
+        for lo in 1:n, hi in lo:n
             m = minimum(keys[lo:hi])
             @test range_argmin(idx, lo, hi) ==
                   findlast(==(m), keys[1:hi]) |> (i -> max(i, lo))
@@ -27,7 +27,7 @@ import BasicCompGeometry as CG
     big = rand(MersenneTwister(1), 1:50, 3000)
     idx = build_rmq(big)
     rng = MersenneTwister(2)
-    for _ = 1:2000
+    for _ in 1:2000
         lo = rand(rng, 1:3000)
         hi = rand(rng, lo:3000)
         m = minimum(@view big[lo:hi])
@@ -64,7 +64,7 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
     occ(P, i) = P[mod(i, length(P))+1]
     function scan(P, lo, hi)
         n = length(P)
-        vs = [(i, occ(P, i)) for i = lo:hi]
+        vs = [(i, occ(P, i)) for i in lo:hi]
         lm = vs[1]
         for q in vs
             (q[2][1], q[2][2]) <= (lm[2][1], lm[2][2]) && (lm = q)
@@ -74,10 +74,10 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
         lm, (xmin = minimum(xs), xmax = maximum(xs), ymin = minimum(ys), ymax = maximum(ys))
     end
     rng = MersenneTwister(7)
-    for n = 1:9, trial = 1:4
-        P = [(rand(rng, -2:2), rand(rng, -2:2) // rand(rng, 1:2)) for _ = 1:n]
+    for n in 1:9, trial in 1:4
+        P = [(rand(rng, -2:2), rand(rng, -2:2) // rand(rng, 1:2)) for _ in 1:n]
         idx = build_chain_index(P)
-        for lo = 0:n, hi = lo:n
+        for lo in 0:n, hi in lo:n
             w = chain_window(idx, lo, hi)
             lm, bb = scan(P, lo, hi)
             @test nedges(w) == hi - lo
@@ -119,7 +119,7 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
 
     # no per-query scans
     N = 20000
-    cv = CountingVec([(rand(rng, 1:100), rand(rng, 1:100)) for _ = 1:N], Ref(0))
+    cv = CountingVec([(rand(rng, 1:100), rand(rng, 1:100)) for _ in 1:N], Ref(0))
     idx = build_chain_index(cv)
     cv.reads[] = 0
     w = chain_window(idx, 3, N - 5)
@@ -128,13 +128,13 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
     @test cv.reads[] < 200
 
     # Concrete ChainIndex return type and zero per-query allocation inside a function
-    pts_typed = [(i, (i * 3) % 17) for i = 1:100]
+    pts_typed = [(i, (i * 3) % 17) for i in 1:100]
     @test isconcretetype(typeof(@inferred build_chain_index(pts_typed)))
     function _chain_query_loop(pts, reps)
         ci = build_chain_index(pts)
         win = chain_window(ci, 0, length(pts))
         acc = 0
-        for _ = 1:reps
+        for _ in 1:reps
             acc += CG.leftmost(win).occurrence
         end
         return acc
@@ -171,7 +171,7 @@ end
     @test_throws ArgumentError vertical_ray_segment((10.0, 0), 1, (0, 0), (1, 1))
     @test_throws ArgumentError vertical_ray_segment((10, 0.0), 1, (0, 0), (1, 1))
     # early span rejection avoids BigInt allocations on non-spanning segments
-    span_segs = [((i, 0), (i + 1, 2), i) for i = 1:1000]
+    span_segs = [((i, 0), (i + 1, 2), i) for i in 1:1000]
     _run_vc(s, q, d) = first_positive_vertical_contact(s, q, d)
     @test _run_vc(span_segs, (-10, -1), 1) === nothing
     @test (@allocated _run_vc(span_segs, (-10, -1), 1)) == 0
@@ -230,7 +230,7 @@ end
     @test_throws ArgumentError ccw((1, 0), (1, 1), (0, 0))
     @test ccw(CG.Point(1, 0), CG.Point(0, 1), CG.Point(1, 1))
     # scaling invariance, exhaustive on small grid
-    vs = [(x, y) for x = -2:2, y = -2:2 if (x, y) != (0, 0)]
+    vs = [(x, y) for x in -2:2, y in -2:2 if (x, y) != (0, 0)]
     for v in vs, u in vs, d in vs
         @test ccw(v, u, d) == ccw(3 .* v, 5 .* u, 7 .* d)
     end

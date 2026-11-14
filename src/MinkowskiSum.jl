@@ -29,7 +29,7 @@ function _has_all_ccw_turns(
     tol::Float64,
 ) where {R}
     k = length(pts)
-    for i = 1:k
+    for i in 1:k
         p = pts[i == 1 ? k : i - 1]
         q = pts[i]
         r = pts[i == k ? 1 : i + 1]
@@ -48,7 +48,7 @@ end
 
 function _lowest_left_index(pts::AbstractVector{Point{2,R}}) where {R}
     idx_min = 1
-    for i = 2:length(pts)
+    for i in 2:length(pts)
         p = pts[i]
         m = pts[idx_min]
         if p.y < m.y || (p.y == m.y && p.x < m.x)
@@ -68,7 +68,7 @@ function _edges_angle_monotone(
     has_prev = false
     nz_count = 0
     idx = idx_min
-    for _ = 1:k
+    for _ in 1:k
         nxt = idx == k ? 1 : idx + 1
         e = pts[nxt] - pts[idx]
         idx = nxt

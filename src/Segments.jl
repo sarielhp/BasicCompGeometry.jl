@@ -317,7 +317,7 @@ Return the sequence of directed segments `[Segment(v[i], v[i+1])]` connecting su
 """
 function polygon_segments(vertices)
     n = length(vertices)
-    return [Segment(vertices[i], vertices[mod1(i + 1, n)]) for i = 1:n]
+    return [Segment(vertices[i], vertices[mod1(i + 1, n)]) for i in 1:n]
 end
 
 """

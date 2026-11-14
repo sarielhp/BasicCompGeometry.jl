@@ -44,13 +44,13 @@ using BasicCompGeometry
         @test lower == [p[1], p[2], p[3], p[4]]
 
         # Both chains are strictly increasing in x
-        @test all(upper[i].x < upper[i+1].x for i = 1:(length(upper)-1))
-        @test all(lower[i].x < lower[i+1].x for i = 1:(length(lower)-1))
+        @test all(upper[i].x < upper[i+1].x for i in 1:(length(upper)-1))
+        @test all(lower[i].x < lower[i+1].x for i in 1:(length(lower)-1))
 
         # Merged chain has length k
         merged = merge_chains(upper, lower)
         @test length(merged) == length(p)
-        @test all(merged[i].x < merged[i+1].x for i = 1:(length(merged)-1))
+        @test all(merged[i].x < merged[i+1].x for i in 1:(length(merged)-1))
     end
 
     @testset "Triangulation correctness across shapes" begin
@@ -126,8 +126,8 @@ using BasicCompGeometry
 
             # 4. No proper crossings among diagonals
             diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-            for i = 1:(length(diag_segs)-1)
-                for j = (i+1):length(diag_segs)
+            for i in 1:(length(diag_segs)-1)
+                for j in (i+1):length(diag_segs)
                     @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = exact)
                 end
             end
@@ -154,7 +154,7 @@ using BasicCompGeometry
                 end
             end
             # Boundary edges appear in exactly 1 triangle; internal diagonals appear in exactly 2 triangles
-            for i = 1:k
+            for i in 1:k
                 b_edge = i < mod1(i + 1, k) ? (i, mod1(i + 1, k)) : (mod1(i + 1, k), i)
                 @test get(edge_counts, b_edge, 0) == 1
             end
@@ -360,8 +360,8 @@ using BasicCompGeometry
 
             # 4. No proper crossings among diagonals
             diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-            for i = 1:(length(diag_segs)-1)
-                for j = (i+1):length(diag_segs)
+            for i in 1:(length(diag_segs)-1)
+                for j in (i+1):length(diag_segs)
                     @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = exact)
                 end
             end
@@ -387,7 +387,7 @@ using BasicCompGeometry
                     edge_counts[edge] = get(edge_counts, edge, 0) + 1
                 end
             end
-            for i = 1:k
+            for i in 1:k
                 b_edge = i < mod1(i + 1, k) ? (i, mod1(i + 1, k)) : (mod1(i + 1, k), i)
                 @test get(edge_counts, b_edge, 0) == 1
             end
@@ -402,7 +402,7 @@ using BasicCompGeometry
             point(
                 cos(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
                 sin(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
-            ) for i = 0:(n-1)
+            ) for i in 0:(n-1)
         ]
         res100 = triangulate_polygon(star100)
         @test res100.diagonals == triangulate_sweep(star100).diagonals
@@ -562,8 +562,8 @@ using BasicCompGeometry
             end
 
             diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-            for i = 1:(length(diag_segs)-1)
-                for j = (i+1):length(diag_segs)
+            for i in 1:(length(diag_segs)-1)
+                for j in (i+1):length(diag_segs)
                     @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = exact)
                 end
             end
@@ -593,7 +593,7 @@ using BasicCompGeometry
             point(
                 cos(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
                 sin(2 * pi * i / n) * (i % 2 == 0 ? 10.0 : 4.0),
-            ) for i = 0:(n-1)
+            ) for i in 0:(n-1)
         ]
         res_seidel100 = triangulate_seidel(star100)
         @test length(res_seidel100.diagonals) == n - 3
@@ -611,10 +611,10 @@ using BasicCompGeometry
                 @test length(res.diagonals) == m - 3
                 @test length(res.triangles) == m - 2
                 @test length(unique(res.diagonals)) == m - 3
-                edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i = 1:m]
+                edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i in 1:m]
                 diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-                for i = 1:length(diag_segs)
-                    for j = (i+1):length(diag_segs)
+                for i in 1:length(diag_segs)
+                    for j in (i+1):length(diag_segs)
                         @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = kernel)
                     end
                     for e in edges
@@ -701,7 +701,7 @@ using BasicCompGeometry
                 point(1//1, 2//1),
                 point(1//2, 1//1),
             ]
-            for seed = 1:5
+            for seed in 1:5
                 _verify_trap_invariants(collinear_tri, Xoshiro(seed); kernel = exact)
                 _verify_seidel_result(
                     collinear_tri,
@@ -713,7 +713,7 @@ using BasicCompGeometry
             # Spiral polygon
             outer = Point2F[]
             inner = Point2F[]
-            for i = 0:32
+            for i in 0:32
                 θ = 2 * pi * i / 8
                 r_out = 2.0 + 0.5 * i
                 r_in = 1.0 + 0.5 * i
@@ -721,7 +721,7 @@ using BasicCompGeometry
                 push!(inner, point(r_in * cos(θ), r_in * sin(θ)))
             end
             spiral = vcat(outer, reverse(inner))
-            for seed = 1:5
+            for seed in 1:5
                 _verify_trap_invariants(spiral, Xoshiro(seed))
                 _verify_seidel_result(
                     spiral,
@@ -732,7 +732,7 @@ using BasicCompGeometry
             # Orthogonal snake with many shared x and y coordinates
             snake = [point(0.0, 0.0), point(10.0, 0.0)]
             y_cur = 0.0
-            for _ = 1:12
+            for _ in 1:12
                 push!(snake, point(10.0, y_cur + 1.0))
                 push!(snake, point(2.0, y_cur + 1.0))
                 push!(snake, point(2.0, y_cur + 2.0))
@@ -763,7 +763,7 @@ using BasicCompGeometry
 
             function _double_comb(m_teeth::Int)
                 pts = Point2F[point(0.0, 0.0), point(20.0, 0.0)]
-                for i = 1:m_teeth
+                for i in 1:m_teeth
                     push!(pts, point(20.0, 2.0 * i - 1.0), point(12.0, 2.0 * i))
                 end
                 push!(
@@ -771,7 +771,7 @@ using BasicCompGeometry
                     point(20.0, 2.0 * m_teeth + 1.0),
                     point(0.0, 2.0 * m_teeth + 1.0),
                 )
-                for i = m_teeth:-1:1
+                for i in m_teeth:-1:1
                     push!(pts, point(0.0, 2.0 * i + 0.5), point(8.0, 2.0 * i - 0.5))
                 end
                 return pts
@@ -801,7 +801,7 @@ using BasicCompGeometry
             # Ear clipping with reflex-vertex list stays O(n * (r + 1)) rather than O(n^2)
             function _non_monotone_few_reflex(n::Int)
                 pts = Point2F[]
-                for i = 0:(n-3)
+                for i in 0:(n-3)
                     th = 0.2 + 1.8 * pi * i / (n - 2)
                     push!(pts, point(cos(th), sin(th)))
                 end
@@ -818,7 +818,7 @@ using BasicCompGeometry
             end
             # r = 0 convex polygon with vertical edge also stays linear O(n)
             poly_vert_conv = Point2F[point(0.0, 1.0), point(0.0, -1.0)]
-            for i = 1:1998
+            for i in 1:1998
                 th = -pi / 2 + pi * i / 1999
                 push!(poly_vert_conv, point(cos(th), sin(th)))
             end
@@ -881,7 +881,7 @@ using BasicCompGeometry
             m = 64
             pts = Point2F[]
             next_v = collect(1:2m)
-            for i = 1:m
+            for i in 1:m
                 push!(pts, point(Float64(i) * 1e-3, Float64(i)))
                 push!(pts, point(100.0 + Float64(i) * 1e-3, Float64(i)))
                 next_v[2i-1] = 2i
@@ -937,10 +937,10 @@ using BasicCompGeometry
                 @test d > 1 && d < m - 1
             end
 
-            edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i = 1:m]
+            edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i in 1:m]
             diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
-            for i = 1:length(diag_segs)
-                for j = (i+1):length(diag_segs)
+            for i in 1:length(diag_segs)
+                for j in (i+1):length(diag_segs)
                     @test !proper_crossing(diag_segs[i], diag_segs[j]; kernel = kernel)
                 end
                 for e in edges
@@ -956,7 +956,7 @@ using BasicCompGeometry
                     edge_counts[edge] = get(edge_counts, edge, 0) + 1
                 end
             end
-            for i = 1:m
+            for i in 1:m
                 b_edge = i < mod1(i + 1, m) ? (i, mod1(i + 1, m)) : (mod1(i + 1, m), i)
                 @test get(edge_counts, b_edge, 0) == 1
             end
@@ -1052,7 +1052,7 @@ using BasicCompGeometry
 
         outer = Point2F[]
         inner = Point2F[]
-        for i = 0:32
+        for i in 0:32
             θ = 2 * pi * i / 8
             r_out = 2.0 + 0.5 * i
             r_in = 1.0 + 0.5 * i
@@ -1064,7 +1064,7 @@ using BasicCompGeometry
 
         snake = [point(0.0, 0.0), point(10.0, 0.0)]
         y_cur = 0.0
-        for _ = 1:12
+        for _ in 1:12
             push!(snake, point(10.0, y_cur + 1.0))
             push!(snake, point(2.0, y_cur + 1.0))
             push!(snake, point(2.0, y_cur + 2.0))
@@ -1091,7 +1091,7 @@ using BasicCompGeometry
 
         function _horizontal_comb(m_prongs::Int)
             pts = Point2F[point(0.0, 0.0)]
-            for i = 1:m_prongs
+            for i in 1:m_prongs
                 y_bot = 2.0 * (i - 1)
                 x_notch = 1.0 + (i - 1) / (m_prongs + 1)
                 push!(pts, point(10.0, y_bot))
@@ -1134,13 +1134,13 @@ using BasicCompGeometry
         @test length(unique(res.diagonals)) == m - 3
         @test all(d -> 1 <= d[1] < d[2] <= m && 1 < abs(d[1] - d[2]) < m - 1, res.diagonals)
 
-        edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i = 1:m]
+        edges = [Segment(poly[i], poly[mod1(i + 1, m)]) for i in 1:m]
         diag_segs = [Segment(poly[u], poly[v]) for (u, v) in res.diagonals]
         no_diag_crossing = true
         no_edge_crossing = true
-        for i = 1:length(diag_segs)
+        for i in 1:length(diag_segs)
             di = diag_segs[i]
-            for j = (i+1):length(diag_segs)
+            for j in (i+1):length(diag_segs)
                 if proper_crossing(di, diag_segs[j]; kernel = kernel)
                     no_diag_crossing = false
                     break
@@ -1217,7 +1217,7 @@ using BasicCompGeometry
 
         @testset "Morton BIGMIN/LITMAX and _ZOrderReflexIndex invariants" begin
             rng = Xoshiro(9182)
-            for _ = 1:400
+            for _ in 1:400
                 x0 = rand(rng, UInt32(0):UInt32(65535))
                 x1 = rand(rng, UInt32(0):UInt32(65535))
                 y0 = rand(rng, UInt32(0):UInt32(65535))
@@ -1270,9 +1270,9 @@ using BasicCompGeometry
             # Verify _ZOrderReflexIndex bucket, bitmask, and doubly-linked list invariants
             n_idx = 200
             pts_idx =
-                [point(cos(2pi * i / n_idx), sin(2pi * i / n_idx)) for i = 0:(n_idx-1)]
+                [point(cos(2pi * i / n_idx), sin(2pi * i / n_idx)) for i in 0:(n_idx-1)]
             refl = falses(n_idx)
-            for i = 1:3:n_idx
+            for i in 1:3:n_idx
                 refl[i] = true
             end
             ok_b, min_x, min_y, inv_x, inv_y = BasicCompGeometry._compute_z_bounds(pts_idx)
@@ -1314,7 +1314,7 @@ using BasicCompGeometry
                         @test zidx.b_first[b] == v
                     end
                 end
-                for b = 1:length(zidx.b_first)
+                for b in 1:length(zidx.b_first)
                     w = ((b - 1) >>> 6) + 1
                     bit = (zidx.l0[w] >>> ((b - 1) & 63)) & UInt64(1)
                     if b in seen_buckets
@@ -1385,7 +1385,7 @@ using BasicCompGeometry
 
             # Large exact comb (> 16 reflex vertices -> Z-order index active)
             exact_comb = Point{2,Rational{BigInt}}[]
-            for i = 1:25
+            for i in 1:25
                 y0 = Rational{BigInt}(2 * (i - 1))
                 push!(exact_comb, point(big(10) // 1, y0))
                 push!(exact_comb, point(big(10) // 1, y0 + 1))
@@ -1424,7 +1424,7 @@ using BasicCompGeometry
         @testset "Near-linear practical performance vs ear_cut" begin
             # 1. r = 0 convex polygon stays O(n)
             poly_conv =
-                Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i = 0:1999]
+                Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
             kc = _EarCutZOrderCountKernel(FloatingKernel(), 0)
             res_conv =
                 triangulate_polygon(poly_conv; kernel = kc, algorithm = :ear_cut_z_order)
@@ -1436,7 +1436,7 @@ using BasicCompGeometry
                 point(
                     (i == 1000 || i == 3000 ? 0.995 : 1.0) * cos(2pi * i / 4000),
                     (i == 1000 || i == 3000 ? 0.995 : 1.0) * sin(2pi * i / 4000),
-                ) for i = 0:3999
+                ) for i in 0:3999
             ]
             klr = _EarCutZOrderCountKernel(FloatingKernel(), 0)
             res_lr =
@@ -1447,7 +1447,7 @@ using BasicCompGeometry
             # 3. High-reflex non-monotone horizontal comb (n = 1204 and n = 4804)
             function _hcomb(m_prongs::Int)
                 pts = Point2F[point(0.0, 0.0)]
-                for i = 1:m_prongs
+                for i in 1:m_prongs
                     yb = 2.0 * (i - 1)
                     xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
                     push!(
@@ -1498,14 +1498,14 @@ using BasicCompGeometry
             star = [
                 let r = iseven(i) ? 10.0 : 1.5 + 1.5 * rand(rng_s)
                     point(r * cos(2pi * i / 1000), r * sin(2pi * i / 1000))
-                end for i = 0:999
+                end for i in 0:999
             ]
             spiral = Point2F[]
-            for k = 0:512
+            for k in 0:512
                 r = 1.0 + 0.5 * k / 32
                 push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
             end
-            for k = 512:-1:0
+            for k in 512:-1:0
                 r = 0.7 + 0.5 * k / 32
                 push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
             end
@@ -1605,7 +1605,7 @@ using BasicCompGeometry
                 )
 
                 exact_comb = Point{2,Rational{BigInt}}[]
-                for i = 1:25
+                for i in 1:25
                     y0 = Rational{BigInt}(2 * (i - 1))
                     push!(exact_comb, point(big(10) // 1, y0))
                     push!(exact_comb, point(big(10) // 1, y0 + 1))
@@ -1635,7 +1635,7 @@ using BasicCompGeometry
 
                 if alg_sym == :ear_cut_u_kd_tree
                     int_comb = Point{2,Int}[point(0, 0)]
-                    for i = 1:30
+                    for i in 1:30
                         y0 = 10 * (i - 1)
                         xn = 2 + (i % 4)
                         push!(
@@ -1662,7 +1662,7 @@ using BasicCompGeometry
 
             @testset "Subquadratic practical performance vs ear_cut" begin
                 poly_conv =
-                    Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i = 0:1999]
+                    Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
                 kc = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
                 res_conv = triangulate_polygon(poly_conv; kernel = kc, algorithm = alg_sym)
                 @test length(res_conv.triangles) == length(poly_conv) - 2
@@ -1672,7 +1672,7 @@ using BasicCompGeometry
                     point(
                         (i == 1000 || i == 3000 ? 0.995 : 1.0) * cos(2pi * i / 4000),
                         (i == 1000 || i == 3000 ? 0.995 : 1.0) * sin(2pi * i / 4000),
-                    ) for i = 0:3999
+                    ) for i in 0:3999
                 ]
                 klr = _EarCutKdTreeCountKernel(FloatingKernel(), 0)
                 res_lr = triangulate_polygon(poly_lowr; kernel = klr, algorithm = alg_sym)
@@ -1681,7 +1681,7 @@ using BasicCompGeometry
 
                 function _hcomb_kd(m_prongs::Int)
                     pts = Point2F[point(0.0, 0.0)]
-                    for i = 1:m_prongs
+                    for i in 1:m_prongs
                         yb = 2.0 * (i - 1)
                         xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
                         push!(
@@ -1725,14 +1725,14 @@ using BasicCompGeometry
                 star = [
                     let r = iseven(i) ? 10.0 : 1.5 + 1.5 * rand(rng_s)
                         point(r * cos(2pi * i / 1000), r * sin(2pi * i / 1000))
-                    end for i = 0:999
+                    end for i in 0:999
                 ]
                 spiral = Point2F[]
-                for k = 0:512
+                for k in 0:512
                     r = 1.0 + 0.5 * k / 32
                     push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
                 end
-                for k = 512:-1:0
+                for k in 512:-1:0
                     r = 0.7 + 0.5 * k / 32
                     push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
                 end
@@ -1744,7 +1744,7 @@ using BasicCompGeometry
                             1.1 * cos(31 * th) +
                             0.6 * sin(73 * th)
                         point(r * cos(th), r * sin(th))
-                    end for i = 0:1999
+                    end for i in 0:1999
                 ]
                 _verify_triangulation_result(
                     star,
@@ -1889,7 +1889,7 @@ using BasicCompGeometry
         end
         function _simple(P)
             m = length(P)
-            for i = 1:m, j = (i+1):m
+            for i in 1:m, j in (i+1):m
                 a, b, c, d = P[i], P[mod1(i + 1, m)], P[j], P[mod1(j + 1, m)]
                 if j == i + 1
                     (_onseg(c, d, a) || _onseg(a, b, d)) && return false
@@ -1903,14 +1903,14 @@ using BasicCompGeometry
         end
         function _rand_simple_polygon(rng, n, G)
             P = unique([
-                point(Float64(rand(rng, 0:G)), Float64(rand(rng, 0:G))) for _ = 1:n
+                point(Float64(rand(rng, 0:G)), Float64(rand(rng, 0:G))) for _ in 1:n
             ])
             length(P) < 3 && return nothing
             shuffle!(rng, P)
             m = length(P)
-            for _ = 1:500  # 2-opt untangling
+            for _ in 1:500  # 2-opt untangling
                 changed = false
-                for i = 1:m, j = (i+2):m
+                for i in 1:m, j in (i+2):m
                     (i == 1 && j == m) && continue
                     if _meet(P[i], P[i+1], P[j], P[mod1(j + 1, m)])
                         reverse!(P, i + 1, j)
@@ -1966,9 +1966,9 @@ using BasicCompGeometry
         # Finding 1 & 2: Stack buffer reuse and direct CCW emission in triangulate_monotone
         z = vcat(
             [point(0.0, 0.0)],
-            [point(2.0 * i - 1.0, 1.0) for i = 1:1000],
+            [point(2.0 * i - 1.0, 1.0) for i in 1:1000],
             [point(2001.0, 0.0)],
-            [point(2.0 * i, -1.0) for i = 1000:-1:1],
+            [point(2.0 * i, -1.0) for i in 1000:-1:1],
         )
         res_float = triangulate_monotone(z; kernel = FloatingKernel())
         @test length(res_float.triangles) == length(z) - 2

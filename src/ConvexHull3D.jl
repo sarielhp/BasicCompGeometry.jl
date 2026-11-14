@@ -166,11 +166,11 @@ function convex_hull_3d(pnts_in::Vector{Point3F})
         claimed[i] = true
     end
 
-    unclaimed = [i for i = 1:n_in if !claimed[i]]
+    unclaimed = [i for i in 1:n_in if !claimed[i]]
     shuffle!(unclaimed)
 
     # Initial bipartite conflict graph: face -> visible points and point -> visible faces.
-    point_conflicts = [Int[] for _ = 1:n_in]
+    point_conflicts = [Int[] for _ in 1:n_in]
     for (f_idx, f) in enumerate(faces)
         for p_idx in unclaimed
             if is_visible(f, pnts_in[p_idx])

@@ -28,7 +28,7 @@ function _compute_z_bounds(vertices)
     max_x = min_x
     min_y = Float64(p1.y)
     max_y = min_y
-    @inbounds for i = 2:length(vertices)
+    @inbounds for i in 2:length(vertices)
         p = vertices[i]
         x = Float64(p.x)
         y = Float64(p.y)
@@ -140,7 +140,7 @@ end
 function _morton_bigmin(z::UInt32, lo::UInt32, hi::UInt32)::Tuple{Bool,UInt32}
     res = UInt32(0)
     found = false
-    for k = 31:-1:0
+    for k in 31:-1:0
         axis = isodd(k) ? _MORTON_Y_MASK : _MORTON_X_MASK
         mask = UInt32(1) << k
         low_both = mask - UInt32(1)
@@ -167,7 +167,7 @@ end
 function _morton_litmax(z::UInt32, lo::UInt32, hi::UInt32)::Tuple{Bool,UInt32}
     res = UInt32(0)
     found = false
-    for k = 31:-1:0
+    for k in 31:-1:0
         axis = isodd(k) ? _MORTON_Y_MASK : _MORTON_X_MASK
         mask = UInt32(1) << k
         low_both = mask - UInt32(1)
@@ -250,7 +250,7 @@ function _build_zorder_reflex_index(
     z_code = Vector{UInt32}(undef, n)
     packed = Vector{UInt64}(undef, reflex_cnt)
     k = 0
-    @inbounds for i = 1:n
+    @inbounds for i in 1:n
         p = vertices[i]
         ix = _quantize_coord(Float64(p.x), min_x, inv_x)
         iy = _quantize_coord(Float64(p.y), min_y, inv_y)
@@ -274,7 +274,7 @@ function _build_zorder_reflex_index(
 
     rz_head = 0
     rz_tail = 0
-    @inbounds for pos = 1:reflex_cnt
+    @inbounds for pos in 1:reflex_cnt
         v = Int(packed[pos] & UInt64(0xffffffff))
         in_rz[v] = true
         rz_prev[v] = rz_tail

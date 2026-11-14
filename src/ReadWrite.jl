@@ -117,7 +117,7 @@ function _write_bin(filename::String, vecs::Matrix{T}) where {T<:Union{Float32,I
         r = 1
         while r <= nvecs
             count = min(chunk_rows, nvecs - r + 1)
-            @inbounds for j = 1:dim, i = 1:count
+            @inbounds for j in 1:dim, i in 1:count
                 buf[j, i] = vecs[r+i-1, j]
             end
             write(f, @view(buf[:, 1:count]))
@@ -184,7 +184,7 @@ function read_fvecs(filename::String)
         num_vectors = div(file_size_bytes, vec_record_size_bytes)
         data = zeros(Float32, d, num_vectors)
 
-        for i = 1:num_vectors
+        for i in 1:num_vectors
             current_d = read(io, Int32)
             if current_d != d
                 close(io)
@@ -227,7 +227,7 @@ function _parse_point(text::AbstractString, ::Val{D}, raw_line::AbstractString) 
     buf = MVector{D,Float64}(undef)
     idx = firstindex(text)
     last_idx = lastindex(text)
-    @inbounds for i = 1:D
+    @inbounds for i in 1:D
         buf[i], idx = _parse_next_float(text, idx, last_idx, D, raw_line)
     end
     return Point{D,Float64}(buf)

@@ -40,7 +40,7 @@ using LinearAlgebra
         data = rand(Float32, dim, nvecs)
 
         open(filename, "w") do io
-            for i = 1:nvecs
+            for i in 1:nvecs
                 write(io, dim)
                 write(io, data[:, i])
             end

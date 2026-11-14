@@ -12,7 +12,7 @@ using Random
         tri = [point(0.0, 0.0), point(2.0, 0.0), point(1.0, 2.0)]
         @test is_convex(tri)
 
-        hex = [point(cos(2π * k / 6), sin(2π * k / 6)) for k = 0:5]
+        hex = [point(cos(2π * k / 6), sin(2π * k / 6)) for k in 0:5]
         @test is_convex(hex)
 
         # Collinear intermediate vertices along an edge
@@ -59,7 +59,7 @@ using Random
         @test !is_convex(u_shape)
 
         # Self-intersecting star pentagram (all turns left, but wraps around twice: 4π)
-        star5_angles = [2π * (2k % 5) / 5 for k = 0:4]
+        star5_angles = [2π * (2k % 5) / 5 for k in 0:4]
         star5 = [point(cos(a), sin(a)) for a in star5_angles]
         @test !is_convex(star5)
 
@@ -251,11 +251,11 @@ using Random
 
     @testset "Randomized validation against convex_hull of pairwise sums" begin
         rng = Xoshiro(12345)
-        for _ = 1:100
+        for _ in 1:100
             n = rand(rng, 3:15)
             m = rand(rng, 3:15)
-            pts1 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ = 1:n]
-            pts2 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ = 1:m]
+            pts1 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ in 1:n]
+            pts2 = [point(rand(rng) * 50.0, rand(rng) * 50.0) for _ in 1:m]
 
             poly1 = collect(convex_hull(pts1))
             poly2 = collect(convex_hull(pts2))
@@ -323,7 +323,7 @@ using Random
             point(
                 (iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40),
                 (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40),
-            ) for i = 0:39
+            ) for i in 0:39
         ]
         d_star = @inferred minkowski_sum_decomposition(star40, star40)
         @test length(d_star) == 38 * 38

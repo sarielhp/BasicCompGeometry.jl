@@ -1,17 +1,17 @@
 include("lib.jl")
 function randpoly(rng, n, G)
-    for _ = 1:500
+    for _ in 1:500
         pts = unique([
             point(Rational{BigInt}(rand(rng, 0:G)), Rational{BigInt}(rand(rng, 0:G)))
-            for _ = 1:n
+            for _ in 1:n
         ])
         length(pts)<3 && continue
         P=copy(pts)
         shuffle!(rng, P)
         m=length(P)
-        for it = 1:2000
+        for it in 1:2000
             changed=false
-            for i = 1:m, j = (i+2):m
+            for i in 1:m, j in (i+2):m
                 (i==1 && j==m) && continue
                 if seg_intersect(P[i], P[i+1], P[j], P[mod1(j+1, m)])
                     reverse!(P, i+1, j)
@@ -33,7 +33,7 @@ tried=0
 algs =
     length(ARGS) >= 3 ? Tuple(Symbol.(split(ARGS[3], ","))) :
     (:sweep, :seidel, :ear_cut, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
-for trial = 1:parse(Int, ARGS[2])
+for trial in 1:parse(Int, ARGS[2])
     n=rand(rng, 4:60)
     G=rand(rng, [4, 8, 15, 30])
     P=randpoly(rng, n, G)

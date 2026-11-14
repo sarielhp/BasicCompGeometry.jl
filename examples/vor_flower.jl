@@ -59,7 +59,7 @@ function clip_polygon_halfplane(
     out = Point2F[]
     nv = length(poly)
 
-    for i = 1:nv
+    for i in 1:nv
         A = poly[i]
         B = poly[mod1(i + 1, nv)]
         sA = dot(A - M, n)
@@ -94,10 +94,10 @@ Compute the Voronoi cell for each point in `pts`, restricted to `bbox_poly`.
 function compute_voronoi_cells(pts::Vector{Point2F}, bbox_poly::Vector{Point2F})
     N = length(pts)
     cells = Vector{Vector{Point2F}}(undef, N)
-    for i = 1:N
+    for i in 1:N
         p_i = pts[i]
         poly = copy(bbox_poly)
-        other_indices = [j for j = 1:N if j != i]
+        other_indices = [j for j in 1:N if j != i]
         sort!(other_indices, by = j -> dist_sq(p_i, pts[j]))
         for j in other_indices
             p_j = pts[j]
@@ -218,11 +218,11 @@ function generate_flower_pdf(output_pdf::String = "output/flower.pdf")
 
     # 1. Construct Site Set T
     k = 10
-    angles = [2 * pi * j / k for j = 0:(k-1)]
+    angles = [2 * pi * j / k for j in 0:(k-1)]
     S0 = [point(cos(a), sin(a)) for a in angles]
 
     T = Point2F[point(0.0, 0.0)]
-    for i = 0:10
+    for i in 0:10
         scale = (1.1)^i
         for p in S0
             push!(T, point(scale * p[1], scale * p[2]))
@@ -592,7 +592,7 @@ function generate_flower_pdf(output_pdf::String = "output/flower.pdf")
     cb_w = view_radius * 0.65
     cb_h = view_radius * 0.06
     n_bars = 50
-    for b = 0:(n_bars-1)
+    for b in 0:(n_bars-1)
         bx = cb_x + (b / n_bars) * cb_w
         bw = cb_w / n_bars + 1e-4
         bt = b / (n_bars - 1)
@@ -627,7 +627,7 @@ function generate_flower_pdf(output_pdf::String = "output/flower.pdf")
     Cairo.stroke(cr)
 
     # Redraw colorbar inside badge
-    for b = 0:(n_bars-1)
+    for b in 0:(n_bars-1)
         bx = cb_screen_x + (b / n_bars) * cb_screen_w
         bw = cb_screen_w / n_bars + 0.5
         bt = b / (n_bars - 1)

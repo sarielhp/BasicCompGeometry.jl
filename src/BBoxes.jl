@@ -125,7 +125,7 @@ function Base.show(io::IO, bb::BBox{D,T}) where {D,T}
     if !bb.f_init
         print(io, "BBox{$D,$T} (uninitialized)")
     else
-        for i = 1:D
+        for i in 1:D
             print(io, " [[", bb.mini[i], "..", bb.maxi[i], "]] ")
         end
     end
@@ -184,7 +184,7 @@ Returns 0 if the point is inside the box.
 function dist_sq(p::Point{D,T1}, bb::BBox{D,T2}) where {D,T1,T2}
     !bb.f_init && return zero(promote_type(T1, T2))
     s = zero(promote_type(T1, T2))
-    for i = 1:D
+    for i in 1:D
         d_i = if p[i] > bb.maxi[i]
             p[i] - bb.maxi[i]
         elseif p[i] < bb.mini[i]
@@ -214,7 +214,7 @@ Returns 0 if the boxes intersect.
 function dist(b::BBox{D,T}, c::BBox{D,T}) where {D,T}
     (!b.f_init || !c.f_init) && return zero(T)
     s = zero(T)
-    for i = 1:D
+    for i in 1:D
         # Minimum distance in dimension i
         d_i = if b.mini[i] > c.maxi[i]
             b.mini[i] - c.maxi[i]
@@ -238,7 +238,7 @@ function max_dist(b::BBox{D,T}, c::BBox{D,T}) where {D,T}
     !b.f_init && return zero(T)
     !c.f_init && return zero(T)
     s = zero(T)
-    for i = 1:D
+    for i in 1:D
         d_i = max(abs(b.maxi[i] - c.mini[i]), abs(c.maxi[i] - b.mini[i]))
         s += d_i^2
     end
@@ -267,7 +267,7 @@ function max_dist_subspace(b::BBox{D,T}, c::BBox{D,T}, dir::Point{D,T}) where {D
         BBox{D,T}(true, MVector{D,T}(b.mini .- c.maxi), MVector{D,T}(b.maxi .- c.mini))
 
     max_d_sq = 0.0
-    for i = 0:(2^D-1)
+    for i in 0:(2^D-1)
         d = corner(diff_box, i)
 
         proj = dot(d, dir)
@@ -361,7 +361,7 @@ Return `true` if the point `p` is contained within or on the boundary of boundin
 """
 function is_inside(p::Point{D,S}, bb::BBox{D,T}) where {D,T,S}
     !bb.f_init && return false
-    @inbounds for i = 1:D
+    @inbounds for i in 1:D
         if p[i] < bb.mini[i] || p[i] > bb.maxi[i]
             return false
         end

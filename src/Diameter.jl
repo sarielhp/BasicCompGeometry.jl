@@ -8,8 +8,8 @@ function exact_diameter(P::AbsPntSeq{D,T}) where {D,T}
     n = length(P)
     n <= 1 && return 0.0
     curr = 0.0
-    for i = 1:(n-1)
-        for j = (i+1):n
+    for i in 1:(n-1)
+        for j in (i+1):n
             curr = max(curr, dist(P[i], P[j]))
         end
     end
@@ -94,8 +94,8 @@ function exact_diameter_subspace(P::AbsPntSeq{D,T}, dir::Point{D,T}) where {D,T}
     n = length(P)
     n <= 1 && return 0.0
     curr = 0.0
-    for i = 1:(n-1)
-        for j = (i+1):n
+    for i in 1:(n-1)
+        for j in (i+1):n
             curr = max(curr, dist_subspace(P[i], P[j], dir))
         end
     end

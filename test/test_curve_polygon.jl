@@ -113,10 +113,10 @@ end
     function compute_voronoi_curved_polygon(p::Point{2,T}) where {T}
         lines = square_boundary_lines()
         n = 4
-        parabolas = [Parabola(p, lines[i]) for i = 1:n]
+        parabolas = [Parabola(p, lines[i]) for i in 1:n]
         interior = point(T(0.5), T(0.5))
         normals = Vector{Point{2,T}}(undef, n)
-        for i = 1:n
+        for i in 1:n
             ni = Point{2,T}(-lines[i].u[2], lines[i].u[1])
             ni = ni / norm(ni)
             if dot(interior - lines[i].p, ni) < 0
@@ -125,8 +125,8 @@ end
             normals[i] = ni
         end
         candidates = Point{2,T}[]
-        for i = 1:n
-            for j = (i+1):n
+        for i in 1:n
+            for j in (i+1):n
                 nd = normals[i] - normals[j]
                 if norm(nd) < 1e-12
                     continue
@@ -146,7 +146,7 @@ end
                 for (pt, _) in pts
                     d_p = dist(pt, p)
                     ok = true
-                    for kk = 1:n
+                    for kk in 1:n
                         sd = dot(pt - lines[kk].p, normals[kk])
                         if sd < d_p - 1e-8
                             ok = false
@@ -169,13 +169,13 @@ end
 
         m = length(unique_pts)
         arcs = ParabolaArc{T}[]
-        for idx = 1:m
+        for idx in 1:m
             p_cur = unique_pts[idx]
             p_next = unique_pts[mod1(idx + 1, m)]
             mid = (p_cur + p_next) / 2
             best_k = 0
             best_diff = Inf
-            for k = 1:n
+            for k in 1:n
                 d = abs(dist(mid, p) - BasicCompGeometry.distance(mid, lines[k]))
                 if d < best_diff
                     best_diff = d
@@ -195,7 +195,7 @@ end
 
     Random.seed!(42)
     n_samples = 100_000
-    pts = [point(rand(), rand()) for _ = 1:n_samples]
+    pts = [point(rand(), rand()) for _ in 1:n_samples]
 
     # Verify that for all 100,000 points, distance test and is_inside test are identical
     mismatches = 0
@@ -219,7 +219,7 @@ end
 
 @testset "CurvePolygon2D & point_on type stability and zero-allocations" begin
     curves = BasicCompGeometry.Curve2DF[]
-    for _ = 1:50
+    for _ in 1:50
         push!(curves, Segment(Point2F(0.0, 0.0), Point2F(1.0, 0.0)))
         push!(curves, CircleArc(Point2F(0.0, 0.0), 1.0, 0.0, pi / 2))
     end

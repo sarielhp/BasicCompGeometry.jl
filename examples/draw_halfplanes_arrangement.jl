@@ -65,7 +65,7 @@ function viridis_color(t::Real)
         (0.75, 0.369, 0.789, 0.383),
         (1.00, 0.993, 0.906, 0.144),
     ]
-    for i = 1:(length(pts)-1)
+    for i in 1:(length(pts)-1)
         t0, r0, g0, b0 = pts[i]
         t1, r1, g1, b1 = pts[i+1]
         if t_clamped <= t1
@@ -144,7 +144,7 @@ function main()
             source_desc = "Loaded $(length(hps)) halfplanes from $(default_candidate)"
         else
             Random.seed!(42)
-            hps = [rand_halfplane() for _ = 1:opts.n_rand]
+            hps = [rand_halfplane() for _ in 1:opts.n_rand]
             source_desc = "Generated $(length(hps)) random halfplanes (seed=42)"
         end
     end
@@ -190,7 +190,7 @@ function main()
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face with a distinct pleasant color
-        for i = 1:num_faces
+        for i in 1:num_faces
             r, g, b = distinct_face_color(i)
             Cairo.set_source_rgb(canvas, r, g, b)
             cairo_draw_polygon(canvas, face_polys[i]; fill = true, stroke = false)
@@ -254,7 +254,7 @@ function main()
         cairo_draw_setup(canvas, view, cw, ch, margin)
 
         # 1. Fill each face according to its arrangement depth
-        for i = 1:num_faces
+        for i in 1:num_faces
             d = face_depths[i]
             t = d_max == d_min ? 0.5 : (d - d_min) / (d_max - d_min)
             r, g, b = viridis_color(t)
@@ -306,7 +306,7 @@ function main()
         cb_w = 260.0
         cb_h = 12.0
         steps = 60
-        for s = 0:(steps-1)
+        for s in 0:(steps-1)
             t_col = s / (steps - 1)
             r, g, b = viridis_color(t_col)
             Cairo.set_source_rgb(canvas, r, g, b)

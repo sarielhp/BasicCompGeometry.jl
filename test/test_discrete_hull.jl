@@ -15,12 +15,12 @@ function is_discrete_hull(H, pts, inC)
     n = length(H)
     allunique(H) || return false
     if n >= 3
-        for i = 1:n
+        for i in 1:n
             a, b, c = H[i], H[mod1(i + 1, n)], H[mod1(i + 2, n)]
             lcross(b - a, c - b) > 0 || return false
         end
         return all(
-            p -> all(lcross(H[mod1(i + 1, n)] - H[i], p - H[i]) >= 0 for i = 1:n),
+            p -> all(lcross(H[mod1(i + 1, n)] - H[i], p - H[i]) >= 0 for i in 1:n),
             pts,
         )
     elseif n == 2
@@ -37,7 +37,7 @@ end
 lowest_leftmost(H) = isempty(H) || H[1] == H[argmin([(v[2], v[1]) for v in H])]
 
 function box_points(inC, x0, x1, y0, y1)
-    return [Point2I(x, y) for x = x0:x1 for y = y0:y1 if inC(Point2I(x, y))]
+    return [Point2I(x, y) for x in x0:x1 for y in y0:y1 if inC(Point2I(x, y))]
 end
 
 function disk_points(D)
@@ -55,7 +55,7 @@ end
 # (independent of chord_range).
 function disk_column_extremes(cx::Int, cy::Int, r::Int)
     pts = Point2I[]
-    for x = (cx-r):(cx+r)
+    for x in (cx-r):(cx+r)
         h = isqrt(r^2 - (x - cx)^2)
         push!(pts, Point2I(x, cy - h), Point2I(x, cy + h))
     end
@@ -66,19 +66,20 @@ end
     @testset "chord_range is exact" begin
         rng = MersenneTwister(7)
         bodies = [
-            LatticeDisk((rand(rng) * 6 - 3, rand(rng) * 6 - 3), 1 + 9rand(rng)) for _ = 1:30
+            LatticeDisk((rand(rng) * 6 - 3, rand(rng) * 6 - 3), 1 + 9rand(rng)) for
+            _ in 1:30
         ]
         append!(bodies, [LatticeDisk((0, 0), 5), LatticeDisk((1 // 2, 0), 5 // 2)])
-        for D in bodies, _ = 1:40
+        for D in bodies, _ in 1:40
             o = Point2I(rand(rng, -12:12), rand(rng, -12:12))
             d = Point2I(rand(rng, -5:5), rand(rng, -5:5))
             d == Point2I(0, 0) && continue
             r = chord_range(D, o, d)
-            ts = [t for t = -40:40 if o + t * d ∈ D]
+            ts = [t for t in -40:40 if o + t * d ∈ D]
             if r === nothing
                 @test isempty(ts)
             else
-                @test ts == [t for t = r[1]:r[2]]
+                @test ts == [t for t in r[1]:r[2]]
             end
         end
         # Line tangent to x² + y² = 25 at the lattice point (3, 4): chord is {0}.
@@ -105,7 +106,7 @@ end
             k = 600 ÷ den
             R = ConvexPolygonBody([(0, 0), (den * k, num * k - eps), (0, num * k + 50)])
             best = nothing
-            for x = 1:(den*k), y = 0:(num*k+50)
+            for x in 1:(den*k), y in 0:(num*k+50)
                 q = Point2I(x, y)
                 q ∈ R || continue
                 (best === nothing || lcross(q, best) > 0) && (best = q)
@@ -142,7 +143,7 @@ end
 
     @testset "random disks vs brute force" begin
         rng = MersenneTwister(1998)
-        for trial = 1:400
+        for trial in 1:400
             r = trial <= 100 ? 3rand(rng) : 2 + 60rand(rng)
             c = (100randn(rng), 100randn(rng))
             D =
@@ -157,7 +158,7 @@ end
     @testset "rational convex polygons (thin, non-connected) vs brute force" begin
         rng = MersenneTwister(42)
         ratl(x) = round(Int, 64x) // 64
-        for trial = 1:300
+        for trial in 1:300
             # Thin random triangles stress the continued-fraction search.
             a = (ratl(30randn(rng)), ratl(30randn(rng)))
             b = (ratl(30randn(rng)), ratl(30randn(rng)))
@@ -187,7 +188,7 @@ end
 
     @testset "generic float oracle (ellipses)" begin
         rng = MersenneTwister(3)
-        for _ = 1:100
+        for _ in 1:100
             cx, cy = 10randn(rng), 10randn(rng)
             A, B, θ = 1 + 20rand(rng), 1 + 20rand(rng), π * rand(rng)
             cθ, sθ = cos(θ), sin(θ)
@@ -236,8 +237,8 @@ end
 
     @testset "lattice_convex_hull" begin
         rng = MersenneTwister(5)
-        for _ = 1:200
-            pts = [Point2I(rand(rng, -9:9), rand(rng, -9:9)) for _ = 1:rand(rng, 1:30)]
+        for _ in 1:200
+            pts = [Point2I(rand(rng, -9:9), rand(rng, -9:9)) for _ in 1:rand(rng, 1:30)]
             H = lattice_convex_hull(pts)
             @test is_discrete_hull(H, pts, p -> p in pts)
         end

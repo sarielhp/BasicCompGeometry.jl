@@ -204,7 +204,7 @@ function rand_halfplane(rng::AbstractRNG = Random.default_rng())
 end
 
 rand_halfplane(n::Integer; rng::AbstractRNG = Random.default_rng()) =
-    [rand_halfplane(rng) for _ = 1:n]
+    [rand_halfplane(rng) for _ in 1:n]
 
 """
     random_halfplane([rng=Random.default_rng()])
@@ -220,10 +220,10 @@ Base.rand(rng::AbstractRNG, ::Type{Halfplane2F}) = rand_halfplane(rng)
 Base.rand(::Type{Halfplane2F}) = rand_halfplane(Random.default_rng())
 
 Base.rand(rng::AbstractRNG, ::Type{Halfplane}, n::Integer) =
-    [rand_halfplane(rng) for _ = 1:n]
+    [rand_halfplane(rng) for _ in 1:n]
 Base.rand(::Type{Halfplane}, n::Integer) = rand(Random.default_rng(), Halfplane, n)
 Base.rand(rng::AbstractRNG, ::Type{Halfplane2F}, n::Integer) =
-    [rand_halfplane(rng) for _ = 1:n]
+    [rand_halfplane(rng) for _ in 1:n]
 Base.rand(::Type{Halfplane2F}, n::Integer) = rand(Random.default_rng(), Halfplane2F, n)
 
 # Sutherland-Hodgman polygon clipping by a halfplane
@@ -243,7 +243,7 @@ function clip(poly::Vector{Point{2,T}}, h::Halfplane; eps::Real = 1e-11) where {
     u_len = norm(u_line)
     u_len == 0 && error("Boundary line direction is zero.")
 
-    for i = 1:n
+    for i in 1:n
         cur = poly[i]
         prev = poly[i == 1 ? n : i - 1]
 

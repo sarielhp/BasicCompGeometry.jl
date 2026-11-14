@@ -1,7 +1,7 @@
 include("polys.jl")
 function hcomb(m)
     pts = [point(0.0, 0.0)]
-    for i = 1:m
+    for i in 1:m
         yb = 2.0 * (i - 1)
         xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m + 1))
         push!(
@@ -23,7 +23,7 @@ function run_with(P, idxkind, old::Bool)
     prev_v, next_v, is_active = B._init_ear_clip_ring(n)
     is_reflex = falses(n)
     rc = 0
-    for i = 1:n
+    for i in 1:n
         if orient_sign(k, P[prev_v[i]], P[i], P[next_v[i]]) <= 0
             is_reflex[i] = true
             rc += 1
@@ -54,7 +54,7 @@ for kind in (:u, :kd, :z)
         run_with(P, kind, false)
         to = Inf
         tn = Inf
-        for _ = 1:4
+        for _ in 1:4
             to = min(to, @elapsed run_with(P, kind, true))
             tn = min(tn, @elapsed run_with(P, kind, false))
         end

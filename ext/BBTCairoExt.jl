@@ -59,7 +59,7 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
 
     d = BBT.depth(tree.root)
     NodeT = BBT.Node{2,T,S,V}
-    levels = [NodeT[] for _ = 0:d]
+    levels = [NodeT[] for _ in 0:d]
     _collect_bbt_levels!(levels, tree.root, 0)
 
     open_canvas(filename, cw, ch; title = "Bounding Box Tree Visualization") do canvas
@@ -72,7 +72,7 @@ function BBT.Tree_draw(tree::Tree{2,T,S,V}, filename::String) where {T,S,V}
         Cairo.show_page(canvas)
 
         # Subsequent pages: Level-by-level visualization
-        for i = (d-1):-1:0
+        for i in (d-1):-1:0
             _draw_bbt_bg(canvas, bb_root, _BBT_BG_COLOR)
             _draw_bbt_levels!(canvas, levels, i:(i+1))
             description(canvas, "Bounding Box Tree Levels $i to $(i+1)")

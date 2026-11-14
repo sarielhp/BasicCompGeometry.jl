@@ -36,10 +36,10 @@ end
 function voronoi_cell(p::Point{2,T}) where {T}
     lines = square_boundary_lines()
     n = 4
-    parabolas = [Parabola(p, lines[i]) for i = 1:n]
+    parabolas = [Parabola(p, lines[i]) for i in 1:n]
     interior = point(T(0.5), T(0.5))
     normals = Vector{Point{2,T}}(undef, n)
-    for i = 1:n
+    for i in 1:n
         ni = Point{2,T}(-lines[i].u.y, lines[i].u.x)
         ni = ni / norm(ni)
         if dot(interior - lines[i].p, ni) < 0
@@ -48,8 +48,8 @@ function voronoi_cell(p::Point{2,T}) where {T}
         normals[i] = ni
     end
     candidates = Point{2,T}[]
-    for i = 1:n
-        for j = (i+1):n
+    for i in 1:n
+        for j in (i+1):n
             nd = normals[i] - normals[j]
             if norm(nd) < 1e-12
                 continue
@@ -69,7 +69,7 @@ function voronoi_cell(p::Point{2,T}) where {T}
             for (pt, _) in pts
                 d_p = dist(pt, p)
                 ok = true
-                for kk = 1:n
+                for kk in 1:n
                     sd = dot(pt - lines[kk].p, normals[kk])
                     if sd < d_p - 1e-8
                         ok = false
@@ -105,7 +105,7 @@ function voronoi_curved_polygon(p::Point{2,T}) where {T}
     if length(verts) == 2
         p1, p2 = verts[1], verts[2]
         active_k = Int[]
-        for k = 1:4
+        for k in 1:4
             d1 = abs(dist(p1, p) - distance_to_line(p1, lines[k]))
             d2 = abs(dist(p2, p) - distance_to_line(p2, lines[k]))
             if d1 < 1e-6 && d2 < 1e-6
@@ -125,13 +125,13 @@ function voronoi_curved_polygon(p::Point{2,T}) where {T}
     end
     m = length(verts)
     arcs = ParabolaArc{T}[]
-    for idx = 1:m
+    for idx in 1:m
         p_cur = verts[idx]
         p_next = verts[mod1(idx + 1, m)]
         mid = (p_cur + p_next) / 2
         best_k = 0
         best_diff = Inf
-        for k = 1:4
+        for k in 1:4
             d = abs(dist(mid, p) - distance_to_line(mid, lines[k]))
             if d < best_diff
                 best_diff = d
@@ -171,7 +171,7 @@ function cell_area(p::Point{2,T}) where {T}
     boundary = sample_cell_boundary(p, 400)
     isempty(boundary) && return 0.0
     area = 0.0
-    for i = 1:length(boundary)
+    for i in 1:length(boundary)
         j = mod1(i + 1, length(boundary))
         area += boundary[i].x * boundary[j].y
         area -= boundary[j].x * boundary[i].y
@@ -308,8 +308,8 @@ function draw_page2(canvas)
         return px, py
     end
     Cairo.set_source_rgb(canvas, 0.9, 0.9, 0.9)
-    for i = 1:n
-        for j = 1:n
+    for i in 1:n
+        for j in 1:n
             if i < n
                 x1, y1 = project(xs[i], ys[j], vals[i, j])
                 x2, y2 = project(xs[i+1], ys[j], vals[i+1, j])
@@ -326,8 +326,8 @@ function draw_page2(canvas)
             end
         end
     end
-    for i = 1:n
-        for j = 1:n
+    for i in 1:n
+        for j in 1:n
             if i < n && j < n
                 z = (vals[i, j] + vals[i+1, j] + vals[i+1, j+1] + vals[i, j+1]) / 4
                 intensity = clamp(0.3 + 0.7 * (z / max(max_val, 1e-9)), 0.0, 1.0)
@@ -955,7 +955,7 @@ function colormap_viridis(t)
         (0.75, (0.369, 0.788, 0.384)),
         (1.00, (0.993, 0.906, 0.144)),
     ]
-    for i = 1:(length(stops)-1)
+    for i in 1:(length(stops)-1)
         t0, c0 = stops[i]
         t1, c1 = stops[i+1]
         if t0 <= t <= t1
@@ -991,8 +991,8 @@ function draw_page10(canvas)
     cairo_draw_setup(canvas, bb, canvas.cw, canvas.ch, 30)
 
     # Draw heatmap tiles with slight overlap to prevent antialiasing seams
-    for i = 1:n
-        for j = 1:n
+    for i in 1:n
+        for j in 1:n
             t = vals[i, j] / max_val
             r, g, b = colormap_viridis(t)
             Cairo.set_source_rgb(canvas, r, g, b)
@@ -1070,7 +1070,7 @@ function main()
         end
         # Repeat the last frame 10 times
         p_last = point(0.5, 0.001)
-        for _ = 1:example_size(9, 1)
+        for _ in 1:example_size(9, 1)
             draw_cell_diagram(canvas, p_last)
             Cairo.show_page(canvas)
         end

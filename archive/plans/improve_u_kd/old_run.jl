@@ -4,7 +4,7 @@ function _ear_clip_run_old!(st::_EarClipState)
     sizehint!(ear_queue, 3n)
     vert_ver = ones(Int, n)
     in_queue_ver = zeros(Int, n)
-    for i = 1:n
+    for i in 1:n
         if _is_ear_vertex(st, i)
             push!(ear_queue, i)
             in_queue_ver[i] = 1

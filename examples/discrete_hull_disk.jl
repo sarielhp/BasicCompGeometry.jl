@@ -48,10 +48,10 @@ ok || exit(1)
 # 2. Average size over random centers (cf. Tables 4.1-4.2: ratio ≈ 3.45).
 println("\n        r   avg |DH|   |DH|/r^(2/3)   avg time (s)")
 trials = example_size(20, 5)
-for k = 1:example_size(7, 4)
+for k in 1:example_size(7, 4)
     rk = 10^k
     sizes, time = Int[], 0.0
-    for _ = 1:trials
+    for _ in 1:trials
         Dk = LatticeDisk((rand(), rand()), rk)
         time += @elapsed Hk = discrete_hull(Dk)
         push!(sizes, length(Hk))
@@ -68,8 +68,8 @@ small = LatticeDisk((0.37, 0.21), 7.3)
 c, rs = BasicCompGeometry.center(small), BasicCompGeometry.radius(small)
 Hs = discrete_hull(small)
 grid = [
-    Point2I(x, y) for x = (floor(Int, c.x-rs)-1):(ceil(Int, c.x+rs)+1) for
-    y = (floor(Int, c.y-rs)-1):(ceil(Int, c.y+rs)+1)
+    Point2I(x, y) for x in (floor(Int, c.x-rs)-1):(ceil(Int, c.x+rs)+1) for
+    y in (floor(Int, c.y-rs)-1):(ceil(Int, c.y+rs)+1)
 ]
 inside = [Point2F(p) for p in grid if p ∈ small]
 outside = [Point2F(p) for p in grid if p ∉ small]

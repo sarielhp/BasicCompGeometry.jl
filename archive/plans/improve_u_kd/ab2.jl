@@ -9,7 +9,7 @@ cases = [
 res = Dict{String,Vector{Float64}}()
 for (nm, P) in cases
     triangulate_ear_cut_u_kd_tree(P)
-    res[nm] = [minimum(@elapsed(triangulate_ear_cut_u_kd_tree(P)) for _ = 1:4)]
+    res[nm] = [minimum(@elapsed(triangulate_ear_cut_u_kd_tree(P)) for _ in 1:4)]
 end
 @eval B @inline _leaf_may_block(
     q::_FlatTriQueryF64,
@@ -20,7 +20,7 @@ end
 )::Bool = true
 for (nm, P) in cases
     triangulate_ear_cut_u_kd_tree(P)
-    push!(res[nm], minimum(@elapsed(triangulate_ear_cut_u_kd_tree(P)) for _ = 1:4))
+    push!(res[nm], minimum(@elapsed(triangulate_ear_cut_u_kd_tree(P)) for _ in 1:4))
 end
 for (nm, _) in cases
     a, b = res[nm]

@@ -84,7 +84,7 @@ function _unique_points(pts::Vector{Point{2,T}}; tol::Real = 1e-12) where {T}
     for idx in order
         p = pts[idx]
         dup = false
-        for j = length(kept):-1:1
+        for j in length(kept):-1:1
             q = pts[kept[j]]
             (p.x - q.x) > abs_tol && break
             if dist_sq(p, q) <= tol_sq
@@ -115,9 +115,9 @@ function vertices(lines::AbstractVector{<:Line{2}}; tol::Real = 1e-12, unique::B
     n = length(lines)
     pts = Point{2,Float64}[]
     n < 2 && return pts
-    for i = 1:n
+    for i in 1:n
         l1 = lines[i]
-        for j = (i+1):n
+        for j in (i+1):n
             pt = intersect(l1, lines[j]; tol = tol)
             pt !== nothing && push!(pts, pt)
         end
@@ -145,9 +145,9 @@ function vertices(bundle::AbstractVector; tol::Real = 1e-12, unique::Bool = fals
     elseif all(x -> x isa AbsCurve2D, bundle)
         pts = Point{2,Float64}[]
         n = length(bundle)
-        for i = 1:n
+        for i in 1:n
             b1 = bundle[i]
-            for j = (i+1):n
+            for j in (i+1):n
                 append!(pts, pairwise_intersections(b1, bundle[j]; tol = tol))
             end
         end

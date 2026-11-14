@@ -10,7 +10,7 @@ function walk(n; seed = 1)
     rng = MersenneTwister(seed)
     cur = point(0.0, 0.0)
     pts = Point2F[]
-    for _ = 1:n
+    for _ in 1:n
         cur = cur + point(rand(rng) - 0.5, rand(rng) - 0.5) * (1 + 3 * rand(rng))
         push!(pts, cur)
     end
@@ -20,7 +20,7 @@ end
 # Largest distance from a vertex of P to the polyline through P[idx].
 function one_sided(P, idx)
     m = 0.0
-    for t = 1:(length(idx)-1), k = idx[t]:idx[t+1]
+    for t in 1:(length(idx)-1), k in idx[t]:idx[t+1]
         m = max(m, dist_point_segment(P[k], P[idx[t]], P[idx[t+1]]))
     end
     return m
@@ -97,7 +97,7 @@ end
     end
 
     @testset "Degenerate curves" begin
-        for n = 0:3
+        for n in 0:3
             P = n == 0 ? PntSeq2F() : walk(n)
             @test length(palette(P, hausdorff_dist_subseg)) == n
             @test all(iszero, palette(P, hausdorff_dist_subseg; rule = FarthestSplit()))
@@ -170,7 +170,7 @@ end
         @test hierarchy_approx(h, 20.0)[2] ≤ 100.0
     end
     @testset "Float32 curves and integer rejection" begin
-        P32 = PntSeq([Point{2,Float32}(Float32(x), Float32(sin(x))) for x = 0:0.05:6])
+        P32 = PntSeq([Point{2,Float32}(Float32(x), Float32(sin(x))) for x in 0:0.05:6])
         h = hierarchy_init(P32)
         @test isconcretetype(fieldtype(typeof(h), :plt))
         pal32 = @inferred palette(P32, hausdorff_dist_subseg; rule = MidpointSplit())
@@ -189,13 +189,13 @@ end
         Q, w = hierarchy_approx(h, 0.3)
         @test Q isa PntSeq{2,Float32}
         @test w >= 0
-        Pint = PntSeq([Point{2,Int}(i, i^2 % 7) for i = 1:20])
+        Pint = PntSeq([Point{2,Int}(i, i^2 % 7) for i in 1:20])
         @test_throws MethodError palette(Pint, hausdorff_dist_subseg)
         @test_throws MethodError hierarchy_init(Pint)
     end
 
     @testset "Build stops when no progress is made" begin
-        line = PntSeq([point(Float64(i), 2.0 * i) for i = 1:12])   # collinear: all widths zero
+        line = PntSeq([point(Float64(i), 2.0 * i) for i in 1:12])   # collinear: all widths zero
         h = hierarchy_init(line)
         hierarchy_build!(h)
         @test length(h.polys) <= 3

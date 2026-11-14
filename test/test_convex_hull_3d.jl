@@ -53,7 +53,7 @@ using LinearAlgebra
     @testset "Random Sphere" begin
         # Points on a sphere should all be on the hull
         n = 100
-        pnts = [point(normalize(randn(3))...) for _ = 1:n]
+        pnts = [point(normalize(randn(3))...) for _ in 1:n]
         verts, faces = convex_hull_3d(pnts)
 
         # For points on a sphere, most/all should be on the hull
@@ -63,7 +63,7 @@ using LinearAlgebra
     @testset "Large Random Sphere" begin
         n = 2000
         rng = Xoshiro(123)
-        pnts = [point(normalize(randn(rng, 3))...) for _ = 1:n]
+        pnts = [point(normalize(randn(rng, 3))...) for _ in 1:n]
         verts, faces = convex_hull_3d(pnts)
         @test length(verts) == n
         @test length(faces) == 2n - 4
@@ -73,7 +73,7 @@ using LinearAlgebra
 
     @testset "Conflict list deduplication allocations" begin
         rng = Xoshiro(7)
-        pnts = [point(normalize(randn(rng, 3))...) for _ = 1:400]
+        pnts = [point(normalize(randn(rng, 3))...) for _ in 1:400]
         convex_hull_3d(pnts)
         alloc = @allocated begin
             verts, faces = convex_hull_3d(pnts)

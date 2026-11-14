@@ -23,7 +23,7 @@ function clip_polygon_halfplane(
     isempty(poly) && return Point2F[]
     out = Point2F[]
     nv = length(poly)
-    for i = 1:nv
+    for i in 1:nv
         A = poly[i]
         B = poly[mod1(i + 1, nv)]
         sA = dot(A - M, n)
@@ -77,18 +77,18 @@ function sample_curved_cell_boundary(
     n_samples::Int = 200,
 )
     lines = Line{2,Float64}[]
-    for i = 1:length(square)
+    for i in 1:length(square)
         p1 = square[i]
         p2 = square[mod1(i + 1, length(square))]
         push!(lines, Line(p1, p2 - p1))
     end
     max_r = maximum(dist(p, v) for v in square) * 2.0
     boundary = Point2F[]
-    for i = 0:(n_samples-1)
+    for i in 0:(n_samples-1)
         theta = 2 * pi * i / n_samples
         d = point(cos(theta), sin(theta))
         lo, hi = 0.0, max_r
-        for _ = 1:60
+        for _ in 1:60
             mid = (lo + hi) / 2
             x = p + mid * d
             d_p = dist(x, p)
@@ -113,7 +113,7 @@ function draw_curved_cell(cr, boundary::Vector{Point2F})
     n < 3 && return
     Cairo.new_path(cr)
     Cairo.move_to(cr, boundary[1][1], boundary[1][2])
-    for i = 2:n
+    for i in 2:n
         Cairo.line_to(cr, boundary[i][1], boundary[i][2])
     end
     Cairo.close_path(cr)
@@ -133,7 +133,7 @@ end
 function draw_grid(cr, grid_n, cell_size, lw = 1.0)
     Cairo.set_source_rgb(cr, 0, 0, 0)
     Cairo.set_line_width(cr, lw)
-    for i = 0:grid_n
+    for i in 0:grid_n
         Cairo.move_to(cr, i * cell_size, 0)
         Cairo.line_to(cr, i * cell_size, 1)
         Cairo.stroke(cr)
@@ -168,10 +168,10 @@ function main(; show_page_numbers::Bool = true)
     cell_size = 1.0 / grid_n
 
     Random.seed!(42)
-    pts = [point(rand(), rand()) for _ = 1:N]
+    pts = [point(rand(), rand()) for _ in 1:N]
 
     cell_counts = zeros(Int, grid_n, grid_n)
-    cell_points = [Point2F[] for _ = 1:grid_n, _ = 1:grid_n]
+    cell_points = [Point2F[] for _ in 1:grid_n, _ in 1:grid_n]
     for p in pts
         ix = min(floor(Int, p[1] * grid_n) + 1, grid_n)
         iy = min(floor(Int, p[2] * grid_n) + 1, grid_n)
@@ -179,7 +179,8 @@ function main(; show_page_numbers::Bool = true)
         push!(cell_points[ix, iy], p)
     end
 
-    all_singletons = [(ix, iy) for ix = 1:grid_n, iy = 1:grid_n if cell_counts[ix, iy] == 1]
+    all_singletons =
+        [(ix, iy) for ix in 1:grid_n, iy in 1:grid_n if cell_counts[ix, iy] == 1]
     k = length(all_singletons)
     @printf("Total singleton cells: %d\n", k)
 
@@ -211,7 +212,7 @@ function main(; show_page_numbers::Bool = true)
     curved_boundary = sample_curved_cell_boundary(singleton_pt, square, 300)
 
     tiled_pts = copy(pts)
-    for dy = -1:1, dx = -1:1
+    for dy in -1:1, dx in -1:1
         (dx == 0 && dy == 0) && continue
         for p in pts
             push!(tiled_pts, p + point(dx, dy))
@@ -337,7 +338,7 @@ function main(; show_page_numbers::Bool = true)
         end
 
         # Alternating green frames
-        for fi = 1:example_size(6, 1)
+        for fi in 1:example_size(6, 1)
             is_light = isodd(fi)
             r, g, b = is_light ? (0.8, 0.95, 0.8) : (0.3, 0.8, 0.3)
             Cairo.save(canvas)
@@ -365,7 +366,7 @@ function main(; show_page_numbers::Bool = true)
         end
 
         # Zoom into singleton cell
-        for zi = 1:n_zoom
+        for zi in 1:n_zoom
             bb = zoom_boxes[zi]
             bl = bottom_left(bb)
             tr = top_right(bb)
@@ -475,7 +476,7 @@ function main(; show_page_numbers::Bool = true)
         p15_max_r = p15_w / 200.0
         p15_pt_r = min(0.003, p15_max_r)
         p15_sing_r = min(0.008, p15_max_r * 1.6)
-        for rep = 1:example_size(4, 1)
+        for rep in 1:example_size(4, 1)
             Cairo.save(canvas)
             Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
             Cairo.paint(canvas)
@@ -532,7 +533,7 @@ function main(; show_page_numbers::Bool = true)
         end
 
         # Zoom out to full grid
-        for zi = 1:n_zoom_out
+        for zi in 1:n_zoom_out
             bb = zoom_out_boxes[zi]
             bl = bottom_left(bb)
             tr = top_right(bb)
@@ -585,9 +586,9 @@ function main(; show_page_numbers::Bool = true)
 
         n_last = example_size(page_num - 1, 1)
         Random.seed!(123)
-        vc_colors = [(rand(), rand(), rand()) for _ = 1:length(all_singletons)]
-        for extra = 1:n_last
-            for ci = 1:length(all_singletons)
+        vc_colors = [(rand(), rand(), rand()) for _ in 1:length(all_singletons)]
+        for extra in 1:n_last
+            for ci in 1:length(all_singletons)
                 if rand() < 1/3
                     vc_colors[ci] = (rand(), rand(), rand())
                 end
@@ -904,7 +905,7 @@ function main(; show_page_numbers::Bool = true)
 
         # Final frame: all singleton Voronoi cells with random colors
         Random.seed!(123)
-        vc_colors = [(rand(), rand(), rand()) for _ = 1:length(all_singletons)]
+        vc_colors = [(rand(), rand(), rand()) for _ in 1:length(all_singletons)]
         Cairo.save(canvas)
         Cairo.set_source_rgb(canvas, bg_r, bg_g, bg_b)
         Cairo.paint(canvas)

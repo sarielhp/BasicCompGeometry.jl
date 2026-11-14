@@ -20,7 +20,7 @@ using Random
 """
 function generate_random_points(n, rng)
     pts = Point{3,Float64}[]
-    for _ = 1:n
+    for _ in 1:n
         push!(pts, point(rand(rng)*1.0, rand(rng)*2.0, rand(rng)*4.0))
     end
     return PntSeq(pts)
@@ -30,7 +30,7 @@ function run_verify(n, num_tests, ε)
     rng_data = Random.Xoshiro(123)
     datasets = []
     directions = []
-    for i = 1:num_tests
+    for i in 1:num_tests
         push!(datasets, generate_random_points(n, rng_data))
         push!(directions, normalize(Point{3,Float64}(randn(rng_data, 3))))
     end
@@ -41,7 +41,7 @@ function run_verify(n, num_tests, ε)
     t_wspd = 0.0
     t_fst = 0.0
 
-    for i = 1:num_tests
+    for i in 1:num_tests
         # Exact
         t0 = time()
         exact = exact_diameter_subspace(datasets[i], directions[i])

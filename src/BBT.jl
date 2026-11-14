@@ -98,7 +98,7 @@ end
     isempty(r) && throw(ArgumentError("cannot compute extremum over empty node range"))
     @inbounds begin
         best = orig_index(tree.PS, first(r))
-        for i = (first(r)+1):last(r)
+        for i in (first(r)+1):last(r)
             oi = orig_index(tree.PS, i)
             better(oi, best) && (best = oi)
         end
@@ -149,7 +149,7 @@ end
             maxx = p0.x
             miny = p0.y
             maxy = p0.y
-            for idx = (s+1):e
+            for idx in (s+1):e
                 p = vec[loc[idx]]
                 px = p.x
                 py = p.y
@@ -164,13 +164,13 @@ end
             bb.maxi[1] = maxx
             bb.maxi[2] = maxy
         else
-            for d = 1:D
+            for d in 1:D
                 bb.mini[d] = p0[d]
                 bb.maxi[d] = p0[d]
             end
-            for idx = (s+1):e
+            for idx in (s+1):e
                 p = vec[loc[idx]]
-                for d = 1:D
+                for d in 1:D
                     v = p[d]
                     v < bb.mini[d] && (bb.mini[d] = v)
                     v > bb.maxi[d] && (bb.maxi[d] = v)
@@ -259,7 +259,7 @@ function node_split(node::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
     # Find dimension with maximum width; zero width means all points in r are equal.
     w_max = zero(T)
     dim_max = 1
-    @inbounds for i = 1:D
+    @inbounds for i in 1:D
         w = node.bb.maxi[i] - node.bb.mini[i]
         if w > w_max
             w_max = w
@@ -361,7 +361,7 @@ function exact_naive_scan(tree::Tree{D,T,S,V}, q::Point{D}) where {D,T,S,V}
     min_dist = Inf
     best_p = nothing
     best_orig_idx = -1
-    for i = 1:length(tree.PS)
+    for i in 1:length(tree.PS)
         p = tree.PS[i]
         d = dist(p, q)
         if d < min_dist
@@ -548,7 +548,7 @@ function silly_nn(tree::Tree{D,T,S,V}, q::Point{D}) where {D,T,S,V}
     idx = first(curr.r)
     pnt = tree.PS[idx]
     d = dist(q, pnt)
-    for i = (first(curr.r)+1):last(curr.r)
+    for i in (first(curr.r)+1):last(curr.r)
         p_i = tree.PS[i]
         d_i = dist(q, p_i)
         if d_i < d
@@ -1029,7 +1029,7 @@ function _build_flat_node!(
         x1 = x0
         y0 = py[s]
         y1 = y0
-        for k = (s+1):e
+        for k in (s+1):e
             xk = px[k]
             yk = py[k]
             if xk < x0
@@ -1051,7 +1051,7 @@ function _build_flat_node!(
     if n <= leaf_size || (dx <= zero(dx) && dy <= zero(dy))
         @inbounds nodes[id] =
             _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
-        @inbounds for k = s:e
+        @inbounds for k in s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
             slot_of[orig] = Int32(k)
@@ -1079,7 +1079,7 @@ function _build_flat_node!(
     if mid < s || mid >= e
         @inbounds nodes[id] =
             _make_flat_leaf(N, x0, x1, y0, y1, ux0, ux1, uy0, uy1, bmask, parent_id, s, e)
-        @inbounds for k = s:e
+        @inbounds for k in s:e
             orig = perm[k]
             leaf_of[orig] = Int32(id)
             slot_of[orig] = Int32(k)
@@ -1238,7 +1238,7 @@ function _extract_xy_perm(pts::Union{AbsPntSeq{2,T},AbstractVector{<:Point{2,T}}
     px = Vector{T}(undef, m)
     py = Vector{T}(undef, m)
     perm = Vector{Int32}(undef, m)
-    @inbounds for i = 1:m
+    @inbounds for i in 1:m
         p = pts[i]
         px[i] = p.x
         py[i] = p.y

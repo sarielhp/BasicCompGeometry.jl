@@ -307,7 +307,7 @@ function _vd_walls(
     y_max,
     tol,
 ) where {R}
-    walls_at_event = [_VertWall{R}[] for _ = 1:length(unique_x)]
+    walls_at_event = [_VertWall{R}[] for _ in 1:length(unique_x)]
 
     for v in in_view_verts
         k_idx = _nearest_x_idx(unique_x, v.x, tol)
@@ -428,7 +428,7 @@ function _vd_advance_slab!(
     empty!(new_active)
     a_idx = 1
     na = is_first_slab ? 0 : length(active_traps)
-    for p_idx = 1:(length(bounds)-1)
+    for p_idx in 1:(length(bounds)-1)
         bot_b = bounds[p_idx]
         top_b = bounds[p_idx+1]
         p_bot = _vd_clamped_y(bot_b, x_l, y_min, y_min, y_max)
@@ -455,7 +455,7 @@ function _vd_advance_slab!(
         end
         matched || push!(new_active, _ActiveTrap{R}(x_l, x_r, bot_b, top_b))
     end
-    for i = a_idx:na
+    for i in a_idx:na
         push!(completed, _vd_make_trap(active_traps[i], R, y_min, y_max))
     end
     return nothing
@@ -502,7 +502,7 @@ function vertical_decomposition(
     unique_slab = Line{2,R_type}[]
     bounds = Union{Nothing,Line{2,R_type}}[]
 
-    for k = 1:(length(unique_x)-1)
+    for k in 1:(length(unique_x)-1)
         x_l = unique_x[k]
         x_r = unique_x[k+1]
         _vd_slab_lines!(unique_slab, slab_lines, lines_typed, x_l, x_r, y_min, y_max, tol)
@@ -576,7 +576,7 @@ function _tc_link_neighbors!(
     order = sortperm(traps, by = t -> t.x_left)
     x_lefts = T[traps[idx].x_left for idx in order]
     sort!(vert_line_x)
-    for i = 1:n
+    for i in 1:n
         ti = traps[i]
         xr = ti.x_right
         if !isempty(vert_line_x)
@@ -585,7 +585,7 @@ function _tc_link_neighbors!(
         end
         lo = searchsortedfirst(x_lefts, xr - tol)::Int
         hi = searchsortedlast(x_lefts, xr + tol)::Int
-        for pos = lo:hi
+        for pos in lo:hi
             j = order[pos]
             i == j && continue
             tj = traps[j]
@@ -624,7 +624,7 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
     chains = Vector{Vector{Int}}()
     visited = fill(false, n)
 
-    for i = 1:n
+    for i in 1:n
         if left_neighbor[i] == 0
             chain = Int[i]
             visited[i] = true
@@ -639,7 +639,7 @@ function trapezoid_chains(decomp::ArrVertDecomp; tol::Real = 1e-9)
     end
 
     # Fallback for any unvisited trapezoids (e.g. isolates or cycles)
-    for i = 1:n
+    for i in 1:n
         if !visited[i]
             push!(chains, Int[i])
             visited[i] = true

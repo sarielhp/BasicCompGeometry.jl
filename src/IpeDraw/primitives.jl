@@ -523,7 +523,7 @@ function _append_subpath!(buf::IO, canvas::IpeCanvas, poly::AbsPntSeq{2})
     n == 0 && return
     _write_pt!(buf, _apply_tf(canvas, poly[1]))
     write(buf, " m\n")
-    for i = 2:n
+    for i in 2:n
         _write_pt!(buf, _apply_tf(canvas, poly[i]))
         write(buf, " l\n")
     end

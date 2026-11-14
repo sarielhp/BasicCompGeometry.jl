@@ -36,7 +36,7 @@ using StaticArrays
         @test min(i, j) <= 3 < max(i, j)
         push!(represented, minmax(i, j))
     end
-    @test represented == Set((i, j) for i = 1:3 for j = 4:6)
+    @test represented == Set((i, j) for i in 1:3 for j in 4:6)
     @test WSPD.top_diam_ub(state) == 0.0
     @test WSPD.top_refine!(state) === nothing
     @test BBT.exact_naive_scan(state.tree, points[4]) == (0.0, points[4], 4)
@@ -44,7 +44,7 @@ end
 
 @testset "BBT Approximate Nearest Neighbor" begin
     # Create a grid of points
-    pnts = [point(Float64(x), Float64(y)) for x = 1:10 for y = 1:10]
+    pnts = [point(Float64(x), Float64(y)) for x in 1:10 for y in 1:10]
     tree = Tree_init(PntSeq(pnts))
     Tree_fully_expand(tree)
 
@@ -74,7 +74,7 @@ end
 
     # Test with many points
     n = 1000
-    pnts_rand = [rand_point(3) for _ = 1:n]
+    pnts_rand = [rand_point(3) for _ in 1:n]
     tree_rand = Tree_init(PntSeq(pnts_rand))
     Tree_fully_expand(tree_rand)
 
@@ -84,7 +84,7 @@ end
     # Brute force search
     best_d = Inf
     best_idx = -1
-    for i = 1:n
+    for i in 1:n
         cur_d = dist(q_rand, pnts_rand[i])
         if cur_d < best_d
             best_d = cur_d
@@ -118,7 +118,7 @@ end
 end
 
 @testset "BBT Silly NN" begin
-    pnts = [point(x, y) for x = 1:10 for y = 1:10]
+    pnts = [point(x, y) for x in 1:10 for y in 1:10]
     tree = Tree_init(PntSeq(pnts))
     Tree_fully_expand(tree)
 
@@ -137,7 +137,7 @@ end
 end
 
 @testset "BBT Hybrid NN" begin
-    pnts = [point(x, y) for x = 1:10 for y = 1:10]
+    pnts = [point(x, y) for x in 1:10 for y in 1:10]
     tree = Tree_init(PntSeq(pnts))
     Tree_fully_expand(tree)
 

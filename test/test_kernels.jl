@@ -143,7 +143,7 @@ end
 
     rng = MersenneTwister(714)
     checked = 0
-    for _ = 1:2_000
+    for _ in 1:2_000
         radius = rand(rng, 1:10_000)
         dy1, dy2 = rand(rng, (-radius):radius), rand(rng, (-radius):radius)
         dx = rand(rng, -2radius:2radius)

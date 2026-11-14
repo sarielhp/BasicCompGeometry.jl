@@ -30,7 +30,7 @@ function tangent_lines_to_unit_square(n::Int)
     square =
         PntSeq([point(-0.5, -0.5), point(0.5, -0.5), point(0.5, 0.5), point(-0.5, 0.5)])
     lines = Line{2,Float64}[]
-    for _ = 1:n
+    for _ in 1:n
         alpha = rand() * 2 * pi
         line, _ = tangent_line(square, alpha)
         push!(lines, line)
@@ -70,15 +70,15 @@ function cell_containing_origin(lines, origin = point(0.0, 0.0))
     n = length(lines)
     bisectors = [Parabola(origin, line) for line in lines]
     candidates = Tuple{Point2F,Int,Int}[]
-    for i = 1:n
-        for j = (i+1):n
+    for i in 1:n
+        for j in (i+1):n
             b1, b2 = angle_bisectors(lines[i], lines[j])
             for bis in (b1, b2)
                 pts = intersect_line_curve(bis, bisectors[i])
                 for (pt, _) in pts
                     d_origin = dist(pt, origin)
                     on_boundary = true
-                    for k = 1:n
+                    for k in 1:n
                         if distance(pt, lines[k]) < d_origin - 1e-6
                             on_boundary = false
                             break
@@ -104,13 +104,13 @@ function cell_containing_origin(lines, origin = point(0.0, 0.0))
     sort!(unique_pts, by = p -> atan(p[2], p[1]))
     m = length(unique_pts)
     curves = Curve2D{Float64}[]
-    for idx = 1:m
+    for idx in 1:m
         p_cur = unique_pts[idx]
         p_next = unique_pts[mod1(idx + 1, m)]
         mid = (p_cur + p_next) / 2
         best_k = 0
         best_diff = Inf
-        for k = 1:n
+        for k in 1:n
             d = abs(dist(mid, origin) - distance(mid, lines[k]))
             if d < best_diff
                 best_diff = d
@@ -132,7 +132,7 @@ function draw_bisector_cell(lines, origin = point(0.0, 0.0))
         Cairo.set_source_rgb(canvas, 1, 1, 1)
         Cairo.paint(canvas)
         Cairo.set_source_rgb(canvas, 0.9, 0.9, 0.9)
-        for x = -3:0.5:3
+        for x in -3:0.5:3
             Cairo.move_to(canvas, x, -3)
             Cairo.line_to(canvas, x, 3)
             Cairo.stroke(canvas)
@@ -174,7 +174,7 @@ function draw_bisector_cell(lines, origin = point(0.0, 0.0))
         Cairo.set_source_rgb(canvas, 0, 0, 0)
         Cairo.set_line_width(canvas, 0.03)
         n_curves = length(cell.curves)
-        for i = 1:n_curves
+        for i in 1:n_curves
             c = cell.curves[i]
             p_start = point_on(cell, Float64(i-1) / n_curves)
             p_end = point_on(cell, Float64(i) / n_curves)

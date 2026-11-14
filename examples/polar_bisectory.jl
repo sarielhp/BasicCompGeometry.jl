@@ -49,7 +49,7 @@ Returns a vector of `Plane` objects.
 function supporting_lines(poly)
     n = length(poly)
     lines = Plane{2,Float64}[]
-    for i = 1:n
+    for i in 1:n
         p1 = poly[i]
         p2 = poly[mod1(i + 1, n)]
         # Normal vector orthogonal to segment p1 -> p2
@@ -104,7 +104,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
     # 2. Inner polar polygon Q (dual_hull) filled in white
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -128,7 +128,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
     intersections = Point{2,Float64}[]
     if m_v >= 3
         lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-        for j = 1:m_v
+        for j in 1:m_v
             l_curr = lines_and_cols[j][1]
             l_next = lines_and_cols[mod1(j + 1, m_v)][1]
             push!(intersections, line_intersection(l_curr, l_next))
@@ -140,7 +140,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
         set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30)
         Cairo.new_path(cr)
         Cairo.move_to(cr, intersections[1][1], intersections[1][2])
-        for j = 2:length(intersections)
+        for j in 2:length(intersections)
             Cairo.line_to(cr, intersections[j][1], intersections[j][2])
         end
         Cairo.close_path(cr)
@@ -150,7 +150,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
     # 5. Draw boundary of inner polygon Q again (green stroke, 4.0pt)
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -161,7 +161,7 @@ function render_page_12_panel!(cr, stair_v_info, CP, Q, bb5, cw, ch)
     # 6. Draw boundary of the new polygon (colored edges and vertices)
     if m_v >= 3
         lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-        for j = 1:m_v
+        for j in 1:m_v
             p_start = intersections[mod1(j - 1, m_v)]
             p_end = intersections[j]
             col = lines_and_cols[j][2]
@@ -190,7 +190,7 @@ function render_page_13_panel!(cr, stair_v_info, hull, Q, bb_cover_global, cw, c
     # 1. Fill inner polygon (hull) in light gray FIRST
     Cairo.new_path(cr)
     Cairo.move_to(cr, hull[1][1], hull[1][2])
-    for i = 2:length(hull)
+    for i in 2:length(hull)
         Cairo.line_to(cr, hull[i][1], hull[i][2])
     end
     Cairo.close_path(cr)
@@ -253,7 +253,7 @@ function closed_polygon_at(poly, t::Real)
 
     n = length(closed_pnts)
     lens = zeros(n)
-    for i = 2:n
+    for i in 2:n
         lens[i] = lens[i-1] + norm(closed_pnts[i] - closed_pnts[i-1])
     end
     total_len = lens[end]
@@ -350,7 +350,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Compute inverted circular arcs for bisector segments (halved hull edge segments)
     n_hull = length(hull)
     inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         seg_half = Segment(p1, p2)
@@ -359,7 +359,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # Compute supporting line inversions (full circles) for Page 5 background
     inv_circles = Union{Circle2F,Line{2,Float64}}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         l_half = Line(p1, p2 - p1)
@@ -506,7 +506,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     s = cairo_draw_setup(cr, bb4, cw, ch, 20)
 
     # 1. Draw 30% transparent circular sector fills FIRST before anything else
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgba(cr, col[1], col[2], col[3], 0.30)
         arc_obj = inv_bisector_arcs[i]
@@ -549,7 +549,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # 6. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         p1 = hull[i] / 2.0
@@ -565,7 +565,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     draw_origin(cr, s, 10)
 
     # 8. Draw polar polygon vertices in matching alternating colors
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         cairo_draw_points(cr, [polar_pts[i]], 6 / s)
@@ -573,7 +573,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # 9. Draw inverted bisector segment circular arcs with matching alternating colors
     set_line_width(cr, 3.0)
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         arc_obj = inv_bisector_arcs[i]
@@ -604,7 +604,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     s = cairo_draw_setup(cr, bb5, cw, ch, 20)
 
     # 1. Draw 30% transparent circular sector fills FIRST before anything else
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgba(cr, col[1], col[2], col[3], 0.30)
         arc_obj = inv_bisector_arcs[i]
@@ -660,7 +660,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # 7. Draw inner halved polygon (hull / 2.0) with alternating colors
     set_line_width(cr, 2.5)
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         p1 = hull[i] / 2.0
@@ -676,7 +676,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     draw_origin(cr, s, 10)
 
     # 9. Draw polar polygon vertices in matching alternating colors
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         cairo_draw_points(cr, [polar_pts[i]], 6 / s)
@@ -684,7 +684,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
 
     # 10. Draw inverted bisector segment circular arcs with matching alternating colors
     set_line_width(cr, 3.0)
-    for i = 1:n_hull
+    for i in 1:n_hull
         col = get_edge_color(i, n_hull)
         set_source_rgb(cr, col...)
         arc_obj = inv_bisector_arcs[i]
@@ -736,7 +736,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 2. Inner polar polygon (dual_hull): filled in white, edges in green
     Cairo.new_path(cr)
     Cairo.move_to(cr, dual_hull[1][1], dual_hull[1][2])
-    for i = 2:length(dual_hull)
+    for i in 2:length(dual_hull)
         Cairo.line_to(cr, dual_hull[i][1], dual_hull[i][2])
     end
     Cairo.close_path(cr)
@@ -779,7 +779,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 2. Draw inner polar polygon Q (dual_hull) filled in white, green stroke
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -835,14 +835,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid = 0.0:0.2:1.0
+    for y_grid in 0.0:0.2:1.0
         x1, y1 = map_plot(0.0, y_grid)
         x2, y2 = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1, y1)
         Cairo.line_to(cr, x2, y2)
         Cairo.stroke(cr)
     end
-    for a_grid = 0.0:(pi/2):2pi
+    for a_grid in 0.0:(pi/2):2pi
         x1, y1 = map_plot(a_grid, 0.0)
         x2, y2 = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1, y1)
@@ -863,7 +863,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.set_font_size(cr, 18.0)
 
     # Y-axis labels
-    for y_val = 0.0:0.25:1.0
+    for y_val in 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -894,7 +894,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
         Cairo.new_path(cr)
         x0, y0 = map_plot(alphas[1], vals[1])
         Cairo.move_to(cr, x0, y0)
-        for i = 2:length(alphas)
+        for i in 2:length(alphas)
             xi, yi = map_plot(alphas[i], vals[i])
             if abs(vals[i] - vals[i-1]) > 0.5
                 Cairo.stroke(cr)
@@ -927,14 +927,14 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid = 0.0:0.2:1.0
+    for y_grid in 0.0:0.2:1.0
         x1, y1 = map_plot(0.0, y_grid)
         x2, y2 = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1, y1)
         Cairo.line_to(cr, x2, y2)
         Cairo.stroke(cr)
     end
-    for a_grid = 0.0:(pi/2):2pi
+    for a_grid in 0.0:(pi/2):2pi
         x1, y1 = map_plot(a_grid, 0.0)
         x2, y2 = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1, y1)
@@ -952,7 +952,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
     Cairo.set_font_size(cr, 18.0)
 
-    for y_val = 0.0:0.25:1.0
+    for y_val in 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -971,7 +971,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # Draw vertical gray segments between u and v for each sampled alpha
     set_source_rgba(cr, 0.5, 0.5, 0.5, 0.6)
     set_line_width(cr, 1.2)
-    for i = 1:n_samples
+    for i in 1:n_samples
         a_i = alphas[i]
         u_i = u_vals[i]
         v_i = v_vals[i]
@@ -1047,7 +1047,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     intersections = Point{2,Float64}[]
     if m_v >= 3
         lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-        for j = 1:m_v
+        for j in 1:m_v
             l_curr = lines_and_cols[j][1]
             l_next = lines_and_cols[mod1(j + 1, m_v)][1]
             push!(intersections, line_intersection(l_curr, l_next))
@@ -1073,7 +1073,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 2. Inner polar polygon Q (dual_hull) filled in white, green stroke
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -1124,7 +1124,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 2. Inner polar polygon Q (dual_hull) filled in white
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -1140,7 +1140,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
         set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30) # 30% opacity yellow
         Cairo.new_path(cr)
         Cairo.move_to(cr, intersections[1][1], intersections[1][2])
-        for j = 2:length(intersections)
+        for j in 2:length(intersections)
             Cairo.line_to(cr, intersections[j][1], intersections[j][2])
         end
         Cairo.close_path(cr)
@@ -1150,7 +1150,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 5. Draw boundary of inner polygon Q again (green stroke)
     Cairo.new_path(cr)
     Cairo.move_to(cr, Q[1][1], Q[1][2])
-    for i = 2:length(Q)
+    for i in 2:length(Q)
         Cairo.line_to(cr, Q[i][1], Q[i][2])
     end
     Cairo.close_path(cr)
@@ -1161,7 +1161,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 6. Draw boundary of the new polygon (colored edges and vertices)
     if m_v >= 3
         lines_and_cols = [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-        for j = 1:m_v
+        for j in 1:m_v
             p_start = intersections[mod1(j - 1, m_v)]
             p_end = intersections[j]
             col = lines_and_cols[j][2]
@@ -1202,7 +1202,7 @@ function generate_bisectory_pdf(filename::String, ps::PntSeq{2,Float64})
     # 1. Fill inner polygon (hull) in light gray FIRST
     Cairo.new_path(cr)
     Cairo.move_to(cr, hull[1][1], hull[1][2])
-    for i = 2:length(hull)
+    for i in 2:length(hull)
         Cairo.line_to(cr, hull[i][1], hull[i][2])
     end
     Cairo.close_path(cr)
@@ -1284,14 +1284,14 @@ function draw_page_10!(
     # Grid lines and axes
     set_source_rgb(cr, 0.9, 0.9, 0.9)
     set_line_width(cr, 1.0)
-    for y_grid = 0.0:0.2:1.0
+    for y_grid in 0.0:0.2:1.0
         x1_p, y1_p = map_plot(0.0, y_grid)
         x2_p, y2_p = map_plot(2pi, y_grid)
         Cairo.move_to(cr, x1_p, y1_p)
         Cairo.line_to(cr, x2_p, y2_p)
         Cairo.stroke(cr)
     end
-    for a_grid = 0.0:(pi/2):2pi
+    for a_grid in 0.0:(pi/2):2pi
         x1_p, y1_p = map_plot(a_grid, 0.0)
         x2_p, y2_p = map_plot(a_grid, 1.0)
         Cairo.move_to(cr, x1_p, y1_p)
@@ -1309,7 +1309,7 @@ function draw_page_10!(
     Cairo.select_font_face(cr, "Sans", Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_BOLD)
     Cairo.set_font_size(cr, 18.0)
 
-    for y_val = 0.0:0.25:1.0
+    for y_val in 0.0:0.25:1.0
         x_p, y_p = map_plot(0.0, y_val)
         Cairo.move_to(cr, x_p - 45, y_p + 6)
         Cairo.show_text(cr, string(y_val))
@@ -1328,7 +1328,7 @@ function draw_page_10!(
     # Draw vertical gray segments between u and v for Page 10 background
     set_source_rgba(cr, 0.5, 0.5, 0.5, 0.6)
     set_line_width(cr, 1.2)
-    for i = 1:n_samples
+    for i in 1:n_samples
         a_i = alphas[i]
         u_i = u_vals[i]
         v_i = v_vals[i]
@@ -1386,7 +1386,7 @@ function draw_page_10!(
         idx_curr = searchsortedfirst(alphas, x_curr_mod)
         idx_curr = clamp(idx_curr, 1, n_samples)
 
-        for k = 1:n_samples
+        for k in 1:n_samples
             i1 = mod1(idx_curr + k - 1, n_samples)
             i2 = mod1(i1 + 1, n_samples)
 
@@ -1431,7 +1431,7 @@ function draw_page_10!(
     max_steps = 100
     self_intersection_pt = nothing
 
-    for step = 1:max_steps
+    for step in 1:max_steps
         x_next = ray_shoot_f(x_curr, y_curr_top)
 
         earliest_intersection_x = x_next
@@ -1715,7 +1715,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames = 200, fps =
     n_hull = length(hull)
 
     inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         seg_half = Segment(p1, p2)
@@ -1752,7 +1752,7 @@ function generate_staircase_movie(ps::PntSeq{2,Float64}; num_frames = 200, fps =
         Cairo.new_path(cr)
         x0, y0 = map_plot(alphas[1], vals[1])
         Cairo.move_to(cr, x0, y0)
-        for i = 2:length(alphas)
+        for i in 2:length(alphas)
             xi, yi = map_plot(alphas[i], vals[i])
             if abs(vals[i] - vals[i-1]) > 0.5
                 Cairo.stroke(cr)
@@ -1841,7 +1841,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
     n_hull = length(hull)
 
     inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         seg_half = Segment(p1, p2)
@@ -1867,7 +1867,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
 
     for inv_obj in [
         invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for
-        i = 1:n_hull
+        i in 1:n_hull
     ]
         if inv_obj isa Circle2F
             c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
@@ -1895,7 +1895,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
         Cairo.new_path(cr)
         x0, y0 = map_plot(alphas[1], vals[1])
         Cairo.move_to(cr, x0, y0)
-        for i = 2:length(alphas)
+        for i in 2:length(alphas)
             xi, yi = map_plot(alphas[i], vals[i])
             if abs(vals[i] - vals[i-1]) > 0.5
                 Cairo.stroke(cr)
@@ -1977,7 +1977,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
         # 2. Inner polar polygon Q (dual_hull) filled in white
         Cairo.new_path(cr)
         Cairo.move_to(cr, Q[1][1], Q[1][2])
-        for i = 2:length(Q)
+        for i in 2:length(Q)
             Cairo.line_to(cr, Q[i][1], Q[i][2])
         end
         Cairo.close_path(cr)
@@ -2003,7 +2003,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
         if m_v >= 3
             lines_and_cols =
                 [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-            for j = 1:m_v
+            for j in 1:m_v
                 l_curr = lines_and_cols[j][1]
                 l_next = lines_and_cols[mod1(j + 1, m_v)][1]
                 push!(intersections, line_intersection(l_curr, l_next))
@@ -2015,7 +2015,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
             set_source_rgba(cr, 1.0, 0.9, 0.0, 0.30)
             Cairo.new_path(cr)
             Cairo.move_to(cr, intersections[1][1], intersections[1][2])
-            for j = 2:length(intersections)
+            for j in 2:length(intersections)
                 Cairo.line_to(cr, intersections[j][1], intersections[j][2])
             end
             Cairo.close_path(cr)
@@ -2025,7 +2025,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
         # 5. Draw boundary of inner polygon Q again (green stroke, 4.0pt)
         Cairo.new_path(cr)
         Cairo.move_to(cr, Q[1][1], Q[1][2])
-        for i = 2:length(Q)
+        for i in 2:length(Q)
             Cairo.line_to(cr, Q[i][1], Q[i][2])
         end
         Cairo.close_path(cr)
@@ -2037,7 +2037,7 @@ function generate_staircase_movie_12(ps::PntSeq{2,Float64}; num_frames = 200, fp
         if m_v >= 3
             lines_and_cols =
                 [(tangent_line(Q, item[1])[1], item[2]) for item in unique_v_info]
-            for j = 1:m_v
+            for j in 1:m_v
                 p_start = intersections[mod1(j - 1, m_v)]
                 p_end = intersections[j]
                 col = lines_and_cols[j][2]
@@ -2097,7 +2097,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames = 200,
     n_hull = length(hull)
 
     inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         seg_half = Segment(p1, p2)
@@ -2134,7 +2134,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames = 200,
         Cairo.new_path(cr)
         x0, y0 = map_plot(alphas[1], vals[1])
         Cairo.move_to(cr, x0, y0)
-        for i = 2:length(alphas)
+        for i in 2:length(alphas)
             xi, yi = map_plot(alphas[i], vals[i])
             if abs(vals[i] - vals[i-1]) > 0.5
                 Cairo.stroke(cr)
@@ -2224,7 +2224,7 @@ function generate_staircase_movie_cover(ps::PntSeq{2,Float64}; num_frames = 200,
         # 1. Fill inner polygon (hull) in light gray FIRST
         Cairo.new_path(cr)
         Cairo.move_to(cr, hull[1][1], hull[1][2])
-        for i = 2:length(hull)
+        for i in 2:length(hull)
             Cairo.line_to(cr, hull[i][1], hull[i][2])
         end
         Cairo.close_path(cr)
@@ -2320,7 +2320,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames = 200, f
     n_hull = length(hull)
 
     inv_bisector_arcs = Union{CircleArc2F,Segment2F}[]
-    for i = 1:n_hull
+    for i in 1:n_hull
         p1 = hull[i] / 2.0
         p2 = hull[mod1(i + 1, n_hull)] / 2.0
         seg_half = Segment(p1, p2)
@@ -2345,7 +2345,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames = 200, f
 
     for inv_obj in [
         invert(Line(hull[i]/2.0, hull[mod1(i+1, n_hull)]/2.0 - hull[i]/2.0)) for
-        i = 1:n_hull
+        i in 1:n_hull
     ]
         if inv_obj isa Circle2F
             c_min = inv_obj.center - point(inv_obj.radius, inv_obj.radius)
@@ -2373,7 +2373,7 @@ function generate_staircase_movie_all(ps::PntSeq{2,Float64}; num_frames = 200, f
         Cairo.new_path(cr)
         x0, y0 = map_plot(alphas[1], vals[1])
         Cairo.move_to(cr, x0, y0)
-        for i = 2:length(alphas)
+        for i in 2:length(alphas)
             xi, yi = map_plot(alphas[i], vals[i])
             if abs(vals[i] - vals[i-1]) > 0.5
                 Cairo.stroke(cr)
@@ -2748,7 +2748,7 @@ function main(args = ARGS)
     n = example_size(20, 8)
     pts = Point{2,Float64}[]
     c_disk = point(0.1, 0.0)
-    for _ = 1:n
+    for _ in 1:n
         angle = 2pi * rand()
         radius = 0.5 * sqrt(rand()) # uniform distribution in disk
         p = c_disk + point(radius * cos(angle), radius * sin(angle))
@@ -2773,7 +2773,7 @@ function main(args = ARGS)
         generate_bisectory_pdf("bisectory_square.pdf", ps_square)
 
         # 3. Regular 20-gon on circle of radius 0.8 centered at origin (bisectory_20.pdf)
-        r20_pts = [point(0.8 * cos(2pi * i / 20), 0.8 * sin(2pi * i / 20)) for i = 0:19]
+        r20_pts = [point(0.8 * cos(2pi * i / 20), 0.8 * sin(2pi * i / 20)) for i in 0:19]
         ps_20 = PntSeq(r20_pts)
         generate_bisectory_pdf("bisectory_20.pdf", ps_20)
     end

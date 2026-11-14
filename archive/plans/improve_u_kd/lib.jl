@@ -12,7 +12,7 @@ end
 function is_simple(P)
     n=length(P)
     length(unique(P))==n || return false
-    for i = 1:n, j = (i+1):n
+    for i in 1:n, j in (i+1):n
         a, b = P[i], P[mod1(i+1, n)]
         c, d = P[j], P[mod1(j+1, n)]
         if j==i+1
@@ -27,11 +27,11 @@ function is_simple(P)
     true
 end
 area2(P) =
-    (n = length(P); sum(P[i].x*P[mod1(i+1, n)].y-P[mod1(i+1, n)].x*P[i].y for i = 1:n))
+    (n = length(P); sum(P[i].x*P[mod1(i+1, n)].y-P[mod1(i+1, n)].x*P[i].y for i in 1:n))
 function pip(P, q)
     n=length(P)
     c=false
-    for i = 1:n
+    for i in 1:n
         a, b=P[i], P[mod1(i+1, n)]
         if (a.y>q.y)!=(b.y>q.y)
             x = a.x+(q.y-a.y)*(b.x-a.x)/(b.y-a.y)
@@ -52,11 +52,11 @@ function verify(P, res)
         return "area"
     for (u, v) in res.diagonals
         a, b=P[u], P[v]
-        for w = 1:n
+        for w in 1:n
             (w==u||w==v) && continue
             onseg(a, b, P[w]) && return "diag thru vertex"
         end
-        for i = 1:n
+        for i in 1:n
             j=mod1(i+1, n)
             (i in (u, v) || j in (u, v)) && continue
             seg_intersect(a, b, P[i], P[j]) && return "diag crosses edge"

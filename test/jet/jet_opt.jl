@@ -30,11 +30,11 @@ end
 
 function main()
     rng = Xoshiro(1)
-    P2 = PntSeq([point(rand(rng), rand(rng)) for _ = 1:200])
-    P3 = [point(rand(rng), rand(rng), rand(rng)) for _ = 1:200]
+    P2 = PntSeq([point(rand(rng), rand(rng)) for _ in 1:200])
+    P3 = [point(rand(rng), rand(rng), rand(rng)) for _ in 1:200]
     poly = star(200, rng)
     sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
-    lines = [Line(point(rand(rng), 0.0), point(0.0, rand(rng))) for _ = 1:10]
+    lines = [Line(point(rand(rng), 0.0), point(0.0, rand(rng))) for _ in 1:10]
     view = BBox(point(0.0, 0.0), point(1.0, 1.0))
     W = WSPD.init(P2, 2.0)
     keys = rand(rng, 1000)

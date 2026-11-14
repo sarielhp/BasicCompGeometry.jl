@@ -25,13 +25,13 @@ using LinearAlgebra
 
     @testset "3D approx_diam" begin
         # Points on a line
-        pnts = [point(Float64(i), 0.0, 0.0) for i = 1:100]
+        pnts = [point(Float64(i), 0.0, 0.0) for i in 1:100]
         pp = approx_diam(PntSeq(pnts), 0.01)
         @test pp.distance ≈ 99.0 atol=1e-6
 
         # Random points in a cube
         n = 1000
-        pnts_cube = [rand_point(3) for _ = 1:n]
+        pnts_cube = [rand_point(3) for _ in 1:n]
         pp_cube = approx_diam(PntSeq(pnts_cube), 0.1)
         exact_d = exact_diameter(PntSeq(pnts_cube))
         @test pp_cube.distance <= exact_d
@@ -41,7 +41,7 @@ using LinearAlgebra
     @testset "3D approx_mvbb" begin
         # Points in a rotated box
         # Box: [0, 10] x [0, 2] x [0, 1]
-        pnts = [point(rand()*10, rand()*2, rand()) for _ = 1:1000]
+        pnts = [point(rand()*10, rand()*2, rand()) for _ in 1:1000]
 
         # Add corners
         push!(pnts, point(0.0, 0.0, 0.0))
@@ -86,7 +86,7 @@ end
 
 @testset "MVBB PriorityQueue type stability" begin
     rng = Xoshiro(17)
-    ps = PntSeq([point(rand(rng), rand(rng), rand(rng)) for _ = 1:120])
+    ps = PntSeq([point(rand(rng), rand(rng), rand(rng)) for _ in 1:120])
     tree = BasicCompGeometry.BBT.Tree_init(ps)
     pq = BasicCompGeometry.MVBB._init_node_pair_pq(tree.root, 0.0, Float64)
     @test isconcretetype(keytype(pq))

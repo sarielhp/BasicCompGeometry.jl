@@ -118,7 +118,7 @@ Calculate the total Euclidean length of the polygonal curve (sum of edge lengths
 function geom_length(pnt_seq::AbsPntSeq{D,T}) where {D,T}
     len = 0.0
     pnts = pnt_seq.pnts
-    for i = 1:(length(pnts)-1)
+    for i in 1:(length(pnts)-1)
         len += dist(pnts[i], pnts[i+1])
     end
     return len
@@ -137,7 +137,7 @@ function prefix_lengths(pnt_seq::AbsPntSeq{D,T}) where {D,T}
 
     v[1] = 0.0
     pnts = pnt_seq.pnts
-    for i = 2:n
+    for i in 2:n
         v[i] = v[i-1] + dist(pnts[i-1], pnts[i])
     end
     return v
@@ -250,7 +250,7 @@ function simplify(P::AbsPntSeq{D,T}, r::Real) where {D,T}
     push!(pindices, 1)
 
     curr = P[1]
-    for i = 2:(n-1)
+    for i in 2:(n-1)
         if dist(P[i], curr) > r
             push!(pout, P[i])
             push!(pindices, i)
@@ -287,7 +287,7 @@ function sample_uniformly(P::AbsPntSeq{D,T}, n::Int) where {D,T}
     out[1] = Point{D,OutT}(P[1])
     out[n] = Point{D,OutT}(P[m])
     seg = 2
-    for i = 2:(n-1)
+    for i in 2:(n-1)
         target = ((i - 1) / (n - 1)) * total_len
         while seg < m && plens[seg] < target
             seg += 1
@@ -323,7 +323,7 @@ function split_edges(P::AbsPntSeq{D,T}) where {D,T<:AbstractFloat}
     n = length(P)
     Q = PntSeq{D,T}()
     n == 0 && return Q
-    for i = 1:(n-1)
+    for i in 1:(n-1)
         push_distinct!(Q, P[i])
         push_distinct!(Q, convex_comb(P[i], P[i+1], 0.5))
     end
@@ -347,7 +347,7 @@ Base.reverse(P::PntSeq{D,T}) where {D,T} = PntSeq{D,T}(reverse(P.pnts))
 Generate a random point sequence in D dimensions with `n` vertices, each coordinate in `[0, 1)`.
 """
 function rand_pnt_seq(D::Int, T::Type{<:Real}, n::Int)
-    return PntSeq([rand_point(D, T) for _ = 1:n])
+    return PntSeq([rand_point(D, T) for _ in 1:n])
 end
 
 """
@@ -357,7 +357,7 @@ Generate a random point sequence in D dimensions with `n` vertices sampled unifo
 """
 function pnt_seq_random_sphere(D::Int, T::Type{<:Real}, n::Int)
     pnts = Vector{Point{D,T}}(undef, n)
-    for i = 1:n
+    for i in 1:n
         p = randn(T, D)
         mag = norm(p)
         if mag > 0

@@ -39,7 +39,7 @@ import BasicCompGeometry: cardin, derivative
     @test top_right(bb)[2] ≈ 1.5 atol=1e-10 # Maximum y is at mid (t=0.5)
 
     # All sampled points must lie strictly inside bbox
-    for t = 0.0:0.05:1.0
+    for t in 0.0:0.05:1.0
         pt = b(t)
         @test is_inside(pt, bb)
     end

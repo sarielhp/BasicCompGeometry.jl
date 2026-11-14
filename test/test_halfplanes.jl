@@ -172,7 +172,7 @@ using BasicCompGeometry: boundary, complement, distance, depth, clip
 
     loaded_hps = read_halfplanes(tmp_path)
     @test length(loaded_hps) == 4
-    for i = 1:4
+    for i in 1:4
         @test loaded_hps[i].boundary.p ≈ test_hps[i].boundary.p
         @test loaded_hps[i].boundary.u ≈ test_hps[i].boundary.u
     end

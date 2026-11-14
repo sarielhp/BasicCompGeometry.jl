@@ -58,7 +58,7 @@ function diam_test_sphere(D, iters, filename)
     exact_diameter(P_warm)
 
     df = DataFrame()
-    for i = 1:iters
+    for i in 1:iters
         N = 2^i
         P = Polygon_random_sphere(D, Float64, N)
         new_row = test_diameter(P, N, D)

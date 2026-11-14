@@ -110,7 +110,7 @@ Sample `n` points along the perimeter of the ellipse, returning a `PntSeq{2, T}`
 """
 function sample_uniformly(e::Ellipse{T}, n::Int) where {T}
     @assert n >= 3 "Sample count must be at least 3"
-    pts = [point_on(e, 2π * i / n) for i = 0:(n-1)]
+    pts = [point_on(e, 2π * i / n) for i in 0:(n-1)]
     return PntSeq(pts)
 end
 
@@ -278,7 +278,7 @@ Sample `n` points along the arc, returning a `PntSeq{2, T}`.
 """
 function sample_uniformly(arc::EllipticArc{T}, n::Int) where {T}
     @assert n >= 2 "Sample count must be at least 2"
-    pts = [point_on(arc, T(i) / (n - 1)) for i = 0:(n-1)]
+    pts = [point_on(arc, T(i) / (n - 1)) for i in 0:(n-1)]
     return PntSeq(pts)
 end
 

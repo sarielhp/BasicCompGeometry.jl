@@ -406,7 +406,7 @@ using BasicCompGeometry
             point(
                 (iseven(i) ? 2.0 : 1.0) * cos(2pi * i / 40),
                 (iseven(i) ? 2.0 : 1.0) * sin(2pi * i / 40),
-            ) for i = 0:39
+            ) for i in 0:39
         ]
         q0 = point(0.0, 0.0)
         @inferred visibility_polygon(star40, q0)
