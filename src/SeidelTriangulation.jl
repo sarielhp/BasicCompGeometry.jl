@@ -889,13 +889,11 @@ function _seidel_piece_order!(kernel::AbstractKernel, pts, pc, sc::_SeidelPieceS
         compare_xy(kernel, pts[pc[i]], pts[pc[hi]]) > 0 && (hi = i)
     end
 
-    c_minus = _seidel_fill_chain!(sc.c_minus, lo, hi, -1, k)
-    c_plus = _seidel_fill_chain!(sc.c_plus, lo, hi, 1, k)
-    if orient_sign(kernel, pts[pc[lo]], pts[pc[c_plus[2]]], pts[pc[c_minus[2]]]) > 0
-        upper, lower = c_minus, c_plus
-    else
-        upper, lower = c_plus, c_minus
-    end
+    # Pieces are counterclockwise, so the chain leaving `lo` forward is the lower one. This
+    # is combinatorial: a local turn test at `lo` is zero on a zero-width spike (and can
+    # round to the wrong sign) and then swapped the chains.
+    upper = _seidel_fill_chain!(sc.c_minus, lo, hi, -1, k)
+    lower = _seidel_fill_chain!(sc.c_plus, lo, hi, 1, k)
 
     is_upper = sc.is_upper
     resize!(is_upper, k)
@@ -937,7 +935,8 @@ function _seidel_triangulate_monotone_piece!(
     k = length(pc)
     k < 3 && return nothing
     if k == 3
-        push!(all_triangles, (pc[1], pc[2], pc[3]))
+        # Not checked by any turn test: a bad partition can leave it clockwise.
+        _push_fan_triangle!(all_triangles, kernel, pts, (pc[1], pc[2], pc[3]))
         return nothing
     end
 
@@ -954,8 +953,13 @@ function _seidel_triangulate_monotone_piece!(
 
     # The orientation of every emitted triangle follows from the chain structure (the lower
     # chain runs left-to-right and the upper chain right-to-left in CCW order), so callers pass
-    # the vertices already in counterclockwise order and no predicate is re-evaluated here.
+    # the vertices already in counterclockwise order. Same-chain triangles pass a strict turn
+    # test; fan triangles are re-checked, because a piece that is not a simple monotone
+    # polygon (a weakly simple or non-simple input breaks the partition) can make them
+    # clockwise, and that must raise rather than return an invalid triangulation.
     @inline emit_tri!(a::Int, b::Int, c::Int) = push!(all_triangles, (pc[a], pc[b], pc[c]))
+    @inline emit_fan!(a::Int, b::Int, c::Int) =
+        _push_fan_triangle!(all_triangles, kernel, pts, (pc[a], pc[b], pc[c]))
 
     stack = sc.stack
     empty!(stack)
@@ -966,7 +970,7 @@ function _seidel_triangulate_monotone_piece!(
             while length(stack) >= 2
                 s_top = pop!(stack)
                 s_next = last(stack)
-                is_upper[v] ? emit_tri!(v, s_next, s_top) : emit_tri!(v, s_top, s_next)
+                is_upper[v] ? emit_fan!(v, s_next, s_top) : emit_fan!(v, s_top, s_next)
                 emit_diag!(v, s_top)
             end
             pop!(stack)
@@ -989,8 +993,8 @@ function _seidel_triangulate_monotone_piece!(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        is_upper[s_top] ? emit_tri!(v_last, s_top, s_next) :
-        emit_tri!(v_last, s_next, s_top)
+        is_upper[s_top] ? emit_fan!(v_last, s_top, s_next) :
+        emit_fan!(v_last, s_next, s_top)
         emit_diag!(v_last, s_top)
     end
     return nothing

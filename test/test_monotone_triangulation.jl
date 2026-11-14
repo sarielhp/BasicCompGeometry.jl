@@ -2023,4 +2023,192 @@ using BasicCompGeometry
         diags = BasicCompGeometry._sweep_partition_diagonals(FloatingKernel(), poly_sweep)
         @test diags isa Vector{Tuple{Int,Int}}
     end
+
+    @testset "Weakly simple and near-degenerate polygons: valid triangulation or ArgumentError" begin
+        all_algs = (
+            :sweep,
+            :seidel,
+            :ear_cut,
+            :ear_cut_z_order,
+            :ear_cut_kd_tree,
+            :ear_cut_u_kd_tree,
+        )
+        exact = ExactKernel()
+        tri_orient(P, t, kernel) = orient_sign(kernel, P[t[1]], P[t[2]], P[t[3]])
+
+        # Each polygon edge is used once in CCW direction, every diagonal once each way.
+        function edges_ok(n, triangles)
+            directed = Dict{Tuple{Int,Int},Int}()
+            for t in triangles, e in ((t[1], t[2]), (t[2], t[3]), (t[3], t[1]))
+                directed[e] = get(directed, e, 0) + 1
+            end
+            all(c == 1 for c in values(directed)) || return false
+            return all(
+                e[2] == mod1(e[1] + 1, n) || haskey(directed, (e[2], e[1])) for
+                e in keys(directed)
+            )
+        end
+
+        # The contract: no triangle is clockwise under `kernel`, the triangles form a
+        # triangulation of the boundary cycle and, with exact predicates, tile the polygon.
+        function contract_ok(P, res, kernel)
+            n = length(P)
+            length(res.triangles) == n - 2 || return false
+            all(t -> tri_orient(P, t, kernel) >= 0, res.triangles) || return false
+            edges_ok(n, res.triangles) || return false
+            kernel isa ExactKernel || return true
+            s = sum(
+                t -> abs(twice_area([P[t[1]], P[t[2]], P[t[3]]]; kernel = exact)),
+                res.triangles,
+            )
+            return s == twice_area(P; kernel = exact)
+        end
+
+        # :ok, :throw (ArgumentError), or :violation.
+        function outcome(P, alg, kernel)
+            res = try
+                triangulate_polygon(P; algorithm = alg, kernel = kernel, rng = Xoshiro(7))
+            catch e
+                e isa ArgumentError && return :throw
+                rethrow()
+            end
+            return contract_ok(P, res, kernel) ? :ok : :violation
+        end
+
+        # Reported repro: vertex 4 is within rounding of edge 2 -> 3 (exactly on it in
+        # decimal; exact orient(2, 3, 4) = +1, so the polygon is strictly simple). The y-monotone
+        # fast path of :ear_cut rotated it and the local turn test that split the monotone
+        # chains rounded to 0, swapping them: triangles [(3, 1, 4), (2, 1, 3)], one clockwise.
+        P = [
+            point(0.74, 0.21),
+            point(-0.35, 0.56),
+            point(-0.03, -0.56),
+            point(-0.07, -0.42),
+        ]
+        @test orient_sign(exact, P[2], P[3], P[4]) > 0
+        for alg in all_algs, kernel in (FloatingKernel(), exact)
+            @test outcome(P, alg, kernel) === :ok
+        end
+        R = [point(p.y, -p.x) for p in P]
+        @test is_x_monotone(R)
+        @test contract_ok(R, triangulate_monotone(R), FloatingKernel())
+        @test monotone_chain_indices(R) == ([3, 2], [3, 4, 1, 2])
+
+        # Exact zero-width spike at the leftmost vertex: both chains leave it along the
+        # same ray, so the old local turn test was exactly zero even with ExactKernel.
+        S = [
+            point(0.0, 0.0),
+            point(2.0, 1.0),
+            point(4.0, 0.0),
+            point(6.0, 2.0),
+            point(4.0, 5.0),
+            point(1.0, 0.5),
+        ]
+        @test monotone_chain_indices(S; kernel = exact) == ([1, 6, 5, 4], [1, 2, 3, 4])
+        for kernel in (FloatingKernel(), exact)
+            @test contract_ok(S, triangulate_monotone(S; kernel = kernel), kernel)
+            @test contract_ok(S, triangulate_ear_cut(S; kernel = kernel), kernel)
+        end
+        # Clockwise x-monotone input still triangulates into CCW triangles.
+        Sr = reverse(S)
+        res_r = triangulate_monotone(Sr)
+        @test length(res_r.triangles) == length(Sr) - 2
+        @test all(t -> tri_orient(Sr, t, exact) >= 0, res_r.triangles)
+
+        # Vertex 3 touches edge 6 -> 7: Seidel's piece triangulation swapped the chains of a
+        # piece with a zero-width spike and returned overlapping triangles.
+        W = [
+            point(-54.0, -42.0),
+            point(-36.0, -44.0),
+            point(-12.0, 0.0),
+            point(-18.0, -46.0),
+            point(0.0, -48.0),
+            point(24.0, 0.0),
+            point(-48.0, 0.0),
+        ]
+        for alg in all_algs, kernel in (FloatingKernel(), exact), seed in 1:5
+            r = try
+                triangulate_polygon(W; algorithm = alg, kernel = kernel, rng = Xoshiro(seed))
+            catch e
+                e
+            end
+            @test r isa ArgumentError || contract_ok(W, r, kernel)
+        end
+
+        # Strictly simple, but FloatingKernel predicates are inconsistent: ear clipping used
+        # to emit the clockwise remaining triangle (4, 5, 7) unchecked.
+        F = [
+            point(-0.69, 0.59),
+            point(0.89, -0.89),
+            point(0.59, 0.69),
+            point(0.46, 0.69),
+            point(0.1, -0.15),
+            point(0.33, 0.69),
+            point(0.2, 0.69),
+        ]
+        for alg in all_algs
+            @test outcome(F, alg, FloatingKernel()) !== :violation
+            @test outcome(F, alg, exact) === :ok
+        end
+
+        # x-monotone vertex order whose chains cross (not simple): the monotone fast path
+        # of :ear_cut returned clockwise triangles; now every algorithm rejects it.
+        X = [
+            point(0.0, 0.0),
+            point(2.0, -1.0),
+            point(4.0, 2.0),
+            point(6.0, 0.0),
+            point(3.0, 1.0),
+        ]
+        @test is_x_monotone(X) && twice_area(X; kernel = exact) > 0
+        for alg in all_algs, kernel in (FloatingKernel(), exact)
+            @test outcome(X, alg, kernel) !== :violation
+        end
+        @test_throws ArgumentError triangulate_monotone(X)
+
+        # Seeded weakly simple polygons from random convex lattice polygons (coordinates
+        # are multiples of 6, so midpoints and thirds stay integral and Float64 predicates
+        # are exact): (a) a zero-width spike, a vertex inserted on its predecessor edge;
+        # (b) a notch whose apex touches another edge. Ear cutting handles both.
+        lerp(p, q, f) = point(p.x + f * (q.x - p.x), p.y + f * (q.y - p.y))
+        function rand_convex_lattice(rng)
+            pts = unique([
+                point(6.0 * rand(rng, -10:10), 6.0 * rand(rng, -10:10)) for _ in 1:10
+            ])
+            H = [point(p[1], p[2]) for p in convex_hull(pts)]
+            twice_area(H; kernel = exact) < 0 && reverse!(H)
+            m = length(H)
+            return [
+                H[i] for i in 1:m if
+                orient_sign(exact, H[mod1(i - 1, m)], H[i], H[mod1(i + 1, m)]) > 0
+            ]
+        end
+        function weakly_simple(rng, H, spike::Bool)
+            n = length(H)
+            i = rand(rng, 1:n)
+            spike && return vcat(H[1:i], [lerp(H[i], H[mod1(i - 1, n)], 0.5)], H[(i+1):end])
+            j = mod1(i + rand(rng, 2:(n-1)), n)
+            t = lerp(H[i], H[mod1(i + 1, n)], 0.5)
+            x, y =
+                lerp(H[j], H[mod1(j + 1, n)], 1 / 3), lerp(H[j], H[mod1(j + 1, n)], 2 / 3)
+            return vcat(H[1:j], [x, t, y], H[(j+1):end])
+        end
+        counts = Dict{Symbol,Int}(:ok => 0, :throw => 0, :violation => 0)
+        tested = 0
+        for seed in 1:120
+            rng = Xoshiro(seed)
+            H = rand_convex_lattice(rng)
+            length(H) >= 4 || continue
+            Q = weakly_simple(rng, H, isodd(seed))
+            allunique(Q) || continue
+            tested += 1
+            for alg in all_algs, kernel in (FloatingKernel(), exact)
+                o = outcome(Q, alg, kernel)
+                counts[o] += 1
+                alg in (:sweep, :seidel) || @test o === :ok
+            end
+        end
+        @test tested >= 100
+        @test counts[:violation] == 0
+    end
 end

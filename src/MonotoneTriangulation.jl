@@ -59,12 +59,24 @@ function monotone_chain_indices(p; kernel::AbstractKernel = FloatingKernel())
         push!(c_plus, curr)
     end
 
-    # In a counterclockwise polygon, step -1 is the upper chain if orient_sign(lo, plus, minus) > 0
-    if orient_sign(kernel, p[lo], p[c_plus[2]], p[c_minus[2]]) > 0
-        return (c_minus, c_plus)
-    else
-        return (c_plus, c_minus)
-    end
+    # Counterclockwise order runs left-to-right along the lower chain, so step +1 from `lo`
+    # is the lower chain. The orientation comes from the signed area, not from a local turn
+    # at `lo`: that turn is zero when the two chains leave `lo` along the same ray (a
+    # zero-width spike) and can get the wrong sign from rounding when they leave it at a
+    # tiny angle, either of which swapped the chains and produced clockwise triangles.
+    return _polygon_is_ccw(kernel, p) ? (c_minus, c_plus) : (c_plus, c_minus)
+end
+
+# Orientation of polygon `p` from its signed area (exact for `ExactKernel`).
+function _polygon_is_ccw(kernel::AbstractKernel, p)
+    area2 = twice_area(p; kernel = kernel)
+    iszero(area2) && throw(
+        ArgumentError(
+            "polygon has zero signed area; it is degenerate or not simple " *
+            "(try kernel = ExactKernel() if it is numerically degenerate)",
+        ),
+    )
+    return area2 > 0
 end
 
 """
@@ -103,6 +115,31 @@ function merge_chains(upper::AbstractVector{T}, lower::AbstractVector{T}) where 
     return order
 end
 
+# Append fan triangle `t` (indices into `pts`) of a monotone stack triangulation. Fan
+# triangles are counterclockwise by the chain structure when the piece is a simple monotone
+# polygon, so they skip the turn test; a non-simple polygon (e.g. crossing chains) or one
+# numerically degenerate for the kernel breaks that, and is rejected here instead of
+# emitting a clockwise triangle.
+@inline function _push_fan_triangle!(
+    triangles,
+    kernel::AbstractKernel,
+    pts,
+    t::NTuple{3,Int},
+)
+    orient_sign(kernel, pts[t[1]], pts[t[2]], pts[t[3]]) >= 0 || _throw_clockwise_fan()
+    push!(triangles, t)
+    return nothing
+end
+
+@noinline function _throw_clockwise_fan()
+    throw(
+        ArgumentError(
+            "monotone triangulation produced a clockwise triangle; the polygon is not simple, " *
+            "or is numerically degenerate for the kernel (try kernel = ExactKernel())",
+        ),
+    )
+end
+
 """
     triangulate_monotone(vertices; kernel=FloatingKernel()) -> MonotoneTriangulation
 
@@ -114,6 +151,10 @@ Returns a `MonotoneTriangulation` with:
 # Preconditions
 - `vertices` must form a simple counterclockwise x-monotone polygon with `k >= 3` vertices.
 - Original x-coordinates are distinct, and no three supplied vertices are collinear.
+
+The chains are split by the sign of the polygon's signed area, so a clockwise input is
+triangulated too; a zero-area polygon, or a fan triangle that comes out clockwise (crossing
+chains, or a polygon numerically degenerate for `kernel`), throws an `ArgumentError`.
 """
 function triangulate_monotone(vertices; kernel::AbstractKernel = FloatingKernel())
     k = length(vertices)
@@ -170,7 +211,8 @@ function triangulate_monotone(vertices; kernel::AbstractKernel = FloatingKernel(
             while length(stack) >= 2
                 s_top = pop!(stack)
                 s_next = last(stack)
-                push!(triangles, is_upper[v] ? (v, s_next, s_top) : (v, s_top, s_next))
+                t = is_upper[v] ? (v, s_next, s_top) : (v, s_top, s_next)
+                _push_fan_triangle!(triangles, kernel, vertices, t)
                 emit_diagonal!(v, s_top)
             end
             pop!(stack)
@@ -193,10 +235,8 @@ function triangulate_monotone(vertices; kernel::AbstractKernel = FloatingKernel(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        push!(
-            triangles,
-            is_upper[s_top] ? (v_last, s_top, s_next) : (v_last, s_next, s_top),
-        )
+        t = is_upper[s_top] ? (v_last, s_top, s_next) : (v_last, s_next, s_top)
+        _push_fan_triangle!(triangles, kernel, vertices, t)
         emit_diagonal!(v_last, s_top)
     end
 
@@ -465,6 +505,15 @@ end
     )
 end
 
+@noinline function _throw_bad_last_triangle()
+    throw(
+        ArgumentError(
+            "ear clipping left a clockwise final triangle; the polygon is not " *
+            "simple, or is numerically degenerate for the kernel (try kernel = ExactKernel())",
+        ),
+    )
+end
+
 # Ear queue. It is seeded with the polygon's initial ears (verified up front, in index
 # order). When an ear is clipped, each of its two neighbors is (re)appended to the back of
 # the queue as an unverified candidate, superseding any earlier entry, and is tested only
@@ -547,6 +596,11 @@ function _ear_clip_run!(st::_EarClipState)
         if v1 !== nothing
             v2 = st.next_v[v1]
             v3 = st.next_v[v2]
+            # Every clipped ear passed a strict convexity test; the remaining triangle did
+            # not. Inconsistent predicates (a non-simple polygon, or one numerically
+            # degenerate for the kernel) can leave it clockwise: reject instead of emitting it.
+            p = st.poly
+            orient_sign(st.kernel, p[v1], p[v2], p[v3]) >= 0 || _throw_bad_last_triangle()
             push!(triangles, (v1, v2, v3))
         end
     end
@@ -635,6 +689,16 @@ Supported `algorithm` options:
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
+
+# Degenerate input
+Simplicity is not checked in full. A weakly simple polygon (a vertex lying on another edge,
+e.g. a zero-width spike) is either triangulated, possibly with zero-area triangles, or
+rejected with an `ArgumentError`; the ear-cutting algorithms triangulate it, `:sweep` and
+`:seidel` may reject it. Every returned triangle has non-negative orientation under `kernel`,
+so with `ExactKernel()` the triangles tile the polygon. When predicates turn out inconsistent
+(a non-simple polygon, or one numerically degenerate for `FloatingKernel`), the function
+throws an `ArgumentError` instead of returning clockwise or overlapping triangles; a
+self-intersecting polygon whose crossings no predicate encounters may still be triangulated.
 """
 function triangulate_polygon(
     vertices;
