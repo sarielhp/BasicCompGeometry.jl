@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.17] - 2026-11-14
+
 ### Fixed
 - `at`, `sample_uniformly`, and `dist(::AbsPntSeq, i, j)`: eliminated type instabilities (`Union{Point{D,T}, Point{D,Float64}}` / `Union{Float32, Float64}`) for `Float32` and integer point sequences by consistently using `float(T)` (`zero(float(T))` when `i == j`), and fixed `InexactError` in `sample_uniformly` on integer point sequences.
 - `visibility_polygon` and `polygon_kernel`: integer coordinate inputs under `FloatingKernel()` now promote to `Float64` instead of throwing `InexactError`, and `Float32` / `Rational{Int64}` coordinate types are preserved with homogeneous, type-stable return types (including `_ray_edge_intersect`).
