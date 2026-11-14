@@ -1,3 +1,5 @@
 # Formatting-only commits, skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs)
 # style: apply JuliaFormatter
 c92f68e421078a2411935929627a5d7c694201ad
+# style: write loops with in
+aba925ec61ff3eaa9a82675ac6e8e2bced0bb4aa
