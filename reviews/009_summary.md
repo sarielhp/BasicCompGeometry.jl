@@ -20,3 +20,6 @@
 - **`./tools/build`**: Passed (exit code 0, clean package precompilation).
 - **`./tools/gate`**: Passed (exit code 0), running Aqua checks (`Method ambiguity`, `Unbound type parameters`, `Undefined exports`, `Compare Project.toml and test/Project.toml`, `Stale dependencies`, `Compat bounds`, `Piracy`, `Persistent tasks`) and passing **156,513 / 156,513** assertions in `1m26.2s`.
 - **`CHANGELOG.md`**: Recorded fixes and performance improvements under `## [Unreleased]`.
+- **Status**: Remediated & Verified
+- **Footprint**: 9 files changed, 499 insertions(+), 197 deletions(-)
+- **Differential Audit**: Clean (0 defects in diff)
