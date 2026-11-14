@@ -283,4 +283,15 @@ using Random
         end
         @test alloc_decomp < 1_000_000
     end
+
+    @testset "decomposition with clockwise triangles" begin
+        # :ear_cut triangulates this quad as [(3,1,4), (2,1,3)]; the second
+        # triple is clockwise and must be reoriented before merging.
+        quad = [point(0.74, 0.21), point(-0.35, 0.56), point(-0.03, -0.56), point(-0.07, -0.42)]
+        sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
+        for alg in (:ear_cut, :sweep, :seidel)
+            d = minkowski_sum_decomposition(quad, sq; algorithm = alg)
+            @test all(is_convex, d)
+        end
+    end
 end

@@ -386,7 +386,9 @@ function _vd_slab_lines!(
         end
     end
 
-    sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid), alg = QuickSort)
+    # Stable sort: coincident lines must keep the same order in every slab, or
+    # deduplication keeps different copies and trapezoids stop merging.
+    sort!(slab_lines, by = l -> _line_y_at_x(l, x_mid))
 
     # Deduplicate coincident lines in slab
     for l in slab_lines

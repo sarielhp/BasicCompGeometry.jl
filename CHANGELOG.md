@@ -14,9 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dist_subspace`, `nn_point`, and `bisection_point`: eliminated value-dependent union return types for integer, `Float32`, and `Rational` inputs so degenerate/nonpositive branches return the exact same promoted coordinate/scalar types as the general branches.
 - `point_on(::AbsPntSeq; closed=true)`: standardized all return branches to `Point{D,float(T)}` (eliminating `Union{Point{D,T}, Point{D,Float64}}` type instability on integer and `Float32` sequences) and eliminated `vcat` / `zeros` allocations via a zero-allocation two-pass walk with zero-length edge guarding.
 
+- `dist_segment_segment`: two zero-length segments no longer throw `SingularException`.
+- `intersect_line_curve` on a zero-span `CircleArc` returns the tangent hit instead of `NaN`.
+
+### Compatibility notes
+- `WSPD.PD` and `PntSeqHierarchy.SimplificationHierarchy` gained a type parameter; code that spells out the old parameter list must be updated.
+- Under `FloatingKernel()`, `visibility_polygon` and `polygon_kernel` always return `Float64` points for integer input; `at`, `nn_point`, and `point_on` always return float points.
+- `vertical_ray_segment` rejects infinite rational coordinates (`1//0`) with `ArgumentError`.
+- `read_plt` uses the first `dim` numbers of each line and ignores trailing fields that used to raise an error.
+- `BBT.Tree_draw` fills with alpha exactly 0.1 (was 26/255) and draws nodes level by level; the pictures are visually unchanged.
+
 ### Changed
 - `rand_point` and `rand_gaussian`: added `Val{D}` overloads for compile-time dimension inference and replaced `randn(T, D)` in `rand_gaussian` with stack-allocated `ntuple` construction (zero heap allocations).
-- `dist_segment_segment`: replaced heap `Vector`/`Matrix` construction and `m \ c` linear solve with zero-allocation scalar Cramer's rule and scale-invariant parallel segment detection.
+- `dist_segment_segment`: replaced heap `Vector`/`Matrix` construction and `m \ c` linear solve with zero-allocation scalar Cramer's rule; parallel segments are detected by `Δ > 0` with no tolerance, so nearly parallel crossing segments no longer fall back to the endpoint distance.
 - `apply_transform`: widened `Matrix{T}` to `AbstractMatrix{T}` and replaced augmented-vector heap allocations with inline `muladd` evaluation (zero heap allocations).
 - `union_bbox(objects::AbstractVector)`: replaced vararg splatting and `map(bbox, objects)` with single-pass streaming reduction via `_union_bbox_iter` (10,000-box allocations reduced from ~13.2 MB to 96 bytes).
 - `RMQ` and `ChainIndex`: eliminated `Core.Box` captures and missing comparator specialization in `_sparse_levels` and `build_rmq` (with `Base.@constprop :aggressive` and `Val`-dispatched backends), making `build_rmq` and `build_chain_index` concretely inferred and removing per-query heap allocations in `ChainWindow` queries.

@@ -474,13 +474,15 @@ function draw_bspline!(
         pen = pen,
         dash = dash,
     )
-    is_first = true
-    for raw_pt in pts
+    # Same layout as before: "x y m" first (open), operator on the last point's line.
+    for (k, raw_pt) in enumerate(pts)
         _write_pt!(buf, _apply_tf(canvas, raw_pt))
-        write(buf, is_first && !closed ? " m\n" : "\n")
-        is_first = false
+        if k == n
+            write(buf, closed ? " u\n</path>" : " s\n</path>")
+        else
+            write(buf, k == 1 && !closed ? " m\n" : "\n")
+        end
     end
-    write(buf, closed ? "u\n</path>" : "s\n</path>")
     push!(canvas.elements, String(take!(buf)))
     return canvas
 end

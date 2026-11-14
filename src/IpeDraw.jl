@@ -148,9 +148,15 @@ function _write_attr!(buf::IO, name::String, val::Union{Symbol,String,Nothing})
     return nothing
 end
 
+# String interpolation, not sprint: sprint allocates a buffer per attribute.
 function _fmt_attr(name::String, val::Union{Symbol,String,Nothing})
-    (val === nothing || val === :none) && return ""
-    return sprint(_write_attr!, name, val)
+    val === nothing && return ""
+    s = string(val)
+    s == "none" && return ""
+    if name == "arrow" || name == "rarrow"
+        s = s == "pointed" ? "pointed/normal" : (s == "normal" ? "normal/normal" : s)
+    end
+    return " $name=\"$s\""
 end
 
 function _write_uint!(buf::IO, n::Int64)
@@ -160,16 +166,19 @@ function _write_uint!(buf::IO, n::Int64)
     return nothing
 end
 
+const _FIXED3 = Printf.Format("%.3f")
+
+# Writes the same text as @sprintf("%.3f", val). The integer fast path is exact
+# unless val*1000 is within rounding error of a .5 tie (or huge or non-finite);
+# those cases go through Printf, which rounds the exact decimal value.
 function _write_fixed3!(buf::IO, val::Float64)
-    if !isfinite(val) || abs(val) >= 1e15
-        print(buf, val)
+    x = val * 1000.0
+    if !(abs(x) < 1e15) || abs(abs(x - trunc(x)) - 0.5) <= 1e-6
+        Printf.format(buf, _FIXED3, val)
         return nothing
     end
-    scaled = round(Int64, val * 1000.0)
-    if scaled < 0
-        write(buf, UInt8('-'))
-        scaled = -scaled
-    end
+    scaled = unsafe_trunc(Int64, round(abs(x)))
+    signbit(val) && write(buf, UInt8('-'))
     whole, frac = divrem(scaled, Int64(1000))
     _write_uint!(buf, whole)
     write(buf, UInt8('.'))

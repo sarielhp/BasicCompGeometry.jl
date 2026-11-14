@@ -92,6 +92,10 @@ function lcs_init(PS::P) where {T,P<:AbsPntSeq{2,T}}
 end
 
 # Reset per-target DP summary state while keeping the sorted tail topology.
+# Resets only what depends on the previous target. Correct only because targets
+# are processed in increasing order: for points after the current target,
+# tvals/jump were never written and still hold their initial values. Reordering
+# or parallelising the target loop requires resetting tvals/jump here too.
 function _reset_context!(lct::LCSContext)
     empty!(lct.Lens)
     for pt in lct.turns

@@ -185,10 +185,10 @@ function dist_segment_segment(
     Δ = A * C - B * B
 
     edge_dist = _min_endpoint_segment_dist(ap, aq, bp, bq)
-    tol = R <: AbstractFloat ? max(R(1e-12), 4 * eps(R)) : zero(R)
-    if Δ <= tol * (A * C)
-        return edge_dist
-    end
+    # No tolerance: the clamped (s, t) below always name real points on the two
+    # segments, so their distance never undercuts the true minimum, and taking
+    # the min with edge_dist is safe even for nearly parallel segments.
+    Δ > 0 || return edge_dist
 
     s = clamp((r1 * C - B * r2) / Δ, zero(R), one(R))
     t = clamp((A * r2 - B * r1) / Δ, zero(R), one(R))

@@ -396,9 +396,9 @@ end
 
     @test_throws ArgumentError draw_bspline!(canvas, [Point(0.0, 0.0), Point(1.0, 1.0)])
     draw_bspline!(canvas, (Point(Float64(i), Float64(i % 2)) for i in 1:4); closed = false)
-    @test occursin(" m\n", canvas.elements[end]) && occursin("\ns\n", canvas.elements[end])
+    @test occursin(" m\n", canvas.elements[end]) && occursin(" s\n</path>", canvas.elements[end])
     draw_bspline!(canvas, (Point(0.0, 0.0), Point(1.0, 0.0), Point(0.0, 1.0)); closed = true)
-    @test !occursin(" m\n", canvas.elements[end]) && occursin("\nu\n", canvas.elements[end])
+    @test !occursin(" m\n", canvas.elements[end]) && occursin(" u\n</path>", canvas.elements[end])
 
     large_pts = [Point(Float64(i), Float64(i % 7)) for i in 1:2000]
     function _measure_path_allocs(cv, pts)

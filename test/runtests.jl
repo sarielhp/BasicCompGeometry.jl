@@ -499,6 +499,16 @@ Aqua.test_all(BasicCompGeometry)
             point(0.0f0, 0.0f0), point(2.0f0, 0.0f0),
             point(1.0f0, 1.0f0), point(1.0f0, 3.0f0),
         )) === 1.0f0
+        # Crossing at a tiny angle: must not fall back to the endpoint distance.
+        let L = 1e4, θ = 1e-7
+            @test dist(
+                Segment(point(-L, 0.0), point(L, 0.0)),
+                Segment(point(-L * cos(θ), -L * sin(θ)), point(L * cos(θ), L * sin(θ))),
+            ) < 1e-9
+        end
+        @test BasicCompGeometry.dist_segment_segment(
+            point(0.0, 0.0), point(0.0, 0.0), point(1.0, 1.0), point(1.0, 1.0),
+        ) ≈ sqrt(2)
 
         # nn_point type stability across Int, Float32, Rational
         @test (@inferred nn_point(point(0, 0), point(0, 0), point(1, 1))) === point(0.0, 0.0)

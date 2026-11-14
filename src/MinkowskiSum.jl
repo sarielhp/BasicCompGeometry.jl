@@ -349,7 +349,13 @@ function _decompose_pieces(
         return (_normalize_convex_copy(p, kernel), NTuple{3, Int}[])
     end
     t = triangulate_polygon(p; kernel = kernel, algorithm = algorithm)
-    return (p, t.triangles)
+    # Triangulators may emit clockwise index triples (e.g. :ear_cut), but
+    # _minkowski_convex_ccw requires counter-clockwise pieces.
+    tris = Vector{NTuple{3, Int}}(undef, length(t.triangles))
+    for (k, (i, j, m)) in enumerate(t.triangles)
+        tris[k] = orient_sign(kernel, p[i], p[j], p[m]) < 0 ? (i, m, j) : (i, j, m)
+    end
+    return (p, tris)
 end
 
 function _minkowski_sum_decomposition_impl(
