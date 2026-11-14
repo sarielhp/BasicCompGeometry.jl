@@ -1,4 +1,4 @@
-raw"""
+@doc raw"""
     exact_diameter(P)
 
 Calculate the exact Euclidean diameter of a set of points `P` (point sequence or vector of points).
@@ -16,7 +16,7 @@ function exact_diameter(P::AbsPntSeq{D,T}) where {D,T}
     return curr
 end
 
-raw"""
+@doc raw"""
     approx_diameter(P, ε)
 
 Calculate a $(1+ε)$-approximation of the Euclidean diameter of a set of points `P`.
@@ -46,7 +46,7 @@ function approx_diameter(P::AbsPntSeq{D,T}, ε::Real) where {D,T}
     return curr
 end
 
-raw"""
+@doc raw"""
     approx_diameter_subspace(P, ε, dir)
 
 Calculate a $(1+ε)$-approximation of the diameter of point set `P` projected into
@@ -84,7 +84,7 @@ function approx_diameter_subspace(P::AbsPntSeq{D,T}, ε::Real, dir::Point{D,T}) 
 
     return curr
 end
-raw"""
+@doc raw"""
     exact_diameter_subspace(P, dir)
 
 Calculate the exact diameter of point set `P` projected into the subspace orthogonal to unit vector `dir`.

@@ -1,3 +1,11 @@
+"""
+    WSPD
+
+Well-separated pair decomposition over a `BBT` tree. `init(P, sep)` seeds a priority
+queue of node pairs ordered by an upper bound on their diameter; `expand!` and
+`expand_bichromatic!` refine it into pairs separated by factor `sep`. Used by
+`approx_diameter` and the metric-space routines.
+"""
 module WSPD
 
 using ..BasicCompGeometry
@@ -210,15 +218,30 @@ function top_diam_ub(W::PD{D,T,S,V,P}) where {D,T,S,V,P}
     return first(W.heap).diam_ub
 end
 
+"""
+    get_reps(W, pair) -> (p, q)
+
+Representative points of the two sides of `pair`: the first point stored under each node.
+"""
 function get_reps(W::PD, pair::WSPair)
     return W.tree.PS[first(pair.left.r)], W.tree.PS[first(pair.right.r)]
 end
 
+"""
+    reps_orig_indexes(W, pair) -> (i, j)
+
+Original input indices of the representatives returned by [`get_reps`](@ref).
+"""
 function reps_orig_indexes(W::PD, pair::WSPair)
     return orig_index(W.tree.PS, first(pair.left.r)),
     orig_index(W.tree.PS, first(pair.right.r))
 end
 
+"""
+    min_orig_index(W, pair) -> Int
+
+Smallest original input index among the points of both sides of `pair`.
+"""
 function min_orig_index(W::PD, pair::WSPair)
     return min(
         BBT.get_min_orig_index(W.tree, pair.left),
@@ -226,6 +249,11 @@ function min_orig_index(W::PD, pair::WSPair)
     )
 end
 
+"""
+    max_orig_index(W, pair) -> Int
+
+Largest original input index among the points of both sides of `pair`.
+"""
 function max_orig_index(W::PD, pair::WSPair)
     return max(
         BBT.get_max_orig_index(W.tree, pair.left),
@@ -233,6 +261,12 @@ function max_orig_index(W::PD, pair::WSPair)
     )
 end
 
+"""
+    get_orig_ranges(W, pair) -> (left_range, right_range)
+
+For each side of `pair`, the range from its smallest to its largest original input
+index. The ranges bound the indices; the side's points need not fill them.
+"""
 function get_orig_ranges(W::PD, pair::WSPair)
     l_min = BBT.get_min_orig_index(W.tree, pair.left)
     l_max = BBT.get_max_orig_index(W.tree, pair.left)

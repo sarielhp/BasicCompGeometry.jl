@@ -54,7 +54,20 @@ function Ellipse(center::NTuple{2,Real}, r_major::Real, r_minor::Real, angle::Re
 end
 
 center(e::Ellipse) = e.center
+"""
+    r_major(e::Ellipse)
+    r_major(arc::EllipticArc)
+
+Semi-major axis of the ellipse (of the arc's underlying ellipse).
+"""
 r_major(e::Ellipse) = e.r_major
+
+"""
+    r_minor(e::Ellipse)
+    r_minor(arc::EllipticArc)
+
+Semi-minor axis of the ellipse (of the arc's underlying ellipse).
+"""
 r_minor(e::Ellipse) = e.r_minor
 Base.angle(e::Ellipse) = e.angle
 rotation_angle(e::Ellipse) = e.angle
@@ -185,7 +198,19 @@ center(arc::EllipticArc) = arc.ellipse.center
 r_major(arc::EllipticArc) = arc.ellipse.r_major
 r_minor(arc::EllipticArc) = arc.ellipse.r_minor
 Base.angle(arc::EllipticArc) = arc.ellipse.angle
+"""
+    alpha1(arc::EllipticArc)
+
+Start angle parameter (radians) of the arc, which runs counterclockwise on its ellipse
+from `alpha1` to `alpha2`, wrapping past `2π` when `alpha2 < alpha1`.
+"""
 alpha1(arc::EllipticArc) = arc.alpha1
+
+"""
+    alpha2(arc::EllipticArc)
+
+End angle parameter (radians) of the arc; see [`alpha1`](@ref).
+"""
 alpha2(arc::EllipticArc) = arc.alpha2
 
 """
@@ -208,6 +233,12 @@ end
 End points of the elliptic arc.
 """
 start_point(arc::EllipticArc) = point_on(arc.ellipse, arc.alpha1)
+
+"""
+    end_point(arc::EllipticArc)
+
+End point of the elliptic arc (at angle parameter `alpha2`).
+"""
 end_point(arc::EllipticArc) = point_on(arc.ellipse, arc.alpha2)
 
 function _angle_in_ccw_span(a::Real, a1::Real, a2::Real)

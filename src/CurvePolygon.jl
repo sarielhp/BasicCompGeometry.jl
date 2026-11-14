@@ -6,6 +6,11 @@
 Type alias for a 2D curve primitive, which can be a `Segment{2, T}`, `CircleArc{T}`, or `Hyperbola{T}`.
 """
 const Curve2D{T} = Union{Segment{2,T},CircleArc{T},Hyperbola{T},Parabola{T},ParabolaArc{T}}
+"""
+    Curve2DF
+
+Alias for `Curve2D{Float64}`, the curve primitives of a Float64 `CurvePolygon2D`.
+"""
 const Curve2DF = Curve2D{Float64}
 
 """

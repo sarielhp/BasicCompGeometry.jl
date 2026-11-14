@@ -1,3 +1,10 @@
+"""
+    MVBB
+
+Approximate minimum-volume bounding boxes: oriented boxes (`OBBox`) built from an
+approximate diameter direction, plus the exact 2D minimum-area rectangle of a convex
+polygon by rotating calipers. Start with `approx_mvbb`.
+"""
 module MVBB
 
 using ..BasicCompGeometry
@@ -31,6 +38,11 @@ function OBBox(axes::SVector{D,Point{D,T}}) where {D,T}
     return OBBox{D,T}(axes, zeros(MVector{D,T}), zeros(MVector{D,T}), false)
 end
 
+"""
+    volume(obb::OBBox)
+
+Product of the box's extents along its axes; zero for an uninitialized box.
+"""
 function volume(obb::OBBox{D,T}) where {D,T}
     !obb.f_init && return zero(T)
     vol = one(T)
@@ -130,6 +142,14 @@ struct BBox2DInfo{T}
     area::T
 end
 
+"""
+    rotating_calipers_min_area(hull) -> BBox2DInfo
+
+Minimum-area enclosing rectangle of the convex polygon `hull` (vertices in
+counterclockwise order, e.g. from `convex_hull`), by rotating calipers in O(n) time.
+Returns the rectangle's four corners (`vertices`) and its `area`; fewer than three
+vertices give a degenerate rectangle of zero area.
+"""
 function rotating_calipers_min_area(hull::AbsPntSeq{2,T}) where {T}
     n = cardin(hull)
     if n == 0

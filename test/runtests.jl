@@ -1241,5 +1241,6 @@ Aqua.test_all(BasicCompGeometry)
     include("test_bezier.jl")
     include("test_ipedraw.jl")
     include("test_golden.jl")
+    include("test_docstrings.jl")
 
 end

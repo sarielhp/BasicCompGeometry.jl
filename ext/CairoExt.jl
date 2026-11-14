@@ -842,7 +842,7 @@ for fn in (
     @eval Cairo.$fn(c::Canvas) = (_ensure_surface!(c); Cairo.$fn(c.cr))
 end
 
-raw"""
+@doc raw"""
     cairo_set_line_width(cr_or_canvas, a::Real)
 
 Set the stroke line width on a Cairo context or `Canvas`, with automatic scaling and raster protection.

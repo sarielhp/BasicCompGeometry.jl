@@ -1,3 +1,10 @@
+"""
+    VirtArray
+
+Permutation views over a vector (`VArray`): algorithms reorder the view by swapping
+entries of a permutation instead of moving the data, and `orig_index` maps a view
+position back to the index in the underlying vector.
+"""
 module VirtArray
 
 """
@@ -39,11 +46,22 @@ end
     @inbounds return va.vec[va.loc[i]]
 end
 
+"""
+    orig_index(va::VArray, i) -> Int
+
+Index in the underlying vector of the element at position `i` of the view.
+"""
 @inline Base.@propagate_inbounds function orig_index(va::VArray, i::Integer)
     @boundscheck checkbounds(va, i)
     @inbounds return va.loc[i]
 end
 
+"""
+    swap!(va::VArray, i, j) -> va
+
+Exchange positions `i` and `j` of the view by swapping permutation entries; the
+underlying vector is not modified.
+"""
 @inline Base.@propagate_inbounds function swap!(va::VArray, i::Integer, j::Integer)
     @boundscheck checkbounds(va, i)
     @boundscheck checkbounds(va, j)

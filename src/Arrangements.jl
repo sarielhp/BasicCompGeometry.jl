@@ -142,9 +142,25 @@ Alias for `ArrVertDecomp{Float64}`.
 const ArrVertDecomp2F = ArrVertDecomp{Float64}
 
 # Accessors
+"""
+    trapezoids(decomp::ArrVertDecomp)
+
+The vertical trapezoids of the decomposition, as a `Vector{VerticalTrapezoid{T}}`.
+"""
 trapezoids(decomp::ArrVertDecomp) = decomp.trapezoids
 vertices(decomp::ArrVertDecomp) = decomp.vertices
+"""
+    view_box(decomp::ArrVertDecomp)
+
+The bounding box (`BBox{2, T}`) to which the decomposition was clipped.
+"""
 view_box(decomp::ArrVertDecomp) = decomp.view
+
+"""
+    lines(decomp::ArrVertDecomp)
+
+The input lines of the decomposition (for halfplanes, their boundary lines).
+"""
 lines(decomp::ArrVertDecomp) = decomp.lines
 area(decomp::ArrVertDecomp) = sum(area, decomp.trapezoids)
 

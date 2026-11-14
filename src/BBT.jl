@@ -1,3 +1,11 @@
+"""
+    BBT
+
+Bounding-box trees: a lazily built hierarchy of axis-aligned boxes over a point set,
+split at the midpoint of the widest dimension. Used for nearest-neighbor queries and as
+the substrate of the `WSPD` and `MVBB` modules. Points are reordered through a `VArray`,
+so `orig_index` recovers a point's index in the input. Start with `Tree_init`.
+"""
 module BBT
 
 using ..BasicCompGeometry
@@ -106,6 +114,12 @@ end
     return best
 end
 
+"""
+    get_min_orig_index(tree, node) -> Int
+
+Smallest original input index (index into the point set passed to `Tree_init`) among
+the points stored under `node`. Computed on first use and cached in the node.
+"""
 function get_min_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where {D,T,S,V}
     val = node.min_index
     val !== nothing && return val
@@ -119,6 +133,12 @@ function get_min_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where
     return idx
 end
 
+"""
+    get_max_orig_index(tree, node) -> Int
+
+Largest original input index among the points stored under `node`; see
+[`get_min_orig_index`](@ref).
+"""
 function get_max_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where {D,T,S,V}
     val = node.max_index
     val !== nothing && return val
@@ -333,6 +353,12 @@ function fully_expand(node::Node{D,T,S,V}, tree::Tree{D,T,S,V}) where {D,T,S,V}
     end
 end
 
+"""
+    Tree_fully_expand(tree)
+
+Split every node of the lazily built `tree` until each leaf holds at most
+`leaf_size` points (or only coincident points).
+"""
 function Tree_fully_expand(tree::Tree{D,T,S,V}) where {D,T,S,V}
     fully_expand(tree.root, tree)
 end
@@ -346,6 +372,12 @@ function depth(node::Node{D,T,S,V})::Int where {D,T,S,V}
     return 1 + max(depth(node.left), depth(node.right))
 end
 
+"""
+    Tree_refine_node(tree, node) -> node
+
+Split `node` into two children at the midpoint of its widest dimension, unless it is
+already split or is a leaf (at most `leaf_size` points, or all points equal).
+"""
 function Tree_refine_node(tree, node)
     node_split(node, tree)
 end

@@ -81,6 +81,11 @@ end
 Return the boundary `Line{2, T}` of the halfplane `h`.
 """
 @inline boundary(h::Halfplane) = h.boundary
+"""
+    boundary_line(h::Halfplane)
+
+Return the boundary `Line{2, T}` of the halfplane `h`; same as [`boundary`](@ref).
+"""
 @inline boundary_line(h::Halfplane) = h.boundary
 
 """

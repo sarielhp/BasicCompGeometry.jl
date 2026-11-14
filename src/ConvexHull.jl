@@ -1,4 +1,4 @@
-raw"""
+@doc raw"""
     convex_hull(points; kernel=FloatingKernel())
 
 Compute the 2D convex hull of a collection of points using the Monotone Chain algorithm.
@@ -9,7 +9,6 @@ The optional kernel is passed to both coordinate comparisons and turn predicates
 `ExactKernel()` computes an exact hull of the supplied coordinates without
 changing the coordinate type of the returned vertices.
 """
-
 function convex_hull(
     ps::AbsPntSeq{2,T};
     kernel::AbstractKernel = FloatingKernel(),

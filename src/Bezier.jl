@@ -74,6 +74,12 @@ function Base.split(b::CubicBezier{D,T}, t::Real = 0.5) where {D,T}
     return (left, right)
 end
 
+"""
+    subdivide(b::CubicBezier, t=0.5) -> (left, right)
+
+Split `b` at parameter `t` by de Casteljau's algorithm; same as `Base.split(b, t)`.
+`left` covers `[0, t]` and `right` covers `[t, 1]` of the original curve.
+"""
 subdivide(b::CubicBezier, t::Real = 0.5) = Base.split(b, t)
 
 @inline function _eval_1d_bezier(v0::T, v1::T, v2::T, v3::T, t::T) where {T}
