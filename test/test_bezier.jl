@@ -97,3 +97,52 @@ end
     @test all(i -> closed(Float64(i - 1)) ≈ knots[i], 1:4)
     @test all(p -> is_inside(p, BBox(closed)), knots)
 end
+
+@testset "Bezier and Spline type stability and allocations" begin
+    b2 = CubicBezier(Point2F(0, 0), Point2F(0.3, 1.0), Point2F(0.7, -0.5), Point2F(1, 0))
+    bb2 = @inferred bbox(b2)
+    @test bb2 isa BBox{2,Float64}
+    @test (@allocated bbox(b2)) <= 128
+
+    b3 = CubicBezier(
+        Point3F(0, 0, 0),
+        Point3F(0.2, 1.0, -0.8),
+        Point3F(0.8, -0.4, 1.2),
+        Point3F(1, 0, 0),
+    )
+    bb3 = @inferred bbox(b3)
+    @test bb3 isa BBox{3,Float64}
+    @test all(t -> is_inside(b3(t), bb3 + 1e-10), 0.0:0.05:1.0)
+
+    b32 = CubicBezier(
+        Point{2,Float32}(0, 0),
+        Point{2,Float32}(0.3f0, 1.0f0),
+        Point{2,Float32}(0.7f0, -0.5f0),
+        Point{2,Float32}(1, 0),
+    )
+    @test (@inferred bbox(b32)) isa BBox{2,Float32}
+
+    knots = PntSeq([Point2F(cos(t), sin(t)) for t in range(0, 2pi, length = 101)])
+    sp = @inferred interpolate_natural_spline(knots)
+    @test sp isa CubicSpline{2,Float64}
+    @test length(sp) == 100
+    @test sp(0.0) ≈ knots[1]
+    @test sp(50.0) ≈ knots[51]
+    @test sp(100.0) ≈ knots[end]
+    @test (@allocated interpolate_natural_spline(knots)) < 16_000
+
+    s_bb = @inferred bbox(sp)
+    @test s_bb isa BBox{2,Float64}
+    @test (@allocated bbox(sp)) <= 128
+
+    flat_sp = @inferred flatten(sp; tol = 1e-1)
+    @test flat_sp isa PntSeq{2,Float64}
+    @test (@allocated flatten(sp; tol = 1e-1)) < 4_000
+
+    # Verify flatten(::CubicSpline) matches concatenating per-segment flatten outputs
+    expected_pts = Point2F[sp.segments[1].p0]
+    for seg in sp.segments
+        append!(expected_pts, flatten(seg; tol = 1e-2).pnts[2:end])
+    end
+    @test flatten(sp; tol = 1e-2).pnts == expected_pts
+end

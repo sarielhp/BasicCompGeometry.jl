@@ -218,13 +218,37 @@ function _angle_in_ccw_span(a::Real, a1::Real, a2::Real)
     return da <= dspan
 end
 
+@inline function _update_arc_extrema(
+    arc::EllipticArc{T},
+    t0::Real,
+    min_x::T,
+    max_x::T,
+    min_y::T,
+    max_y::T,
+) where {T}
+    e = arc.ellipse
+    for t in (t0, t0 + π)
+        if _angle_in_ccw_span(t, arc.alpha1, arc.alpha2)
+            p = point_on(e, t)
+            min_x = min(min_x, p.x)
+            max_x = max(max_x, p.x)
+            min_y = min(min_y, p.y)
+            max_y = max(max_y, p.y)
+        end
+    end
+    return min_x, max_x, min_y, max_y
+end
+
 """
     bbox(arc::EllipticArc)
 
 Compute exact axis-aligned bounding box of an elliptic arc.
 """
 function bbox(arc::EllipticArc{T}) where {T}
-    pts = Point{2,T}[start_point(arc), end_point(arc)]
+    p1 = start_point(arc)
+    p2 = end_point(arc)
+    min_x, max_x = minmax(p1.x, p2.x)
+    min_y, max_y = minmax(p1.y, p2.y)
     e = arc.ellipse
     ca, sa = cos(e.angle), sin(e.angle)
 
@@ -232,24 +256,18 @@ function bbox(arc::EllipticArc{T}) where {T}
     denom_x = e.r_major * ca
     if abs(denom_x) > 1e-12
         t_x = atan(-e.r_minor * sa, denom_x)
-        for t in (t_x, t_x + π)
-            _angle_in_ccw_span(t, arc.alpha1, arc.alpha2) && push!(pts, point_on(e, t))
-        end
+        min_x, max_x, min_y, max_y =
+            _update_arc_extrema(arc, t_x, min_x, max_x, min_y, max_y)
     end
 
     # Critical angles for y: dy/dt = 0 => tan(t) = (b*cos(θ))/(a*sin(θ))
     denom_y = e.r_major * sa
     if abs(denom_y) > 1e-12
         t_y = atan(e.r_minor * ca, denom_y)
-        for t in (t_y, t_y + π)
-            _angle_in_ccw_span(t, arc.alpha1, arc.alpha2) && push!(pts, point_on(e, t))
-        end
+        min_x, max_x, min_y, max_y =
+            _update_arc_extrema(arc, t_y, min_x, max_x, min_y, max_y)
     end
 
-    min_x = minimum(p[1] for p in pts)
-    max_x = maximum(p[1] for p in pts)
-    min_y = minimum(p[2] for p in pts)
-    max_y = maximum(p[2] for p in pts)
     return BBox(Point{2,T}(min_x, min_y), Point{2,T}(max_x, max_y))
 end
 

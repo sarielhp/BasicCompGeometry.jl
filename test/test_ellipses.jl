@@ -90,3 +90,19 @@ end
     singleton = EllipticArc(e, 0.0, 0.0)
     @test bottom_left(bbox(singleton)) == top_right(bbox(singleton))
 end
+
+@testset "EllipticArc bbox type stability and allocations" begin
+    arc = EllipticArc(Ellipse(Point2F(0.0, 0.0), 2.0, 1.0, 0.3), 0.0, 1.5)
+    bb = @inferred bbox(arc)
+    @test bb isa BBox{2,Float64}
+    @test (@allocated bbox(arc)) <= 128
+
+    arc32 = EllipticArc(
+        Ellipse(Point{2,Float32}(0.0f0, 0.0f0), 2.0f0, 1.0f0, 0.3f0),
+        0.0f0,
+        1.5f0,
+    )
+    bb32 = @inferred bbox(arc32)
+    @test bb32 isa BBox{2,Float32}
+    @test all(p -> is_inside(p, bb32 + 1.0f-5), sample_uniformly(arc32, 51))
+end

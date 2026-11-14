@@ -118,6 +118,40 @@ function point_on(cp::CurvePolygon2D{T}, t::Real) where {T}
     return at(cp.curves[i], local_t)
 end
 
+function _point_on_closed(
+    pnts::AbstractVector{Point{D,T}},
+    t::Real,
+    ::Type{Point{D,R}},
+) where {D,T,R}
+    n = length(pnts)
+    need_close = pnts[1] != pnts[end]
+    n_edges = need_close ? n : n - 1
+    total_len = zero(R)
+    for i = 1:n_edges
+        p_next = (need_close && i == n) ? pnts[1] : pnts[i+1]
+        total_len += R(dist(pnts[i], p_next))
+    end
+
+    target = clamp(R(t), zero(R), one(R)) * total_len
+    target <= zero(R) && return Point{D,R}(pnts[1])
+    end_pt = Point{D,R}(need_close ? pnts[1] : pnts[end])
+    target >= total_len && return end_pt
+
+    acc = zero(R)
+    for i = 1:n_edges
+        p_next = (need_close && i == n) ? pnts[1] : pnts[i+1]
+        seg_len = R(dist(pnts[i], p_next))
+        if acc + seg_len >= target
+            local_t = seg_len == zero(R) ? zero(R) : (target - acc) / seg_len
+            return Point{D,R}(
+                convex_comb(Point{D,R}(pnts[i]), Point{D,R}(p_next), local_t),
+            )
+        end
+        acc += seg_len
+    end
+    return end_pt
+end
+
 """
     point_on(pnt_seq::AbsPntSeq, t::Real)
 
@@ -127,34 +161,10 @@ If treated as a closed polygon, pass `point_on(pnt_seq, t; closed=true)`.
 function point_on(pnt_seq::AbsPntSeq{D,T}, t::Real; closed::Bool = false) where {D,T}
     n = length(pnt_seq)
     n == 0 && throw(ArgumentError("Empty point sequence"))
-    n == 1 && return pnt_seq.pnts[1]
-
-    if !closed
-        return at(pnt_seq, t)
-    else
-        pnts = Points(pnt_seq)
-        closed_pnts = pnts[1] == pnts[end] ? pnts : vcat(pnts, [pnts[1]])
-        m = length(closed_pnts)
-        lens = zeros(m)
-        for i = 2:m
-            lens[i] = lens[i-1] + dist(closed_pnts[i-1], closed_pnts[i])
-        end
-        total_len = lens[end]
-        target = clamp(Float64(t), 0.0, 1.0) * total_len
-
-        if target <= 0.0
-            return closed_pnts[1]
-        elseif target >= total_len
-            return closed_pnts[end]
-        end
-
-        i = searchsortedfirst(lens, target)
-        i <= 1 && return closed_pnts[1]
-
-        seg_len = lens[i] - lens[i-1]
-        local_t = (target - lens[i-1]) / seg_len
-        return convex_comb(closed_pnts[i-1], closed_pnts[i], local_t)
-    end
+    R = float(T)
+    n == 1 && return Point{D,R}(pnt_seq[1])
+    !closed && return Point{D,R}(at(pnt_seq, t))
+    return _point_on_closed(Points(pnt_seq), t, Point{D,R})
 end
 
 """
@@ -199,75 +209,140 @@ function tangent_line(pnts::AbstractVector{Point{2,T}}, alpha::Real) where {T}
     return tangent_line(PntSeq(pnts), alpha)
 end
 
+struct _LineCurveHits
+    n::Int
+    p1::Point2F
+    t1::Float64
+    p2::Point2F
+    t2::Float64
+end
+
+const _NO_HITS = _LineCurveHits(0, Point2F(0.0, 0.0), 0.0, Point2F(0.0, 0.0), 0.0)
+
+@inline _one_hit(p1::Point2F, t1::Float64) =
+    _LineCurveHits(1, p1, t1, Point2F(0.0, 0.0), 0.0)
+
+@inline function _hits_to_vector(hits::_LineCurveHits)
+    res = Tuple{Point2F,Float64}[]
+    hits.n >= 1 && push!(res, (hits.p1, hits.t1))
+    hits.n >= 2 && push!(res, (hits.p2, hits.t2))
+    return res
+end
+
+@inline function _line_curve_hits(line::Line{2,Float64}, seg::Segment2F)
+    dp = seg.q - seg.p
+    det_m = line.u.x * (-dp.y) - line.u.y * (-dp.x)
+    abs(det_m) < 1e-12 && return _NO_HITS
+    diff = seg.p - line.p
+    t = (line.u.x * diff.y - line.u.y * diff.x) / det_m
+    if 0.0 <= t <= 1.0
+        return _one_hit(at(seg, t), t)
+    end
+    return _NO_HITS
+end
+
+@inline function _circle_arc_hit(arc::CircleArc2F, pt::Point2F, d_theta::Float64)
+    angle = atan(pt.y - arc.center.y, pt.x - arc.center.x)
+    rel_angle = mod(angle - arc.theta1, 2pi)
+    if rel_angle <= d_theta + 1e-9 || (2pi - rel_angle) <= 1e-9
+        local_t = d_theta == 0.0 ? 0.0 : clamp(rel_angle / d_theta, 0.0, 1.0)
+        return true, at(arc, local_t), local_t
+    end
+    return false, Point2F(0.0, 0.0), 0.0
+end
+
+@inline function _combine_hits(
+    h1::Tuple{Bool,Point2F,Float64},
+    h2::Tuple{Bool,Point2F,Float64},
+)
+    ok1, p1, t1 = h1
+    ok2, p2, t2 = h2
+    if ok1 && ok2
+        return _LineCurveHits(2, p1, t1, p2, t2)
+    elseif ok1
+        return _one_hit(p1, t1)
+    elseif ok2
+        return _one_hit(p2, t2)
+    end
+    return _NO_HITS
+end
+
+@inline function _line_curve_hits(line::Line{2,Float64}, arc::CircleArc2F)
+    u_norm_sq = dot(line.u, line.u)
+    u_norm_sq == 0.0 && return _NO_HITS
+    t_proj = dot(arc.center - line.p, line.u) / u_norm_sq
+    proj = line.p + t_proj * line.u
+    d_sq = dist_sq(arc.center, proj)
+    r_sq = arc.radius^2
+    d_sq > r_sq + 1e-12 && return _NO_HITS
+
+    h = sqrt(max(0.0, r_sq - d_sq))
+    u_unit = line.u / sqrt(u_norm_sq)
+    d_theta = arc.theta2 - arc.theta1
+    if d_theta < 0
+        d_theta = mod(d_theta, 2pi)
+    end
+
+    if h < 1e-12
+        ok, p1, t1 = _circle_arc_hit(arc, proj, d_theta)
+        return ok ? _one_hit(p1, t1) : _NO_HITS
+    end
+    step = h * u_unit
+    h1 = _circle_arc_hit(arc, proj + step, d_theta)
+    h2 = _circle_arc_hit(arc, proj - step, d_theta)
+    return _combine_hits(h1, h2)
+end
+
+@inline function _line_curve_hits_fallback(line::Line{2,Float64}, curve)
+    pts_t = intersect_line_curve(line, curve)
+    n = length(pts_t)
+    n == 0 && return _NO_HITS
+    p1, t1 = pts_t[1]
+    n == 1 && return _one_hit(Point2F(p1), Float64(t1))
+    p2, t2 = pts_t[2]
+    return _LineCurveHits(2, Point2F(p1), Float64(t1), Point2F(p2), Float64(t2))
+end
+
+# Explicit branches avoid 5-way Union{Curve2D} dynamic dispatch inside tight loops.
+@inline function _dispatch_line_curve_hits(line::Line{2,Float64}, c)
+    if c isa Segment2F
+        return _line_curve_hits(line, c)
+    elseif c isa CircleArc2F
+        return _line_curve_hits(line, c)
+    elseif c isa ParabolaArc
+        return _line_curve_hits_fallback(line, c)
+    elseif c isa Parabola
+        return _line_curve_hits_fallback(line, c)
+    else
+        return _line_curve_hits_fallback(line, c)
+    end
+end
+
+@inline function _curve_length(c)
+    if c isa Segment2F
+        return geom_length(c)
+    elseif c isa CircleArc2F
+        return geom_length(c)
+    elseif c isa ParabolaArc
+        return geom_length(c)
+    elseif c isa Parabola
+        return geom_length(c)
+    else
+        return geom_length(c)
+    end
+end
+
 """
     intersect_line_curve(line::Line{2, Float64}, curve::Curve2D)
 
 Compute all intersection points between infinite 2D line and `curve` (Segment2F or CircleArc2F).
 Returns a vector of `(point::Point2F, t_curve::Float64)` where `t_curve ∈ [0, 1]` is the local curve parameter.
 """
-function intersect_line_curve(line::Line{2,Float64}, seg::Segment2F)
-    res = Tuple{Point2F,Float64}[]
-    # Line 1: line.p + s * line.u
-    # Line 2 (segment): seg.p + t * (seg.q - seg.p)
-    dp = seg.q - seg.p
-    det_m = line.u[1] * (-dp[2]) - line.u[2] * (-dp[1])
-    if abs(det_m) < 1e-12
-        return res
-    end
-    diff = seg.p - line.p
-    s = (diff[1] * (-dp[2]) - diff[2] * (-dp[1])) / det_m
-    t = (line.u[1] * diff[2] - line.u[2] * diff[1]) / det_m
-    if 0.0 <= t <= 1.0
-        pt = at(seg, t)
-        push!(res, (pt, t))
-    end
-    return res
-end
+intersect_line_curve(line::Line{2,Float64}, seg::Segment2F) =
+    _hits_to_vector(_line_curve_hits(line, seg))
 
-function intersect_line_curve(line::Line{2,Float64}, arc::CircleArc2F)
-    res = Tuple{Point2F,Float64}[]
-    # Distance from arc.center to line
-    # Projection of center onto line:
-    u_norm_sq = dot(line.u, line.u)
-    u_norm_sq == 0.0 && return res
-    t_proj = dot(arc.center - line.p, line.u) / u_norm_sq
-    proj = line.p + t_proj * line.u
-    d_sq = dist_sq(arc.center, proj)
-    r_sq = arc.radius^2
-
-    if d_sq > r_sq + 1e-12
-        return res
-    end
-
-    h_sq = max(0.0, r_sq - d_sq)
-    h = sqrt(h_sq)
-    u_unit = line.u / sqrt(u_norm_sq)
-
-    candidate_pts = Point2F[]
-    if h < 1e-12
-        push!(candidate_pts, proj)
-    else
-        push!(candidate_pts, proj + h * u_unit)
-        push!(candidate_pts, proj - h * u_unit)
-    end
-
-    d_theta = arc.theta2 - arc.theta1
-    if d_theta < 0
-        d_theta = mod(d_theta, 2pi)
-    end
-
-    for pt in candidate_pts
-        angle = atan(pt[2] - arc.center[2], pt[1] - arc.center[1])
-        rel_angle = mod(angle - arc.theta1, 2pi)
-        if rel_angle <= d_theta + 1e-9 || (2pi - rel_angle) <= 1e-9
-            local_t = clamp(rel_angle / d_theta, 0.0, 1.0)
-            # Verify actual point matches arc point
-            actual_pt = at(arc, local_t)
-            push!(res, (actual_pt, local_t))
-        end
-    end
-    return res
-end
+intersect_line_curve(line::Line{2,Float64}, arc::CircleArc2F) =
+    _hits_to_vector(_line_curve_hits(line, arc))
 
 """
     tangent_intersections_cp(CP::CurvePolygon2D, Q, alpha::Real)
@@ -277,50 +352,38 @@ Returns `(q, u, t_u, v, t_v)`.
 """
 function tangent_intersections_cp(CP::CurvePolygon2D, Q, alpha::Real)
     line, q = tangent_line(Q, alpha)
-    plens = prefix_lengths(CP)
-    total_len = plens[end]
+    u_norm_sq = dot(line.u, line.u)
 
-    intersections = Tuple{Point2F,Float64}[] # (point, parametric_location_on_CP)
-    n_curves = length(CP.curves)
-    for i = 1:n_curves
-        curve = CP.curves[i]
-        pts_t = intersect_line_curve(line, curve)
-        for (pt, local_t) in pts_t
-            cp_t = (plens[i] + local_t * (plens[i+1] - plens[i])) / total_len
-            push!(intersections, (pt, cp_t))
-        end
-    end
-
-    # Classify into right turn (u) and left turn (v)
     # Along tangent line L(t) = q + t*line.u:
-    # line.u is orthogonal to outer normal v = direction(alpha), pointing counter-clockwise (left).
-    # Since q is on boundary of Q, O -> q -> (q + t*line.u) turns:
-    # - Left for t > 0 (v, after_tangent_to_polygon)
-    # - Right for t < 0 (u, before_tangent_to_polygon)
-    u_pt, u_t = q, 0.0
-    v_pt, v_t = q, 0.0
+    # - t > 0 -> left turn (v, after_tangent_to_polygon)
+    # - t < 0 -> right turn (u, before_tangent_to_polygon)
+    u_pt, u_pos = q, 0.0
+    v_pt, v_pos = q, 0.0
+    min_t_pos = Inf
+    max_t_neg = -Inf
 
-    min_t_pos = Inf  # smallest t > 0 (closest intersection in +line.u direction -> v)
-    max_t_neg = -Inf # largest t < 0 (closest intersection in -line.u direction -> u)
-
-    for (pt, cp_t_val) in intersections
-        # Express pt - q as t_line * line.u
-        t_line = dot(pt - q, line.u) / dot(line.u, line.u)
-        if t_line < -1e-9 # Right turn -> u
-            if t_line > max_t_neg
+    acc_len = 0.0
+    for curve in CP.curves
+        curve_len = Float64(_curve_length(curve))
+        hits = _dispatch_line_curve_hits(line, curve)
+        for k = 1:hits.n
+            pt, local_t = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
+            t_line = dot(pt - q, line.u) / u_norm_sq
+            if t_line < -1e-9 && t_line > max_t_neg
                 max_t_neg = t_line
                 u_pt = pt
-                u_t = cp_t_val
-            end
-        elseif t_line > 1e-9 # Left turn -> v
-            if t_line < min_t_pos
+                u_pos = acc_len + local_t * curve_len
+            elseif t_line > 1e-9 && t_line < min_t_pos
                 min_t_pos = t_line
                 v_pt = pt
-                v_t = cp_t_val
+                v_pos = acc_len + local_t * curve_len
             end
         end
+        acc_len += curve_len
     end
 
+    u_t = isfinite(max_t_neg) ? u_pos / acc_len : 0.0
+    v_t = isfinite(min_t_pos) ? v_pos / acc_len : 0.0
     return q, u_pt, u_t, v_pt, v_t
 end
 
@@ -354,14 +417,16 @@ Test whether query point `q` lies strictly inside the 2D curved polygon `cp` by 
 function is_inside(q::Point{2,S}, cp::CurvePolygon2D{T}) where {S,T}
     ray = Line(Point{2,Float64}(q), Point{2,Float64}(0.0, -1.0))
     crossings = 0
+    qy = Float64(q.y)
     for c in cp.curves
-        intersections = intersect_line_curve(ray, c)
-        for (pt, s) in intersections
-            if pt.y < q.y - 1e-11
+        hits = _dispatch_line_curve_hits(ray, c)
+        for k = 1:hits.n
+            pt, s = k == 1 ? (hits.p1, hits.t1) : (hits.p2, hits.t2)
+            if pt.y < qy - 1e-11
                 if s < 1.0 - 1e-9
                     crossings += 1
                 end
-            elseif abs(pt.y - q.y) <= 1e-11
+            elseif abs(pt.y - qy) <= 1e-11
                 return true # Point is on the boundary
             end
         end

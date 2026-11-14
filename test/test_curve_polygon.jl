@@ -216,3 +216,56 @@ end
         @test is_inside(q, cp) == false
     end
 end
+
+@testset "CurvePolygon2D & point_on type stability and zero-allocations" begin
+    curves = BasicCompGeometry.Curve2DF[]
+    for _ = 1:50
+        push!(curves, Segment(Point2F(0.0, 0.0), Point2F(1.0, 0.0)))
+        push!(curves, CircleArc(Point2F(0.0, 0.0), 1.0, 0.0, pi / 2))
+    end
+    cp100 = CurvePolygon2D(curves)
+    q = Point2F(0.5, 0.5)
+    @inferred is_inside(q, cp100)
+    is_inside_alloc(pt, poly) = @allocated is_inside(pt, poly)
+    is_inside_alloc(q, cp100)
+    @test is_inside_alloc(q, cp100) == 0
+
+    ps = PntSeq([Point2F(0, 0), Point2F(1, 0), Point2F(1, 1), Point2F(0, 1)])
+    res_ti = @inferred BasicCompGeometry.tangent_intersections_cp(cp100, ps, 0.4)
+    @test length(res_ti) == 5
+    ti_alloc(poly, qpoly) =
+        @allocated BasicCompGeometry.tangent_intersections_cp(poly, qpoly, 0.4)[3]
+    ti_alloc(cp100, ps)
+    @test ti_alloc(cp100, ps) == 0
+
+    # Tangent hit (1 point) and 2-hit circle arc intersection
+    arc = CircleArc(Point2F(0.0, 0.0), 1.0, 0.0, Float64(pi))
+    @test length(intersect_line_curve(Line(Point2F(0.0, 1.0), Point2F(1.0, 0.0)), arc)) == 1
+    @test length(intersect_line_curve(Line(Point2F(0.0, 0.5), Point2F(1.0, 0.0)), arc)) == 2
+    @test isempty(intersect_line_curve(Line(Point2F(0.0, 2.0), Point2F(1.0, 0.0)), arc))
+
+    # point_on closed type stability and zero allocations
+    po_alloc(seq, t) = @allocated point_on(seq, t; closed = true)[1]
+    po_alloc(ps, 0.5)
+    @test po_alloc(ps, 0.5) == 0
+
+    ps_i = PntSeq([Point2I(0, 0), Point2I(2, 0), Point2I(2, 2), Point2I(0, 2)])
+    @test (@inferred point_on(ps_i, 0.0; closed = true)) === Point2F(0.0, 0.0)
+    @test (@inferred point_on(ps_i, 0.5; closed = true)) ≈ Point2F(2.0, 2.0)
+    @test (@inferred point_on(ps_i, 1.0; closed = true)) === Point2F(0.0, 0.0)
+
+    ps_f32 = PntSeq([
+        Point{2,Float32}(0, 0),
+        Point{2,Float32}(2, 0),
+        Point{2,Float32}(2, 2),
+        Point{2,Float32}(0, 2),
+    ])
+    @test (@inferred point_on(ps_f32, 0.5f0; closed = true)) isa Point{2,Float32}
+    @test (@inferred point_on(PntSeq([Point2I(1, 2)]), 0.5; closed = true)) ===
+          Point2F(1.0, 2.0)
+
+    # Degenerate zero-length edge and explicitly closed sequence
+    ps_deg = PntSeq([Point2F(0, 0), Point2F(0, 0), Point2F(1, 0), Point2F(0, 0)])
+    @test point_on(ps_deg, 0.5; closed = true) ≈ Point2F(1.0, 0.0)
+    @test point_on(ps_deg, 0.0; closed = true) ≈ Point2F(0.0, 0.0)
+end

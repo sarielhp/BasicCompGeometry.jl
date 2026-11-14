@@ -76,28 +76,50 @@ end
 
 subdivide(b::CubicBezier, t::Real = 0.5) = Base.split(b, t)
 
-function _coord_roots_in_unit_interval(p0::T, p1::T, p2::T, p3::T) where {T}
-    # Derivative is A*t^2 + B*t + C = 0
-    A = 3 * (-p0 + 3 * p1 - 3 * p2 + p3)
-    B = 6 * (p0 - 2 * p1 + p2)
-    C = 3 * (p1 - p0)
-    roots = T[]
-    if abs(A) < 1e-12
-        if abs(B) > 1e-12
-            t = -C / B
-            zero(T) < t < one(T) && push!(roots, t)
-        end
-    else
-        disc = B * B - 4 * A * C
-        if disc >= zero(T)
-            s = sqrt(disc)
-            t1 = (-B - s) / (2 * A)
-            t2 = (-B + s) / (2 * A)
-            zero(T) < t1 < one(T) && push!(roots, t1)
-            zero(T) < t2 < one(T) && push!(roots, t2)
-        end
+@inline function _eval_1d_bezier(v0::T, v1::T, v2::T, v3::T, t::T) where {T}
+    u = one(T) - t
+    return u * (u * (u * v0 + t * v1) + t * (u * v1 + t * v2)) +
+           t * (u * (u * v1 + t * v2) + t * (u * v2 + t * v3))
+end
+
+@inline function _update_coord_extrema(
+    lo::T,
+    hi::T,
+    v0::T,
+    v1::T,
+    v2::T,
+    v3::T,
+    t::T,
+) where {T}
+    if zero(T) < t < one(T)
+        val = _eval_1d_bezier(v0, v1, v2, v3, t)
+        return min(lo, val), max(hi, val)
     end
-    return roots
+    return lo, hi
+end
+
+function _coord_minmax(v0::T, v1::T, v2::T, v3::T) where {T}
+    lo, hi = minmax(v0, v3)
+    # Derivative is A*t^2 + B*t + C = 0
+    A = 3 * (-v0 + 3 * v1 - 3 * v2 + v3)
+    B = 6 * (v0 - 2 * v1 + v2)
+    C = 3 * (v1 - v0)
+    if abs(A) < 1e-12
+        abs(B) > 1e-12 && return _update_coord_extrema(lo, hi, v0, v1, v2, v3, -C / B)
+        return lo, hi
+    end
+    disc = B * B - 4 * A * C
+    disc < zero(T) && return lo, hi
+    s = sqrt(disc)
+    lo, hi = _update_coord_extrema(lo, hi, v0, v1, v2, v3, (-B - s) / (2 * A))
+    return _update_coord_extrema(lo, hi, v0, v1, v2, v3, (-B + s) / (2 * A))
+end
+
+@inline function _bezier_extrema(b::CubicBezier{D,T}) where {D,T}
+    extrema_tup = ntuple(k -> _coord_minmax(b.p0[k], b.p1[k], b.p2[k], b.p3[k]), Val(D))
+    mini = Point{D,T}(ntuple(k -> extrema_tup[k][1], Val(D)))
+    maxi = Point{D,T}(ntuple(k -> extrema_tup[k][2], Val(D)))
+    return mini, maxi
 end
 
 """
@@ -106,18 +128,8 @@ end
 Compute exact axis-aligned bounding box of a cubic Bézier curve.
 """
 function bbox(b::CubicBezier{D,T}) where {D,T}
-    min_coords = zeros(T, D)
-    max_coords = zeros(T, D)
-    for k = 1:D
-        v0, v1, v2, v3 = b.p0[k], b.p1[k], b.p2[k], b.p3[k]
-        vals = T[v0, v3]
-        for t in _coord_roots_in_unit_interval(v0, v1, v2, v3)
-            push!(vals, b(t)[k])
-        end
-        min_coords[k] = minimum(vals)
-        max_coords[k] = maximum(vals)
-    end
-    return BBox(Point{D,T}(min_coords...), Point{D,T}(max_coords...))
+    mini, maxi = _bezier_extrema(b)
+    return BBox(mini, maxi)
 end
 
 """
@@ -185,21 +197,20 @@ function bbox(s::CubicSpline{D,T}) where {D,T}
     isempty(s.segments) && error("Empty spline has no bbox")
     bb = bbox(s.segments[1])
     for i = 2:length(s.segments)
-        bound!(bb, bbox(s.segments[i]))
+        mini, maxi = _bezier_extrema(s.segments[i])
+        bound!(bb, mini)
+        bound!(bb, maxi)
     end
     return bb
 end
 
-function flatten(s::CubicSpline{D,T}; tol::Real = 1e-3) where {D,T}
+function flatten(s::CubicSpline{D,T}; tol::Real = 1e-3, max_depth::Int = 10) where {D,T}
     isempty(s.segments) && return PntSeq{D,T}(Point{D,T}[])
-    all_pts = Point{D,T}[]
-    for (i, seg) in enumerate(s.segments)
-        pts = flatten(seg; tol = tol).pnts
-        if i == 1
-            append!(all_pts, pts)
-        else
-            append!(all_pts, pts[2:end])
-        end
+    all_pts = Point{D,T}[s.segments[1].p0]
+    sizehint!(all_pts, length(s.segments) + 1)
+    tol_T = T(tol)
+    for seg in s.segments
+        _flatten_rec!(all_pts, seg, tol_T, max_depth)
     end
     return PntSeq(all_pts)
 end
@@ -259,6 +270,37 @@ function _catmull_rom_open!(segs, pts, scale)
     return segs
 end
 
+function _solve_natural_tridiag!(
+    p1k::Vector{T},
+    b::Vector{T},
+    r::Vector{T},
+    pts::AbsPntSeq{D,T},
+    k::Int,
+    m::Int,
+) where {D,T}
+    fill!(b, 4 * one(T))
+    b[1] = 2 * one(T)
+    b[m] = 7 * one(T)
+    r[1] = pts[1][k] + 2 * pts[2][k]
+    for i = 2:(m-1)
+        r[i] = 4 * pts[i][k] + 2 * pts[i+1][k]
+    end
+    r[m] = 8 * pts[m][k] + pts[m+1][k]
+
+    # Thomas forward elimination (superdiagonal is identically 1)
+    for i = 2:m
+        a_i = i == m ? 2 * one(T) : one(T)
+        w = a_i / b[i-1]
+        b[i] -= w
+        r[i] -= w * r[i-1]
+    end
+    p1k[m] = r[m] / b[m]
+    for i = (m-1):-1:1
+        p1k[i] = (r[i] - p1k[i+1]) / b[i]
+    end
+    return p1k
+end
+
 """
     interpolate_natural_spline(pts::AbsPntSeq{D, T}; closed=false)
 
@@ -268,45 +310,24 @@ function interpolate_natural_spline(pts::AbsPntSeq{D,T}; closed::Bool = false) w
     n = cardin(pts)
     n >= 3 || return interpolate_catmull_rom(pts; closed = closed)
     m = n - 1
-    # Solve for first control points P1[1..m] per coordinate
-    P1_coords = [zeros(T, m) for _ = 1:D]
+    P1_coords = ntuple(_ -> Vector{T}(undef, m), Val(D))
+    b = Vector{T}(undef, m)
+    r = Vector{T}(undef, m)
     for k = 1:D
-        K = [pts[i][k] for i = 1:n]
-        # Tridiagonal system: diag b, sub a, sup c, rhs r
-        a = fill(one(T), m)
-        b = fill(4 * one(T), m)
-        c = fill(one(T), m)
-        r = zeros(T, m)
-        b[1] = 2 * one(T)
-        c[1] = one(T)
-        r[1] = K[1] + 2 * K[2]
-        for i = 2:(m-1)
-            r[i] = 4 * K[i] + 2 * K[i+1]
-        end
-        b[m] = 7 * one(T)
-        a[m] = 2 * one(T)
-        r[m] = 8 * K[m] + K[m+1]
-        # Thomas algorithm
-        for i = 2:m
-            w = a[i] / b[i-1]
-            b[i] -= w * c[i-1]
-            r[i] -= w * r[i-1]
-        end
-        P1_coords[k][m] = r[m] / b[m]
-        for i = (m-1):-1:1
-            P1_coords[k][i] = (r[i] - c[i] * P1_coords[k][i+1]) / b[i]
-        end
+        _solve_natural_tridiag!(P1_coords[k], b, r, pts, k, m)
     end
 
-    segs = CubicBezier{D,T}[]
+    segs = Vector{CubicBezier{D,T}}(undef, m)
     for i = 1:m
         p0 = pts[i]
         p3 = pts[i+1]
-        p1 = Point{D,T}([P1_coords[k][i] for k = 1:D]...)
-        p2 =
-            i < m ? Point{D,T}([2 * pts[i+1][k] - P1_coords[k][i+1] for k = 1:D]...) :
-            Point{D,T}([(pts[n][k] + P1_coords[k][m]) / 2 for k = 1:D]...)
-        push!(segs, CubicBezier(p0, p1, p2, p3))
+        p1 = Point{D,T}(ntuple(k -> P1_coords[k][i], Val(D)))
+        p2 = if i < m
+            Point{D,T}(ntuple(k -> 2 * p3[k] - P1_coords[k][i+1], Val(D)))
+        else
+            Point{D,T}(ntuple(k -> (p3[k] + P1_coords[k][m]) / 2, Val(D)))
+        end
+        segs[i] = CubicBezier{D,T}(p0, p1, p2, p3)
     end
     return CubicSpline(segs; closed = false)
 end

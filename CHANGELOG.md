@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `visibility_polygon` and `polygon_kernel`: integer coordinate inputs under `FloatingKernel()` now promote to `Float64` instead of throwing `InexactError`, and `Float32` / `Rational{Int64}` coordinate types are preserved with homogeneous, type-stable return types (including `_ray_edge_intersect`).
 - `WSPD` and `approx_diameter`: `WSPD.init` now derives its distance scalar type from the `BBT.Tree` rather than `sep` and accepts any `sep::Real` (fixing `MethodError` on `Float32` point sequences and integer `sep` values), while `WSPD.separation` preserves the tree's distance scalar type `S` and `WSPD.PD` parameterizes the concrete point-sequence type `P`.
 - `dist_subspace`, `nn_point`, and `bisection_point`: eliminated value-dependent union return types for integer, `Float32`, and `Rational` inputs so degenerate/nonpositive branches return the exact same promoted coordinate/scalar types as the general branches.
+- `point_on(::AbsPntSeq; closed=true)`: standardized all return branches to `Point{D,float(T)}` (eliminating `Union{Point{D,T}, Point{D,Float64}}` type instability on integer and `Float32` sequences) and eliminated `vcat` / `zeros` allocations via a zero-allocation two-pass walk with zero-length edge guarding.
 
 ### Changed
 - `rand_point` and `rand_gaussian`: added `Val{D}` overloads for compile-time dimension inference and replaced `randn(T, D)` in `rand_gaussian` with stack-allocated `ntuple` construction (zero heap allocations).
@@ -33,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sample_uniformly`: replaced $O(mn)$ repeated `at` / `prefix_lengths` calls with a single-pass $O(m + n)$ scan (1,000-point resampling allocations reduced from ~8.1 MB to ~24 KB).
 - `PntSeqHierarchy.SimplificationHierarchy`: parameterized `plt::Palette{T,R}` on `R<:SplitRule` to eliminate dynamic dispatch in `hierarchy_approx` / `hierarchy_build!`, and replaced `0.0` base-case returns in `_fill!` / `_p_extract!` with `zero(eltype(...))`.
 - `vertical_ray_segment` and `first_positive_vertical_contact`: added exact `x`-span / ray-side rejection before `BigInt` / `Rational{BigInt}` widening, eliminating heap allocations on non-spanning segments.
+- `CubicBezier` and `CubicSpline` (`bbox`, `flatten`, `interpolate_natural_spline`): replaced heap vector allocations and coordinate splatting with stack-allocated `ntuple(..., Val(D))` extrema and control-point construction, restoring concrete `BBox{D,T}` return-type inference and eliminating per-segment `BBox`/`PntSeq`/slice allocations.
+- `CurvePolygon2D` (`is_inside`, `tangent_intersections_cp`, `intersect_line_curve`): replaced per-curve intersection vector allocations and `prefix_lengths` array construction with stack-allocated `_LineCurveHits` and streaming arc-length accumulation (zero heap allocations on `Segment2F`/`CircleArc2F` polygons).
+- `bbox(::EllipticArc)`: replaced temporary point-vector and generator allocations with direct scalar extrema tracking.
 
 ## [0.5.16] - 2026-11-13
 
