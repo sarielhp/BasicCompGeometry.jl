@@ -117,6 +117,33 @@ function draw_box!(canvas::IpeCanvas, bb::BBox{2}; kwargs...)
     draw_box!(canvas, bl[1], bl[2], tr[1], tr[2]; kwargs...)
 end
 
+function _write_path_attrs!(
+    buf::IO,
+    canvas::IpeCanvas;
+    stroke::Symbol = :black,
+    fill::Symbol = :none,
+    pen::Symbol = :normal,
+    dash::Symbol = :solid,
+    opacity::Union{Symbol,String,Nothing} = nothing,
+    arrow::Symbol = :none,
+    rarrow::Symbol = :none,
+    tiling::Symbol = :none,
+    fillrule::Union{String,Nothing} = nothing,
+)
+    write(buf, "<path layer=\"", canvas.active_layer, '"')
+    fillrule === nothing || write(buf, " fillrule=\"", fillrule, '"')
+    _write_attr!(buf, "stroke", stroke)
+    _write_attr!(buf, "fill", fill)
+    _write_attr!(buf, "pen", pen)
+    _write_attr!(buf, "dash", dash)
+    _write_attr!(buf, "opacity", opacity)
+    _write_attr!(buf, "arrow", arrow)
+    _write_attr!(buf, "rarrow", rarrow)
+    _write_attr!(buf, "tiling", tiling)
+    write(buf, ">\n")
+    return buf
+end
+
 """
     draw_polygon!(canvas, poly; close=true, stroke=:black, fill=:none, pen=:normal, dash=:solid)
 
@@ -132,20 +159,30 @@ function draw_polygon!(
     dash::Symbol = :solid,
     opacity::Union{Symbol,String,Nothing} = nothing,
 )
-    pts = [_apply_tf(canvas, p) for p in poly]
-    length(pts) < 2 && return canvas
-
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))"
-    buf = IOBuffer()
-    println(buf, "<path layer=\"$(canvas.active_layer)\"$attrs>")
-    println(buf, "$(_pt_str(pts[1])) m")
-    for i = 2:length(pts)
-        println(buf, "$(_pt_str(pts[i])) l")
+    has_len = Base.IteratorSize(poly) isa Union{Base.HasLength,Base.HasShape}
+    if has_len
+        length(poly) < 2 && return canvas
     end
-    if close
-        println(buf, "h")
+    buf = IOBuffer(; sizehint = has_len ? 96 + 24 * length(poly) : 256)
+    _write_path_attrs!(
+        buf,
+        canvas;
+        stroke = stroke,
+        fill = fill,
+        pen = pen,
+        dash = dash,
+        opacity = opacity,
+    )
+    count = 0
+    for raw_pt in poly
+        pt = _apply_tf(canvas, raw_pt)
+        count += 1
+        _write_pt!(buf, pt)
+        write(buf, count == 1 ? " m\n" : " l\n")
     end
-    print(buf, "</path>")
+    count < 2 && return canvas
+    close && write(buf, "h\n")
+    write(buf, "</path>")
     push!(canvas.elements, String(take!(buf)))
     return canvas
 end
@@ -372,30 +409,30 @@ function draw_spline!(
     rarrow::Symbol = :none,
 )
     isempty(s.segments) && return canvas
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("arrow", arrow))$(_fmt_attr("rarrow", rarrow))"
-    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
-    p0 = _apply_tf(canvas, s.segments[1].p0)
-    push!(lines, "$(_pt_str(p0)) m")
+    buf = IOBuffer(; sizehint = 96 + 64 * length(s.segments))
+    _write_path_attrs!(
+        buf,
+        canvas;
+        stroke = stroke,
+        fill = fill,
+        pen = pen,
+        dash = dash,
+        arrow = arrow,
+        rarrow = rarrow,
+    )
+    _write_pt!(buf, _apply_tf(canvas, s.segments[1].p0))
+    write(buf, " m\n")
     for seg in s.segments
-        p1 = _apply_tf(canvas, seg.p1)
-        p2 = _apply_tf(canvas, seg.p2)
-        p3 = _apply_tf(canvas, seg.p3)
-        push!(
-            lines,
-            @sprintf(
-                "%.3f %.3f %.3f %.3f %.3f %.3f c",
-                p1[1],
-                p1[2],
-                p2[1],
-                p2[2],
-                p3[1],
-                p3[2]
-            )
-        )
+        _write_pt!(buf, _apply_tf(canvas, seg.p1))
+        write(buf, UInt8(' '))
+        _write_pt!(buf, _apply_tf(canvas, seg.p2))
+        write(buf, UInt8(' '))
+        _write_pt!(buf, _apply_tf(canvas, seg.p3))
+        write(buf, " c\n")
     end
-    s.is_closed && push!(lines, "h")
-    push!(lines, "</path>")
-    push!(canvas.elements, join(lines, "\n"))
+    s.is_closed && write(buf, "h\n")
+    write(buf, "</path>")
+    push!(canvas.elements, String(take!(buf)))
     return canvas
 end
 
@@ -427,20 +464,24 @@ function draw_bspline!(
     dash::Symbol = :none,
 )
     n = length(pts)
-    n >= 3 || error("B-spline requires at least 3 control points")
-    attrs = "$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))"
-    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
-    tf_pts = [_apply_tf(canvas, p) for p in pts]
-    if closed
-        pt_strs = [_pt_str(p) for p in tf_pts]
-        push!(lines, "$(join(pt_strs, "\n")) u")
-    else
-        push!(lines, "$(_pt_str(tf_pts[1])) m")
-        pt_strs = [_pt_str(p) for p in tf_pts[2:end]]
-        push!(lines, "$(join(pt_strs, "\n")) s")
+    n >= 3 || throw(ArgumentError("B-spline requires at least 3 control points"))
+    buf = IOBuffer(; sizehint = 96 + 24 * n)
+    _write_path_attrs!(
+        buf,
+        canvas;
+        stroke = stroke,
+        fill = fill,
+        pen = pen,
+        dash = dash,
+    )
+    is_first = true
+    for raw_pt in pts
+        _write_pt!(buf, _apply_tf(canvas, raw_pt))
+        write(buf, is_first && !closed ? " m\n" : "\n")
+        is_first = false
     end
-    push!(lines, "</path>")
-    push!(canvas.elements, join(lines, "\n"))
+    write(buf, closed ? "u\n</path>" : "s\n</path>")
+    push!(canvas.elements, String(take!(buf)))
     return canvas
 end
 
@@ -460,27 +501,38 @@ function draw_polygon_with_holes!(
     opacity::Union{Symbol,Nothing} = nothing,
     tiling::Symbol = :none,
 )
-    attrs = " fillrule=\"eofill\"$(_fmt_attr("stroke", stroke))$(_fmt_attr("fill", fill))$(_fmt_attr("pen", pen))$(_fmt_attr("dash", dash))$(_fmt_attr("opacity", opacity))$(_fmt_attr("tiling", tiling))"
-    lines = String["<path layer=\"$(canvas.active_layer)\"$attrs>"]
-    _append_subpath!(lines, canvas, outer)
+    total_pts = cardin(outer) + sum(cardin, holes; init = 0)
+    buf = IOBuffer(; sizehint = 128 + 24 * total_pts)
+    _write_path_attrs!(
+        buf,
+        canvas;
+        fillrule = "eofill",
+        stroke = stroke,
+        fill = fill,
+        pen = pen,
+        dash = dash,
+        opacity = opacity,
+        tiling = tiling,
+    )
+    _append_subpath!(buf, canvas, outer)
     for hole in holes
-        _append_subpath!(lines, canvas, hole)
+        _append_subpath!(buf, canvas, hole)
     end
-    push!(lines, "</path>")
-    push!(canvas.elements, join(lines, "\n"))
+    write(buf, "</path>")
+    push!(canvas.elements, String(take!(buf)))
     return canvas
 end
 
-function _append_subpath!(lines::Vector{String}, canvas::IpeCanvas, poly::AbsPntSeq{2})
+function _append_subpath!(buf::IO, canvas::IpeCanvas, poly::AbsPntSeq{2})
     n = cardin(poly)
     n == 0 && return
-    p0 = _apply_tf(canvas, poly[1])
-    push!(lines, "$(_pt_str(p0)) m")
+    _write_pt!(buf, _apply_tf(canvas, poly[1]))
+    write(buf, " m\n")
     for i = 2:n
-        pi = _apply_tf(canvas, poly[i])
-        push!(lines, "$(_pt_str(pi)) l")
+        _write_pt!(buf, _apply_tf(canvas, poly[i]))
+        write(buf, " l\n")
     end
-    push!(lines, "h")
+    write(buf, "h\n")
 end
 
 """

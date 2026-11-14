@@ -2,12 +2,49 @@
 # High-Level Algorithmic & Conceptual Diagram Helpers
 # -----------------------------------------------------------------------------
 
+const _LABEL_ALIGNMENTS = Dict{Symbol,Tuple{Symbol,Symbol}}(
+    :center => (:center, :center),
+    :north => (:center, :top),
+    :south => (:center, :bottom),
+    :east => (:right, :center),
+    :west => (:left, :center),
+    :northeast => (:right, :top),
+    :northwest => (:left, :top),
+    :southeast => (:right, :bottom),
+    :southwest => (:left, :bottom),
+)
+
+const LABEL_STYLE = (:halign, :valign, :stroke, :size, :style, :offset, :anchor)
+
+function _anchor_alignment(anchor::Symbol)
+    alignment = get(_LABEL_ALIGNMENTS, anchor, nothing)
+    alignment === nothing && throw(ArgumentError("unknown label anchor: $anchor"))
+    return alignment
+end
+
+function _write_escaped_ipe_xml!(buf::IO, s::AbstractString)
+    # Single-pass entity escaping directly into the destination buffer
+    if !any(c -> c === '&' || c === '<' || c === '>', s)
+        print(buf, s)
+        return buf
+    end
+    for c in s
+        if c === '&'
+            write(buf, "&amp;")
+        elseif c === '<'
+            write(buf, "&lt;")
+        elseif c === '>'
+            write(buf, "&gt;")
+        else
+            write(buf, c)
+        end
+    end
+    return buf
+end
+
 function _escape_ipe_xml(s::AbstractString)
-    # Escape XML entities for Ipe text elements
-    s = replace(s, "&" => "&amp;")
-    s = replace(s, "<" => "&lt;")
-    s = replace(s, ">" => "&gt;")
-    return s
+    any(c -> c === '&' || c === '<' || c === '>', s) || return String(s)
+    return sprint(_write_escaped_ipe_xml!, s)
 end
 
 """
@@ -27,38 +64,51 @@ function draw_label!(
     offset::Tuple{<:Real,<:Real} = (0.0, 0.0),
     anchor::Union{Symbol,Nothing} = nothing,
 )
-    pt = _apply_tf(canvas, p)
-    pt += Point(Float64(offset[1]), Float64(offset[2]))
+    pt = _apply_tf(canvas, p) + Point(Float64(offset[1]), Float64(offset[2]))
     if anchor !== nothing
-        alignments = Dict(
-            :center => (:center, :center),
-            :north => (:center, :top),
-            :south => (:center, :bottom),
-            :east => (:right, :center),
-            :west => (:left, :center),
-            :northeast => (:right, :top),
-            :northwest => (:left, :top),
-            :southeast => (:right, :bottom),
-            :southwest => (:left, :bottom),
-        )
-        haskey(alignments, anchor) || throw(ArgumentError("unknown label anchor: $anchor"))
-        halign, valign = alignments[anchor]
+        halign, valign = _anchor_alignment(anchor)
     end
-    clean_text = string(text)
-    # If math style and text not already wrapped in $, wrap it
-    if style == :math &&
-       !startswith(strip(clean_text), "\$") &&
-       !startswith(strip(clean_text), "\\begin")
-        clean_text = "\$" * clean_text * "\$"
-    end
-    xml_text = _escape_ipe_xml(clean_text)
-    xml = "<text layer=\"$(canvas.active_layer)\" pos=\"$(_pt_str(pt))\" stroke=\"$stroke\" type=\"label\" size=\"$size\" halign=\"$halign\" valign=\"$valign\">$xml_text</text>"
-    push!(canvas.elements, xml)
+    clean_text = text isa AbstractString ? text : string(text)
+    trimmed = strip(clean_text)
+    wrap_math =
+        style == :math &&
+        !startswith(trimmed, "\$") &&
+        !startswith(trimmed, "\\begin")
+
+    buf = IOBuffer(; sizehint = 128 + sizeof(clean_text))
+    write(buf, "<text layer=\"", canvas.active_layer, "\" pos=\"")
+    _write_pt!(buf, pt)
+    write(buf, "\" stroke=\"")
+    print(buf, stroke)
+    write(buf, "\" type=\"label\" size=\"")
+    print(buf, size)
+    write(buf, "\" halign=\"")
+    print(buf, halign)
+    write(buf, "\" valign=\"")
+    print(buf, valign)
+    write(buf, "\">")
+    wrap_math && write(buf, '$')
+    _write_escaped_ipe_xml!(buf, clean_text)
+    wrap_math && write(buf, '$')
+    write(buf, "</text>")
+    push!(canvas.elements, String(take!(buf)))
     return canvas
 end
 
 draw_label!(canvas::IpeCanvas, x::Real, y::Real, text; kwargs...) =
     draw_label!(canvas, Point(Float64(x), Float64(y)), text; kwargs...)
+
+function _label_one!(
+    canvas::IpeCanvas,
+    pt_text::Tuple{Point{2,T},L},
+    active::Style{A},
+    appearance::S,
+    overrides::O,
+) where {T,L,A,S<:Union{Nothing,Style},O<:NamedTuple}
+    p, text = pt_text
+    options = _style_options(active, appearance, overrides, Val(LABEL_STYLE))
+    return draw_label!(canvas, p, text; options...)
+end
 
 """Place a LaTeX-aware label at a world point with an optional page-space offset."""
 function label!(
@@ -68,9 +118,7 @@ function label!(
     appearance::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    allowed = (:halign, :valign, :stroke, :size, :style, :offset, :anchor)
-    options = _style_options(canvas, appearance, (; kwargs...), allowed)
-    return draw_label!(canvas, p, text; options...)
+    return _dispatch_active(_label_one!, canvas, (p, text), appearance, (; kwargs...))
 end
 
 label!(canvas::IpeCanvas, x::Real, y::Real, text; kwargs...) =

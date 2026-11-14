@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CubicBezier` and `CubicSpline` (`bbox`, `flatten`, `interpolate_natural_spline`): replaced heap vector allocations and coordinate splatting with stack-allocated `ntuple(..., Val(D))` extrema and control-point construction, restoring concrete `BBox{D,T}` return-type inference and eliminating per-segment `BBox`/`PntSeq`/slice allocations.
 - `CurvePolygon2D` (`is_inside`, `tangent_intersections_cp`, `intersect_line_curve`): replaced per-curve intersection vector allocations and `prefix_lengths` array construction with stack-allocated `_LineCurveHits` and streaming arc-length accumulation (zero heap allocations on `Segment2F`/`CircleArc2F` polygons).
 - `bbox(::EllipticArc)`: replaced temporary point-vector and generator allocations with direct scalar extrema tracking.
+- `IpeDraw`: parameterized `Style{NT<:NamedTuple}`, routed `draw!`/`mark!`/`label!` through concrete style function barriers with compile-time `NamedTuple` option filtering, stabilized `_apply_tf` to always return `Point{2,Float64}`, replaced per-label alignment `Dict` allocation and multi-pass `replace` escaping with constant lookup and single-pass `IOBuffer` streaming, and streamed `draw_polygon!`, `draw_spline!`, `draw_bspline!`, `draw_polygon_with_holes!`, and `draw_label!` directly into pre-sized `IOBuffer`s (`draw_bspline!` now throws `ArgumentError` for fewer than 3 control points).
 
 ## [0.5.16] - 2026-11-13
 

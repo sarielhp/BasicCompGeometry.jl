@@ -47,8 +47,8 @@ struct PageBox
 end
 
 """Reusable keyword options for `draw!`, `mark!`, and `label!`."""
-struct Style
-    values::NamedTuple
+struct Style{NT<:NamedTuple}
+    values::NT
 end
 
 Style(; kwargs...) = Style((; kwargs...))
@@ -137,25 +137,66 @@ end
 # Attribute Formatting Helpers
 # -----------------------------------------------------------------------------
 
-function _fmt_attr(name::String, val::Union{Symbol,String,Nothing})
-    val === nothing && return ""
+function _write_attr!(buf::IO, name::String, val::Union{Symbol,String,Nothing})
+    (val === nothing || val === :none) && return nothing
     s = string(val)
-    s == "none" && return ""
+    s == "none" && return nothing
     if name == "arrow" || name == "rarrow"
         s = s == "pointed" ? "pointed/normal" : (s == "normal" ? "normal/normal" : s)
     end
-    return " $name=\"$s\""
+    write(buf, ' ', name, "=\"", s, '"')
+    return nothing
+end
+
+function _fmt_attr(name::String, val::Union{Symbol,String,Nothing})
+    (val === nothing || val === :none) && return ""
+    return sprint(_write_attr!, name, val)
+end
+
+function _write_uint!(buf::IO, n::Int64)
+    q, r = divrem(n, Int64(10))
+    q > 0 && _write_uint!(buf, q)
+    write(buf, UInt8('0') + UInt8(r))
+    return nothing
+end
+
+function _write_fixed3!(buf::IO, val::Float64)
+    if !isfinite(val) || abs(val) >= 1e15
+        print(buf, val)
+        return nothing
+    end
+    scaled = round(Int64, val * 1000.0)
+    if scaled < 0
+        write(buf, UInt8('-'))
+        scaled = -scaled
+    end
+    whole, frac = divrem(scaled, Int64(1000))
+    _write_uint!(buf, whole)
+    write(buf, UInt8('.'))
+    write(buf, UInt8('0') + UInt8(frac ÷ 100))
+    write(buf, UInt8('0') + UInt8((frac ÷ 10) % 10))
+    write(buf, UInt8('0') + UInt8(frac % 10))
+    return nothing
+end
+
+function _write_pt!(buf::IO, p::Point{2})
+    _write_fixed3!(buf, Float64(p.x))
+    write(buf, UInt8(' '))
+    _write_fixed3!(buf, Float64(p.y))
+    return nothing
 end
 
 function _pt_str(p::Point{2})
-    @sprintf("%.3f %.3f", p[1], p[2])
+    @sprintf("%.3f %.3f", p.x, p.y)
 end
 
 function _apply_tf(canvas::IpeCanvas, p::Point{2})
+    x = Float64(p.x)
+    y = Float64(p.y)
     vp = canvas.viewport
-    vp === nothing && return p
+    vp === nothing && return Point(x, y)
     y_scale = vp.flip_y ? -vp.scale : vp.scale
-    return Point(vp.tx + vp.scale * p.x, vp.ty + y_scale * p.y)
+    return Point(vp.tx + vp.scale * x, vp.ty + y_scale * y)
 end
 
 _apply_tf(canvas::IpeCanvas, x::Real, y::Real) =

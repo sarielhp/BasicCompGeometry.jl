@@ -2,18 +2,30 @@
 # Compact Geometry-Aware Drawing Interface
 # -----------------------------------------------------------------------------
 
-function _style_options(
-    canvas::IpeCanvas,
-    style::Union{Style,Nothing},
-    overrides::NamedTuple,
+Base.@constprop :aggressive @inline _filter_keys(::Tuple{}, allowed, ::Val) = ()
+Base.@constprop :aggressive @inline function _filter_keys(
+    ks::Tuple{Symbol,Vararg{Symbol}},
     allowed,
-)
-    unknown = filter(key -> !(key in allowed), keys(overrides))
+    ::Val{keep},
+) where {keep}
+    k = ks[1]
+    rest = _filter_keys(Base.tail(ks), allowed, Val(keep))
+    return (k in allowed) == keep ? (k, rest...) : rest
+end
+
+function _style_options(
+    active::Style{A},
+    style::S,
+    overrides::O,
+    ::Val{allowed},
+) where {A,S<:Union{Nothing,Style},O<:NamedTuple,allowed}
+    unknown = _filter_keys(keys(overrides), allowed, Val(false))
     isempty(unknown) ||
         throw(ArgumentError("unsupported drawing options: $(join(unknown, ", "))"))
     local_style = style === nothing ? NamedTuple() : style.values
-    merged = merge(canvas.active_style.values, local_style, overrides)
-    return (; (key => value for (key, value) in pairs(merged) if key in allowed)...)
+    merged = merge(active.values, local_style, overrides)
+    ks = _filter_keys(keys(merged), allowed, Val(true))
+    return NamedTuple{ks}(merged)
 end
 
 function _opacity_name(value::Real)
@@ -26,9 +38,15 @@ end
 
 _opacity_name(value::Union{Symbol,String}) = value
 
-function _draw_fill_opacity!(renderer, canvas, object, options::NamedTuple)
+function _draw_fill_opacity!(
+    renderer::F,
+    canvas::IpeCanvas,
+    object,
+    options::O,
+) where {F,O<:NamedTuple}
     fill_opacity = get(options, :fill_opacity, nothing)
-    base = (; (key => value for (key, value) in pairs(options) if key != :fill_opacity)...)
+    base_keys = _filter_keys(keys(options), (:fill_opacity,), Val(false))
+    base = NamedTuple{base_keys}(options)
     fill_opacity === nothing && return renderer(canvas, object; base...)
 
     fill = get(base, :fill, :none)
@@ -48,8 +66,114 @@ function _draw_fill_opacity!(renderer, canvas, object, options::NamedTuple)
     return canvas
 end
 
+const POINT_STYLE = (:stroke, :fill, :size, :shape)
 const PATH_STYLE = (:stroke, :fill, :pen, :dash, :opacity, :fill_opacity)
+const ELLIPSE_STYLE = (PATH_STYLE..., :tiling)
+const POLYGON_STYLE = (PATH_STYLE..., :close)
+const BEZIER_STYLE = (:stroke, :fill, :pen, :dash, :arrow, :rarrow)
 const CURVE_STYLE = (:stroke, :pen, :dash, :arrow, :rarrow)
+
+function _draw_styled!(
+    renderer::F,
+    canvas::IpeCanvas,
+    object,
+    active::Style{A},
+    style::S,
+    overrides::O,
+    ::Val{allowed},
+    ::Val{split_opacity},
+) where {F,A,S<:Union{Nothing,Style},O<:NamedTuple,allowed,split_opacity}
+    options = _style_options(active, style, overrides, Val(allowed))
+    if split_opacity
+        return _draw_fill_opacity!(renderer, canvas, object, options)
+    end
+    return renderer(canvas, object; options...)
+end
+
+@inline function _dispatch_active(
+    fn::F,
+    canvas::IpeCanvas,
+    object,
+    style::S,
+    overrides::O,
+) where {F,S<:Union{Nothing,Style},O<:NamedTuple}
+    active = canvas.active_style
+    if active isa Style{@NamedTuple{}}
+        return fn(canvas, object, active, style, overrides)
+    end
+    return fn(canvas, object, active, style, overrides)
+end
+
+@inline _draw_spec(::Point{2}) = (draw_point!, Val(POINT_STYLE), Val(false))
+@inline _draw_spec(::Segment{2}) = (draw_segment!, Val(CURVE_STYLE), Val(false))
+@inline _draw_spec(::BBox{2}) = (draw_box!, Val(PATH_STYLE), Val(true))
+@inline _draw_spec(::Sphere{2}) = (draw_circle!, Val(PATH_STYLE), Val(true))
+@inline _draw_spec(::CircleArc) = (draw_arc!, Val(CURVE_STYLE), Val(false))
+@inline _draw_spec(::Ellipse) = (draw_ellipse!, Val(ELLIPSE_STYLE), Val(true))
+@inline _draw_spec(::EllipticArc) = (draw_arc!, Val(CURVE_STYLE), Val(false))
+@inline _draw_spec(::CubicBezier{2}) = (draw_bezier!, Val(BEZIER_STYLE), Val(false))
+@inline _draw_spec(::CubicSpline{2}) = (draw_spline!, Val(BEZIER_STYLE), Val(false))
+@inline _draw_spec(::AbsPntSeq{2}) = (draw_polygon!, Val(POLYGON_STYLE), Val(true))
+@inline _draw_spec(::AbstractVector{<:Point{2}}) =
+    (draw_polygon!, Val(POLYGON_STYLE), Val(true))
+@inline _draw_spec(::Any) = nothing
+
+function _draw_each!(
+    canvas::IpeCanvas,
+    objects::AbstractVector,
+    active::Style{A},
+    style::S,
+    overrides::O,
+) where {A,S<:Union{Nothing,Style},O<:NamedTuple}
+    for object in objects
+        _draw_one!(canvas, object, active, style, overrides)
+    end
+    return canvas
+end
+
+function _draw_one!(
+    canvas::IpeCanvas,
+    object,
+    active::Style{A},
+    style::S,
+    overrides::O,
+) where {A,S<:Union{Nothing,Style},O<:NamedTuple}
+    spec = _draw_spec(object)
+    if spec !== nothing
+        renderer, allowed, split_opacity = spec
+        return _draw_styled!(
+            renderer,
+            canvas,
+            object,
+            active,
+            style,
+            overrides,
+            allowed,
+            split_opacity,
+        )
+    end
+    object isa AbstractVector &&
+        return _draw_each!(canvas, object, active, style, overrides)
+    return style === nothing ? draw!(canvas, object; overrides...) :
+           draw!(canvas, object; style = style, overrides...)
+end
+
+_mark_many!(
+    canvas::IpeCanvas,
+    points,
+    active::Style{A},
+    style::S,
+    overrides::O,
+) where {A,S<:Union{Nothing,Style},O<:NamedTuple} = _draw_styled!(
+    draw_points!,
+    canvas,
+    points,
+    active,
+    style,
+    overrides,
+    Val(POINT_STYLE),
+    Val(false),
+)
 
 """Draw a geometric object using multiple dispatch and optional reusable `Style`."""
 function draw!(
@@ -58,8 +182,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :size, :shape))
-    return draw_point!(canvas, p; options...)
+    return _dispatch_active(_draw_one!, canvas, p, style, (; kwargs...))
 end
 
 function draw!(
@@ -68,8 +191,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
-    return draw_segment!(canvas, s; options...)
+    return _dispatch_active(_draw_one!, canvas, s, style, (; kwargs...))
 end
 
 function draw!(
@@ -78,8 +200,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), PATH_STYLE)
-    return _draw_fill_opacity!(draw_box!, canvas, bb, options)
+    return _dispatch_active(_draw_one!, canvas, bb, style, (; kwargs...))
 end
 
 function draw!(
@@ -88,8 +209,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), PATH_STYLE)
-    return _draw_fill_opacity!(draw_circle!, canvas, circle, options)
+    return _dispatch_active(_draw_one!, canvas, circle, style, (; kwargs...))
 end
 
 function draw!(
@@ -98,8 +218,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
-    return draw_arc!(canvas, arc; options...)
+    return _dispatch_active(_draw_one!, canvas, arc, style, (; kwargs...))
 end
 
 function draw!(
@@ -108,9 +227,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    allowed = (PATH_STYLE..., :tiling)
-    options = _style_options(canvas, style, (; kwargs...), allowed)
-    return _draw_fill_opacity!(draw_ellipse!, canvas, ellipse, options)
+    return _dispatch_active(_draw_one!, canvas, ellipse, style, (; kwargs...))
 end
 
 function draw!(
@@ -119,8 +236,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), CURVE_STYLE)
-    return draw_arc!(canvas, arc; options...)
+    return _dispatch_active(_draw_one!, canvas, arc, style, (; kwargs...))
 end
 
 function draw!(
@@ -129,13 +245,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(
-        canvas,
-        style,
-        (; kwargs...),
-        (:stroke, :fill, :pen, :dash, :arrow, :rarrow),
-    )
-    return draw_bezier!(canvas, curve; options...)
+    return _dispatch_active(_draw_one!, canvas, curve, style, (; kwargs...))
 end
 
 function draw!(
@@ -144,13 +254,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(
-        canvas,
-        style,
-        (; kwargs...),
-        (:stroke, :fill, :pen, :dash, :arrow, :rarrow),
-    )
-    return draw_spline!(canvas, curve; options...)
+    return _dispatch_active(_draw_one!, canvas, curve, style, (; kwargs...))
 end
 
 function draw!(
@@ -159,8 +263,7 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), (PATH_STYLE..., :close))
-    return _draw_fill_opacity!(draw_polygon!, canvas, polygon, options)
+    return _dispatch_active(_draw_one!, canvas, polygon, style, (; kwargs...))
 end
 
 function draw!(
@@ -169,23 +272,23 @@ function draw!(
     style::Union{Style,Nothing} = nothing,
     kwargs...,
 )
-    options = _style_options(canvas, style, (; kwargs...), (PATH_STYLE..., :close))
-    return _draw_fill_opacity!(draw_polygon!, canvas, polygon, options)
+    return _dispatch_active(_draw_one!, canvas, polygon, style, (; kwargs...))
 end
 
-function draw!(canvas::IpeCanvas, objects::AbstractVector; kwargs...)
-    for object in objects
-        draw!(canvas, object; kwargs...)
-    end
-    return canvas
+function draw!(
+    canvas::IpeCanvas,
+    objects::AbstractVector;
+    style::Union{Style,Nothing} = nothing,
+    kwargs...,
+)
+    return _dispatch_active(_draw_each!, canvas, objects, style, (; kwargs...))
 end
 
 """Draw one point or a collection of points as fixed-size page marks."""
 mark!(canvas::IpeCanvas, p::Point{2}; kwargs...) = draw!(canvas, p; kwargs...)
 
 function mark!(canvas::IpeCanvas, points; style::Union{Style,Nothing} = nothing, kwargs...)
-    options = _style_options(canvas, style, (; kwargs...), (:stroke, :fill, :size, :shape))
-    return draw_points!(canvas, points; options...)
+    return _dispatch_active(_mark_many!, canvas, points, style, (; kwargs...))
 end
 
 """Run `f` on a layer and restore the previously active layer afterward."""
@@ -200,10 +303,18 @@ function layer(f::Function, canvas::IpeCanvas, name::Union{Symbol,AbstractString
     return canvas
 end
 
+function _merge_style(
+    previous::Style{A},
+    style::Style{S},
+    overrides::O,
+) where {A,S,O<:NamedTuple}
+    return Style(merge(previous.values, style.values, overrides))
+end
+
 """Apply style defaults within `f` and restore the previous defaults afterward."""
 function with_style(f::Function, canvas::IpeCanvas, style::Style = Style(); kwargs...)
     previous = canvas.active_style
-    canvas.active_style = Style(merge(previous.values, style.values, (; kwargs...)))
+    canvas.active_style = _merge_style(previous, style, (; kwargs...))
     try
         f(canvas)
     finally
