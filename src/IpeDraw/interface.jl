@@ -18,7 +18,7 @@ function _style_options(
     style::S,
     overrides::O,
     ::Val{allowed},
-) where {A,S<:Union{Nothing,Style},O<:NamedTuple,allowed}
+) where {A<:NamedTuple,S<:Union{Nothing,Style},O<:NamedTuple,allowed}
     unknown = _filter_keys(keys(overrides), allowed, Val(false))
     isempty(unknown) ||
         throw(ArgumentError("unsupported drawing options: $(join(unknown, ", "))"))
@@ -82,7 +82,7 @@ function _draw_styled!(
     overrides::O,
     ::Val{allowed},
     ::Val{split_opacity},
-) where {F,A,S<:Union{Nothing,Style},O<:NamedTuple,allowed,split_opacity}
+) where {F,A<:NamedTuple,S<:Union{Nothing,Style},O<:NamedTuple,allowed,split_opacity}
     options = _style_options(active, style, overrides, Val(allowed))
     if split_opacity
         return _draw_fill_opacity!(renderer, canvas, object, options)
@@ -124,7 +124,7 @@ function _draw_each!(
     active::Style{A},
     style::S,
     overrides::O,
-) where {A,S<:Union{Nothing,Style},O<:NamedTuple}
+) where {A<:NamedTuple,S<:Union{Nothing,Style},O<:NamedTuple}
     for object in objects
         _draw_one!(canvas, object, active, style, overrides)
     end
@@ -137,7 +137,7 @@ function _draw_one!(
     active::Style{A},
     style::S,
     overrides::O,
-) where {A,S<:Union{Nothing,Style},O<:NamedTuple}
+) where {A<:NamedTuple,S<:Union{Nothing,Style},O<:NamedTuple}
     spec = _draw_spec(object)
     if spec !== nothing
         renderer, allowed, split_opacity = spec
@@ -164,7 +164,7 @@ _mark_many!(
     active::Style{A},
     style::S,
     overrides::O,
-) where {A,S<:Union{Nothing,Style},O<:NamedTuple} = _draw_styled!(
+) where {A<:NamedTuple,S<:Union{Nothing,Style},O<:NamedTuple} = _draw_styled!(
     draw_points!,
     canvas,
     points,
@@ -307,7 +307,7 @@ function _merge_style(
     previous::Style{A},
     style::Style{S},
     overrides::O,
-) where {A,S,O<:NamedTuple}
+) where {A<:NamedTuple,S<:NamedTuple,O<:NamedTuple}
     return Style(merge(previous.values, style.values, overrides))
 end
 

@@ -300,7 +300,7 @@ function _next_hull_vertex(C, p::Point2I, q::Int)
         L, U = _QUADRANT_BASES[j+1]
         e = find_edge_direction(C, p, L, U)
         e === nothing && continue
-        return p + chord_range(C, p, e)[2] * e, e
+        return p + something(chord_range(C, p, e))[2] * e, e
     end
     return nothing
 end
@@ -316,7 +316,7 @@ function _first_hull_edge(C, p::Point2I)
     i = findfirst(d -> all(_lat_cross(d, c) >= 0 for c in cands), cands)
     i === nothing && throw(ArgumentError("start point is not a vertex of the discrete hull"))
     e = cands[i]
-    return p + chord_range(C, p, e)[2] * e, e
+    return p + something(chord_range(C, p, e))[2] * e, e
 end
 
 _row_has_lattice_point(C, y::Int) =
@@ -341,7 +341,7 @@ function discrete_hull_start(C, seed::Point2I)
         mid = (lo + hi) >> 1
         _row_has_lattice_point(C, mid) ? (hi = mid) : (lo = mid)
     end
-    return Point2I(chord_range(C, Point2I(0, hi), Point2I(1, 0))[1], hi)
+    return Point2I(something(chord_range(C, Point2I(0, hi), Point2I(1, 0)))[1], hi)
 end
 
 # Row scan over the y-extent, for bodies without a connectivity guarantee.
@@ -349,7 +349,7 @@ function _scan_start(P::ConvexPolygonBody)
     ys = [v[2] for v in P.vertices]
     for y = fld(minimum(ys), P.den):cld(maximum(ys), P.den)
         _row_has_lattice_point(P, Int(y)) &&
-            return Point2I(chord_range(P, Point2I(0, y), Point2I(1, 0))[1], y)
+            return Point2I(something(chord_range(P, Point2I(0, y), Point2I(1, 0)))[1], y)
     end
     return nothing
 end
@@ -389,7 +389,7 @@ function discrete_hull(C::AbsLatticeBody; seed = nothing, start = nothing)
     while p != p0
         push!(hull, p)
         length(hull) > 10^9 && error("discrete_hull did not close")
-        p, e = _next_hull_vertex(C, p, _quadrant(e))
+        p, e = something(_next_hull_vertex(C, p, _quadrant(e)))
     end
     k = argmin([(v[2], v[1]) for v in hull])
     return circshift(hull, 1 - k)

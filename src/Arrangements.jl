@@ -564,10 +564,16 @@ ArrVertDecomp(bundle::AbstractVector; factor::Real = 1.1, tol::Real = 1e-11) =
 
 # Fill `right_neighbor`/`left_neighbor` for trapezoids whose vertical sides touch and
 # overlap, skipping x-coordinates that are input vertical lines.
-function _tc_link_neighbors!(right_neighbor, left_neighbor, traps, vert_line_x, tol)
+function _tc_link_neighbors!(
+    right_neighbor,
+    left_neighbor,
+    traps::AbstractVector{VerticalTrapezoid{T}},
+    vert_line_x::AbstractVector{<:Real},
+    tol::Real,
+) where {T}
     n = length(traps)
     order = sortperm(traps, by = t -> t.x_left)
-    x_lefts = [traps[idx].x_left for idx in order]
+    x_lefts = T[traps[idx].x_left for idx in order]
     sort!(vert_line_x)
     for i = 1:n
         ti = traps[i]
@@ -576,8 +582,8 @@ function _tc_link_neighbors!(right_neighbor, left_neighbor, traps, vert_line_x, 
             k = searchsortedfirst(vert_line_x, xr - tol)
             (k <= length(vert_line_x) && abs(vert_line_x[k] - xr) <= tol) && continue
         end
-        lo = searchsortedfirst(x_lefts, xr - tol)
-        hi = searchsortedlast(x_lefts, xr + tol)
+        lo = searchsortedfirst(x_lefts, xr - tol)::Int
+        hi = searchsortedlast(x_lefts, xr + tol)::Int
         for pos = lo:hi
             j = order[pos]
             i == j && continue

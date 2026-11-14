@@ -1,8 +1,7 @@
 module BBT
 
 using ..BasicCompGeometry
-import ..BasicCompGeometry: Points, bound!
-import ..BasicCompGeometry: width
+import ..BasicCompGeometry: Points
 using ..BasicCompGeometry.VirtArray
 using LinearAlgebra
 using DataStructures
