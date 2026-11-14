@@ -301,14 +301,89 @@ function _solve_natural_tridiag!(
     return p1k
 end
 
+# Thomas solve of the tridiagonal system with unit off-diagonals and diagonal
+# `diag` (overwritten); the solution replaces `rhs`.
+function _solve_unit_tridiag!(rhs::Vector{T}, diag::Vector{T}) where {T}
+    m = length(rhs)
+    for i in 2:m
+        w = one(T) / diag[i-1]
+        diag[i] -= w
+        rhs[i] -= w * rhs[i-1]
+    end
+    rhs[m] /= diag[m]
+    for i in (m-1):-1:1
+        rhs[i] = (rhs[i] - rhs[i+1]) / diag[i]
+    end
+    return rhs
+end
+
+# First control points of the closed C^2 spline through pts, coordinate k:
+# the cyclic system x[i-1] + 4 x[i] + x[i+1] = 4 K[i] + 2 K[i+1] (indices mod
+# n), solved by Sherman-Morrison: A = T + u v' with u = (γ, 0, …, 0, 1),
+# v = (1, 0, …, 0, 1/γ), γ = -4.
+function _solve_periodic_tridiag!(
+    x::Vector{T},
+    z::Vector{T},
+    diag::Vector{T},
+    pts::AbsPntSeq{D,T},
+    k::Int,
+) where {D,T}
+    n = length(x)
+    γ = -4 * one(T)
+    for i in 1:n
+        x[i] = 4 * pts[i][k] + 2 * pts[mod1(i + 1, n)][k]
+        z[i] = zero(T)
+    end
+    z[1] = γ
+    z[n] = one(T)
+    _periodic_diag!(diag, γ)
+    _solve_unit_tridiag!(x, diag)
+    _periodic_diag!(diag, γ)
+    _solve_unit_tridiag!(z, diag)
+    factor = (x[1] + x[n] / γ) / (one(T) + z[1] + z[n] / γ)
+    for i in 1:n
+        x[i] -= factor * z[i]
+    end
+    return x
+end
+
+function _periodic_diag!(diag::Vector{T}, γ::T) where {T}
+    fill!(diag, 4 * one(T))
+    diag[1] -= γ
+    diag[end] -= one(T) / γ
+    return diag
+end
+
+function _closed_natural_spline(pts::AbsPntSeq{D,T}) where {D,T}
+    n = cardin(pts)
+    P1 = ntuple(_ -> Vector{T}(undef, n), Val(D))
+    z = Vector{T}(undef, n)
+    diag = Vector{T}(undef, n)
+    for k in 1:D
+        _solve_periodic_tridiag!(P1[k], z, diag, pts, k)
+    end
+    segs = Vector{CubicBezier{D,T}}(undef, n)
+    for i in 1:n
+        j = mod1(i + 1, n)
+        p3 = pts[j]
+        p1 = Point{D,T}(ntuple(k -> P1[k][i], Val(D)))
+        p2 = Point{D,T}(ntuple(k -> 2 * p3[k] - P1[k][j], Val(D)))
+        segs[i] = CubicBezier{D,T}(pts[i], p1, p2, p3)
+    end
+    return CubicSpline(segs; closed = true)
+end
+
 """
     interpolate_natural_spline(pts::AbsPntSeq{D, T}; closed=false)
 
-Construct a smooth C^2 natural cubic spline interpolating the given points.
+Construct a smooth C^2 cubic spline interpolating the given points. Open
+splines use natural end conditions; with `closed=true` the spline is periodic
+(C^2 also at the first point) and returns to the first point.
 """
 function interpolate_natural_spline(pts::AbsPntSeq{D,T}; closed::Bool = false) where {D,T}
     n = cardin(pts)
     n >= 3 || return interpolate_catmull_rom(pts; closed = closed)
+    closed && return _closed_natural_spline(pts)
     m = n - 1
     P1_coords = ntuple(_ -> Vector{T}(undef, m), Val(D))
     b = Vector{T}(undef, m)

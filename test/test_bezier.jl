@@ -146,3 +146,27 @@ end
     end
     @test flatten(sp; tol = 1e-2).pnts == expected_pts
 end
+
+@testset "Closed natural spline is periodic C^2" begin
+    knots = PntSeq([point(cos(2π * i / 7) + 0.1i, sin(2π * i / 7)) for i in 0:6])
+    sp = @inferred interpolate_natural_spline(knots; closed = true)
+    segs = sp.segments
+    n = length(segs)
+    @test sp.is_closed
+    @test n == 7  # one segment per knot, including the closing one
+    d1(b, t) =
+        3 .* (
+            (1 - t)^2 .* (b.p1 .- b.p0) .+ 2(1 - t) * t .* (b.p2 .- b.p1) .+
+            t^2 .* (b.p3 .- b.p2)
+        )
+    d2(b, t) =
+        6 .* ((1 - t) .* (b.p2 .- 2 .* b.p1 .+ b.p0) .+ t .* (b.p3 .- 2 .* b.p2 .+ b.p1))
+    for i in 1:n
+        nxt = segs[mod1(i + 1, n)]
+        @test segs[i].p0 == knots[i]
+        @test segs[i].p3 == nxt.p0
+        @test d1(segs[i], 1.0) ≈ d1(nxt, 0.0) atol = 1e-12
+        @test d2(segs[i], 1.0) ≈ d2(nxt, 0.0) atol = 1e-12
+    end
+    @test !interpolate_natural_spline(knots).is_closed
+end

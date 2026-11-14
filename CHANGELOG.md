@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `interpolate_natural_spline(pts; closed = true)` (and `draw_spline!(...; method = :natural, closed = true)`) returned an open spline for three or more points, ignoring `closed`. It now builds a periodic C² spline with a closing segment.
 - `dist_segment_segment` in 2D: returns 0 for crossing segments and otherwise the smallest endpoint-to-segment distance, instead of solving the normal equations. Nearly parallel crossing segments gave errors of order eps/θ² (e.g. 3e-8 instead of 0 for length-200 segments), depended on the endpoint order, and below θ ≈ 1e-8 returned the endpoint distance.
 
 ## [0.5.17] - 2026-11-14
