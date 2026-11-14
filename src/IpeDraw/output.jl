@@ -187,7 +187,7 @@ function compile_pdf(canvas::IpeCanvas, output_pdf::String)
         return false
     end
     mkpath(dirname(abspath(output_pdf)))
-    ipe_temp = tempname() * ".ipe"
+    ipe_temp = tempname() * ".ipe"  # tmp-exempt: library scratch in the caller's process; Julia removes it at exit
     save_ipe(canvas, ipe_temp)
     success = run(`ipetoipe -pdf $ipe_temp $output_pdf`).exitcode == 0
     rm(ipe_temp, force = true)

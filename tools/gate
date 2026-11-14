@@ -1,27 +1,19 @@
-#!/usr/bin/env bash
-# Usage: tools/gate [--full]
-#
-# Quality gate: the full test suite (Pkg.test, ~90 s). Build is run separately
-# (tools/build).
-#
-#   --full   also run the JET runtime-dispatch check of the hot entry points
-#            (test/jet/jet_opt.jl, ~5 s plus a one-time JET install into the
-#            test/jet environment). JET stays out of Pkg.test, so CI and
-#            package users never install it.
-set -euo pipefail
-cd "$(dirname "$0")/.."
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-full=0
-case "${1:-}" in
-  "") ;;
-  --full) full=1 ;;
-  -h|--help) sed -n '2,10s/^# \{0,1\}//p' "$0"; exit 0 ;;
-  *) echo "tools/gate: unknown option: $1 (try --help)" >&2; exit 2 ;;
-esac
+require_relative 'tooling'
 
-julia --project=. -e 'using Pkg; Pkg.test()'
+HELP = <<~TEXT
+  Usage: tools/gate [--full]
 
-if [ "$full" -eq 1 ]; then
-  julia --project=test/jet -e 'using Pkg; Pkg.instantiate()'
-  julia --project=test/jet test/jet/jet_opt.jl
-fi
+  Check the tree without changing it: tools/lint, FAST_CHECKS and tools/test.
+
+  Options:
+    --full      The release gate: adds the deep review and FULL_CHECKS.
+    -h, --help  Show this help; nothing is run.
+TEXT
+
+Tooling.entry(HELP) do
+  abort 'Usage: tools/gate [--full]' unless ARGV.empty? || ARGV == ['--full']
+  Tooling.gate(ARGV == ['--full'])
+end

@@ -185,7 +185,7 @@ function BasicCompGeometry.cairo_draw_latex(
     cache_key = (str, Float64(fontsize), dpi, compiler, full_preamble)
 
     img = get!(LATEX_SNIPPET_CACHE, cache_key) do
-        temp_dir = mktempdir()
+        temp_dir = mktempdir()  # tmp-exempt: library scratch in the caller's process; Julia removes it at exit
         tex_path = joinpath(temp_dir, "snippet.tex")
         pdf_path = joinpath(temp_dir, "snippet.pdf")
         png_base = joinpath(temp_dir, "snippet")
@@ -276,7 +276,7 @@ function BasicCompGeometry.cairo_draw_latex_page(
         !isnothing(paperheight) ? Float64(paperheight) :
         (hasproperty(cr, :ch) ? Float64(cr.ch) : 800.0)
 
-    temp_dir = mktempdir()
+    temp_dir = mktempdir()  # tmp-exempt: library scratch in the caller's process; Julia removes it at exit
     tex_path = joinpath(temp_dir, "page.tex")
     pdf_path = joinpath(temp_dir, "page.pdf")
     png_base = joinpath(temp_dir, "page")
@@ -346,7 +346,7 @@ function BasicCompGeometry.latex_to_pdf(
     passes::Int = 2,
     preamble::AbstractString = "",
 )
-    temp_dir = mktempdir()
+    temp_dir = mktempdir()  # tmp-exempt: library scratch in the caller's process; Julia removes it at exit
     tex_path = joinpath(temp_dir, "document.tex")
     pdf_path = joinpath(temp_dir, "document.pdf")
 

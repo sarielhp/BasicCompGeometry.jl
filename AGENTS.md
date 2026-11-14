@@ -107,7 +107,8 @@ pdf_merge("final_output.pdf",
   ```bash
   julia --project=. test/runtests.jl
   ```
-- **Full Gate** (`tools/gate --full`): the test suite plus a JET runtime-dispatch check of the hot entry points ([`test/jet/jet_opt.jl`](test/jet/jet_opt.jl), its own environment in `test/jet/`). `tools/release` and review-cycle run it. When adding a performance-critical public function, add an entry point to that file; a failure means an abstract field or container type, or a type-unstable local, makes the code dispatch at run time.
+- **Gate** (`tools/gate`, the standard Julia gate from `~/prog/standards/julia/templates`): `tools/lint` (strict `julia-audit` against `.julia-audit-baseline`, syntax, JuliaFormatter check), the temp-file policy, `tools/test` (`Pkg.test()`), and `tools/build` (precompile). The baseline lists known violations; new ones fail, and fixed ones must be removed from it. Format with JuliaFormatter (`.JuliaFormatter.toml`) before committing.
+- **Full Gate** (`tools/gate --full`): the gate plus JET `report_package` and ExplicitImports, and a JET runtime-dispatch check of the hot entry points ([`test/jet/jet_opt.jl`](test/jet/jet_opt.jl), its own environment in `test/jet/`). `tools/release` and review-cycle run it. When adding a performance-critical public function, add an entry point to that file; a failure means an abstract field or container type, or a type-unstable local, makes the code dispatch at run time.
 - **Running Extension Tests**:
   ```bash
   julia --project=examples test/test_latex_cairo.jl

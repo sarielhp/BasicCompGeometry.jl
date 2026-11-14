@@ -1,5 +1,19 @@
-#!/usr/bin/env bash
-# Build validation for review-cycle: load and precompile the package. No tests.
-set -euo pipefail
-cd "$(dirname "$0")/.."
-exec julia --project=. -e 'using BasicCompGeometry'
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative 'tooling'
+
+HELP = <<~TEXT
+  Usage: tools/build
+
+  Check that each script listed in ARTIFACTS exists and is executable, and
+  precompile the project (Pkg.precompile). Nothing is installed.
+
+  Options:
+    -h, --help  Show this help; nothing is run.
+TEXT
+
+Tooling.entry(HELP) do
+  abort 'Usage: tools/build' unless ARGV.empty?
+  Language.build
+end

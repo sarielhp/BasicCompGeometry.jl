@@ -361,7 +361,7 @@ function BasicCompGeometry.Canvas(
         surf = Cairo.CairoImageSurface(iw, ih, Cairo.FORMAT_ARGB32)
         return _make_canvas(path, w, h, :png, fps, surf)
     elseif ext == ".gif"
-        tmp = mktempdir()
+        tmp = mktempdir()  # tmp-exempt: library scratch in the caller's process; Julia removes it at exit
         surf = Cairo.CairoImageSurface(iw, ih, Cairo.FORMAT_ARGB32)
         return _make_canvas(path, w, h, :gif, fps, surf; tempdir = tmp)
     elseif ext in (".html", ".htm")
