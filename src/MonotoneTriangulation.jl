@@ -152,33 +152,27 @@ function triangulate_monotone(
         end
     end
 
-    @inline function make_ccw(i1::Int, i2::Int, i3::Int)
-        if orient_sign(kernel, vertices[i1], vertices[i2], vertices[i3]) < 0
-            return (i1, i3, i2)
-        else
-            return (i1, i2, i3)
-        end
-    end
-
-    stack = Int[order[1], order[2]]
+    stack = Int[]
+    sizehint!(stack, k)
+    push!(stack, order[1], order[2])
     for j in 3:k-1
         v = order[j]
         if is_upper[v] != is_upper[last(stack)]
             while length(stack) >= 2
                 s_top = pop!(stack)
                 s_next = last(stack)
-                push!(triangles, make_ccw(v, s_top, s_next))
+                push!(triangles, is_upper[v] ? (v, s_next, s_top) : (v, s_top, s_next))
                 emit_diagonal!(v, s_top)
             end
             pop!(stack)
-            stack = Int[order[j-1], v]
+            push!(stack, order[j-1], v)
         else
             q = pop!(stack)
             while !isempty(stack)
                 a = last(stack)
                 turn = orient(kernel, vertices[a], vertices[q], vertices[v])
                 (is_upper[v] ? turn < 0 : turn > 0) || break
-                push!(triangles, make_ccw(a, q, v))
+                push!(triangles, is_upper[v] ? (a, v, q) : (a, q, v))
                 emit_diagonal!(a, v)
                 q = pop!(stack)
             end
@@ -190,7 +184,7 @@ function triangulate_monotone(
     while length(stack) >= 2
         s_top = pop!(stack)
         s_next = last(stack)
-        push!(triangles, make_ccw(v_last, s_top, s_next))
+        push!(triangles, is_upper[s_top] ? (v_last, s_top, s_next) : (v_last, s_next, s_top))
         emit_diagonal!(v_last, s_top)
     end
 
@@ -420,7 +414,12 @@ end
 # so it adds no predicate calls.
 function _check_distinct_vertices(kernel::AbstractKernel, vertices)
     n = length(vertices)
-    order = sortperm([(vertices[i][1], vertices[i][2]) for i in 1:n]; alg = MergeSort)
+    pts = vertices isa AbsPntSeq ? Points(vertices) : vertices
+    order = if pts isa AbstractVector
+        sortperm(pts; alg = MergeSort, by = p -> (p[1], p[2]))
+    else
+        sort!(collect(1:n); alg = MergeSort, by = i -> (vertices[i][1], vertices[i][2]))
+    end
     for i in 1:n-1
         a = vertices[order[i]]
         b = vertices[order[i + 1]]

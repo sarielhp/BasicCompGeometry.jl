@@ -265,7 +265,6 @@ end
 # plane sweep under symbolic shear `(x', y') = (x + εy, y)`.
 function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     n = length(pts)
-    prev_v = [mod1(i - 1, n) for i in 1:n]
     next_v = [mod1(i + 1, n) for i in 1:n]
 
     edge_is_lower = falses(n)
@@ -287,9 +286,10 @@ function _sweep_partition_diagonals(kernel::AbstractKernel, pts)
     helper = zeros(Int, n)
     is_merge = falses(n)
     diags = Tuple{Int,Int}[]
+    sizehint!(diags, n - 3)
 
     for v in events
-        e_in = prev_v[v]
+        e_in = v == 1 ? n : v - 1
         prev_left = edge_is_lower[e_in]
         next_right = edge_is_lower[v]
 

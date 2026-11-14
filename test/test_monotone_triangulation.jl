@@ -1628,4 +1628,49 @@ using BasicCompGeometry
             end
         end
     end
+
+    @testset "Performance review #001 regressions" begin
+        # Finding 1 & 2: Stack buffer reuse and direct CCW emission in triangulate_monotone
+        z = vcat(
+            [point(0.0, 0.0)],
+            [point(2.0 * i - 1.0, 1.0) for i in 1:1000],
+            [point(2001.0, 0.0)],
+            [point(2.0 * i, -1.0) for i in 1000:-1:1],
+        )
+        res_float = triangulate_monotone(z; kernel = FloatingKernel())
+        @test length(res_float.triangles) == length(z) - 2
+        @test all(t -> orient_sign(FloatingKernel(), z[t[1]], z[t[2]], z[t[3]]) > 0, res_float.triangles)
+
+        # ExactKernel: all emitted triangles must be strictly CCW
+        res_exact = triangulate_monotone(z; kernel = ExactKernel())
+        @test length(res_exact.triangles) == length(z) - 2
+        @test all(t -> orient_sign(ExactKernel(), z[t[1]], z[t[2]], z[t[3]]) > 0, res_exact.triangles)
+
+        # Stack buffer reuse prevents O(k) heap array reallocations on alternating chains
+        triangulate_monotone(z; kernel = FloatingKernel())
+        allocs_float = @allocated triangulate_monotone(z; kernel = FloatingKernel())
+        @test allocs_float < 200_000
+
+        # Finding 3: _check_distinct_vertices allocation and PntSeq support
+        pts_20k = [point(cos(th), sin(th)) for th in range(0, 2pi, length = 20000)[1:end-1]]
+        @test BasicCompGeometry._check_distinct_vertices(FloatingKernel(), pts_20k) === nothing
+        BasicCompGeometry._check_distinct_vertices(FloatingKernel(), pts_20k)
+        allocs_20k = @allocated BasicCompGeometry._check_distinct_vertices(FloatingKernel(), pts_20k)
+        @test allocs_20k < 300_000
+
+        pseq_20k = PntSeq(pts_20k)
+        @test BasicCompGeometry._check_distinct_vertices(FloatingKernel(), pseq_20k) === nothing
+
+        dup_pts = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 0.0)]
+        @test_throws ArgumentError BasicCompGeometry._check_distinct_vertices(FloatingKernel(), dup_pts)
+        @test_throws ArgumentError BasicCompGeometry._check_distinct_vertices(FloatingKernel(), PntSeq(dup_pts))
+
+        # Finding 4: Sweep partition without prev_v array allocation and with sizehinted diags
+        poly_sweep = [point(cos(th), sin(th)) for th in range(0, 2pi, length = 200)[1:end-1]]
+        res_sweep = triangulate_sweep(poly_sweep)
+        @test length(res_sweep.triangles) == length(poly_sweep) - 2
+        @test length(res_sweep.diagonals) == length(poly_sweep) - 3
+        diags = BasicCompGeometry._sweep_partition_diagonals(FloatingKernel(), poly_sweep)
+        @test diags isa Vector{Tuple{Int,Int}}
+    end
 end

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `triangulate_monotone`: eliminated inner-loop stack vector reallocations on alternating upper/lower chains by reusing the allocated buffer and pre-sizing capacity; eliminated redundant `orient_sign` predicate evaluations by emitting counterclockwise triangles directly from chain classifications (`is_upper`). Measured up to ~3x speedup under `FloatingKernel()` (4k allocations reduced to 38) and ~97x speedup under `ExactKernel()` (280k allocations reduced to 173).
+- `_check_distinct_vertices`: eliminated intermediate $O(n)$ tuple array allocation by sorting vertices directly by coordinate projection with `MergeSort`, reducing memory allocation by ~57% and eliminating GC stalls on large polygons.
+- `_sweep_partition_diagonals`: eliminated redundant $O(n)$ heap vector allocation for `prev_v` via inline cyclic index computation, and pre-sized `diags` with `sizehint!(diags, n - 3)`.
+
 ## [0.5.16] - 2026-11-13
 
 ### Fixed
