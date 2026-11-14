@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `visibility_polygon` and `polygon_kernel`: integer coordinate inputs under `FloatingKernel()` now promote to `Float64` instead of throwing `InexactError`, and `Float32` / `Rational{Int64}` coordinate types are preserved with homogeneous, type-stable return types (including `_ray_edge_intersect`).
+- `WSPD` and `approx_diameter`: `WSPD.init` now derives its distance scalar type from the `BBT.Tree` rather than `sep` and accepts any `sep::Real` (fixing `MethodError` on `Float32` point sequences and integer `sep` values), while `WSPD.separation` preserves the tree's distance scalar type `S` and `WSPD.PD` parameterizes the concrete point-sequence type `P`.
 
 ### Changed
+- `RMQ` and `ChainIndex`: eliminated `Core.Box` captures and missing comparator specialization in `_sparse_levels` and `build_rmq` (with `Base.@constprop :aggressive` and `Val`-dispatched backends), making `build_rmq` and `build_chain_index` concretely inferred and removing per-query heap allocations in `ChainWindow` queries.
+- `BBT.get_min_orig_index` / `BBT.get_max_orig_index`: replaced dynamic `getfield`/`setfield!` reflection and generator allocations with direct typed field access and a tight loop, eliminating heap allocations during traversal.
 - `triangulate_monotone`: eliminated inner-loop stack vector reallocations on alternating upper/lower chains by reusing the allocated buffer and pre-sizing capacity; eliminated redundant `orient_sign` predicate evaluations by emitting counterclockwise triangles directly from chain classifications (`is_upper`). Measured up to ~3x speedup under `FloatingKernel()` (4k allocations reduced to 38) and ~97x speedup under `ExactKernel()` (280k allocations reduced to 173).
 - `_check_distinct_vertices`: eliminated intermediate $O(n)$ tuple array allocation by sorting vertices directly by coordinate projection with `MergeSort`, reducing memory allocation by ~57% and eliminating GC stalls on large polygons.
 - `_sweep_partition_diagonals`: eliminated redundant $O(n)$ heap vector allocation for `prev_v` via inline cyclic index computation, and pre-sized `diags` with `sizehint!(diags, n - 3)`.

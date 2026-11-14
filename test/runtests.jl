@@ -645,11 +645,15 @@ Aqua.test_all(BasicCompGeometry)
         Tree_fully_expand(tree)
         @test depth(tree.root) > 1
 
-        # Test original index retrieval
-        min_idx = get_min_orig_index(tree, tree.root)
-        max_idx = get_max_orig_index(tree, tree.root)
+        # Test original index retrieval (type-stable and zero-allocation)
+        min_idx = @inferred get_min_orig_index(tree, tree.root)
+        max_idx = @inferred get_max_orig_index(tree, tree.root)
         @test min_idx == 1
         @test max_idx == length(pnts)
+        tree_uncached = Tree_init(poly)
+        Tree_fully_expand(tree_uncached)
+        @test (@allocated get_min_orig_index(tree_uncached, tree_uncached.root)) == 0
+        @test (@allocated get_max_orig_index(tree_uncached, tree_uncached.root)) == 0
 
         # Test 1000 random points in 3D
         pnts3d = [rand_point(3) for _ = 1:1000]
@@ -910,6 +914,13 @@ Aqua.test_all(BasicCompGeometry)
         approx_diam = approx_diameter(pnts, 0.1)
         @test approx_diam <= exact_diam
         @test approx_diam * 1.1 >= exact_diam
+
+        # Float32 point sequences with Float64 ε
+        pnts32 = PntSeq([Point{2,Float32}(p.x, p.y) for p in pnts])
+        approx_diam32 = approx_diameter(pnts32, 0.1)
+        @test approx_diam32 isa Float32
+        @test approx_diam32 <= exact_diam + 1f-5
+        @test approx_diam32 * 1.1f0 >= exact_diam - 1f-5
     end
 
     @testset "WSPD (Well-Separated Pairs Decomposition)" begin
@@ -944,6 +955,17 @@ Aqua.test_all(BasicCompGeometry)
         @test test_wspd(line, 2.0) < length(line)^2
         @test test_wspd(cloud, 0.5) < length(cloud)^2
         @test test_wspd(reverse(cloud), 0.5) < length(cloud)^2
+
+        # Type stability for Float32 points and mismatched sep types (e.g. Int or Float64)
+        line32 = [Point{2,Float32}(Float32(x), 0.0f0) for x = 1:10]
+        W32 = @inferred WSPD.init(PntSeq(line32), 2)
+        @test isconcretetype(typeof(W32))
+        @test typeof(W32.pnts) == PntSeq{2,Float32}
+        @test W32.sep === 2.0f0
+        @test (@inferred WSPD.separation(WSPD.get_top(W32))) isa Float32
+        finals32 = @inferred WSPD.expand!(W32)
+        @test !isempty(finals32)
+        @test (@inferred WSPD.separation(first(finals32))) isa Float32
     end
 
     @testset "10-Dimensional Geometry" begin

@@ -31,6 +31,24 @@ import BasicCompGeometry as CG
         m = minimum(@view big[lo:hi])
         @test range_argmin(idx, lo, hi) == lo - 1 + findlast(==(m), @view big[lo:hi])
     end
+
+    # Type stability and backend dispatch
+    _rmq_default(k) = build_rmq(k)
+    _rmq_blocked(k) = build_rmq(k; backend = :blocked)
+    _rmq_sparse(k) = build_rmq(k; backend = :sparse)
+    _rmq_custom(k) = build_rmq(k; less = (a, b) -> a[1] < b[1])
+    @test (@inferred _rmq_default(big)) isa CG.BlockRMQ
+    @test (@inferred _rmq_blocked(big)) isa CG.BlockRMQ
+    @test (@inferred _rmq_sparse(big)) isa CG.SparseRMQ
+    @test (@inferred _rmq_custom(keys)) isa CG.BlockRMQ
+    @test_throws ArgumentError build_rmq(big; backend = :bogus)
+    @test_throws ArgumentError build_rmq(big; backend = Val(:bogus))
+
+    # _sparse_levels should not box `half` or dynamically dispatch `less`
+    sparse_keys = collect(1.0:10_000.0)
+    sparse_init = collect(1:10_000)
+    CG._sparse_levels(sparse_keys, isless, sparse_init)
+    @test (@allocated CG._sparse_levels(sparse_keys, isless, copy(sparse_init))) < 2_000_000
 end
 
 struct CountingVec{T} <: AbstractVector{T}
@@ -104,6 +122,23 @@ Base.getindex(c::CountingVec, i::Int) = (c.reads[] += 1; c.v[i])
     w = chain_window(idx, 3, N - 5)
     CG.bounds(w); CG.leftmost(w)
     @test cv.reads[] < 200
+
+    # Concrete ChainIndex return type and zero per-query allocation inside a function
+    pts_typed = [(i, (i * 3) % 17) for i = 1:100]
+    @test isconcretetype(typeof(@inferred build_chain_index(pts_typed)))
+    function _chain_query_loop(pts, reps)
+        ci = build_chain_index(pts)
+        win = chain_window(ci, 0, length(pts))
+        acc = 0
+        for _ = 1:reps
+            acc += CG.leftmost(win).occurrence
+        end
+        return acc
+    end
+    _chain_query_loop(pts_typed, 10)
+    alloc_1k = @allocated _chain_query_loop(pts_typed, 1_000)
+    alloc_10k = @allocated _chain_query_loop(pts_typed, 10_000)
+    @test alloc_10k == alloc_1k
 end
 
 @testset "Vertical rays" begin

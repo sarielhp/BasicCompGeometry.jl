@@ -28,28 +28,30 @@ const _RMQ_WORD_BITS = 8sizeof(UInt)
 _floor_log2(n::Int) = 8sizeof(Int) - leading_zeros(n) - 1
 
 # One comparison suffices: on equivalence prefer the larger original index.
-@inline function _better_index(keys, less, a::Int, b::Int)
+@inline function _better_index(keys::V, less::F, a::Int, b::Int) where {V,F}
     lo, hi = minmax(a, b)
     return less(keys[lo], keys[hi]) ? lo : hi
 end
 
-function _sparse_levels(keys, less, minima::Vector{Int})
+function _sparse_levels(keys::V, less::F, minima::Vector{Int}) where {V,F}
     isempty(minima) && return Vector{Int}[]
     levels = [minima]
     half = 1
-    while half <= length(minima) ÷ 2
+    n = length(minima)
+    while half <= n ÷ 2
         previous = last(levels)
-        row = [
-            _better_index(keys, less, previous[i], previous[i+half]) for
-            i = 1:length(minima)-2half+1
-        ]
+        m = n - 2 * half + 1
+        row = Vector{Int}(undef, m)
+        @inbounds for i in 1:m
+            row[i] = _better_index(keys, less, previous[i], previous[i+half])
+        end
         push!(levels, row)
         half *= 2
     end
     return levels
 end
 
-function _block_masks(keys, less, block_size::Int)
+function _block_masks(keys::V, less::F, block_size::Int) where {V,F}
     masks = Vector{UInt}(undef, length(keys))
     minima = Int[]
     for first = 1:block_size:length(keys)
@@ -87,16 +89,26 @@ The keys are borrowed, not copied: the caller must keep them (and the order
 `less`) unchanged for the lifetime of the index. The index is never mutated by
 queries.
 """
-function build_rmq(keys::AbstractVector; less = isless, backend::Symbol = :blocked)
-    Base.require_one_based_indexing(keys)
-    backend in (:blocked, :sparse) ||
-        throw(ArgumentError("unknown RMQ backend: $backend"))
-    if backend == :sparse
-        return SparseRMQ(keys, less, _sparse_levels(keys, less, collect(eachindex(keys))))
-    end
+@inline function _build_rmq(keys::V, less::F, ::Val{:blocked}) where {V,F}
     block_size = max(1, _floor_log2(max(1, length(keys))))
     masks, minima = _block_masks(keys, less, block_size)
     return BlockRMQ(keys, less, block_size, masks, _sparse_levels(keys, less, minima))
+end
+
+@inline function _build_rmq(keys::V, less::F, ::Val{:sparse}) where {V,F}
+    return SparseRMQ(keys, less, _sparse_levels(keys, less, collect(eachindex(keys))))
+end
+
+Base.@constprop :aggressive function build_rmq(
+    keys::V;
+    less::F = isless,
+    backend::Union{Symbol,Val} = Val(:blocked),
+) where {V<:AbstractVector,F}
+    Base.require_one_based_indexing(keys)
+    b = backend isa Val ? backend : Val(backend)
+    b isa Val{:blocked} || b isa Val{:sparse} ||
+        throw(ArgumentError("unknown RMQ backend: $backend"))
+    return _build_rmq(keys, less, b)
 end
 
 Base.length(index::RMQIndex) = length(index.keys)

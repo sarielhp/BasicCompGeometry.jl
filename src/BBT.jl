@@ -91,41 +91,46 @@ function Base.show(io::IO, tree::Tree{D,T,S,V}) where {D,T,S,V}
     print(io, "BBT.Tree{$D,$T}($(length(tree.PS)) points, leaf_size=$(tree.leaf_size))")
 end
 
-function get_min_max_orig_index(
-    tree::Tree{D,T,S,V},
-    node::Node{D,T,S,V},
-    min_max_func,
-    field_name::Symbol,
-)::Int where {D,T,S,V}
-    val = getfield(node, field_name)
-    if !isnothing(val)
-        return val
+@inline function _range_ext_orig_index(
+    tree::Tree,
+    r::UnitRange{Int},
+    better::F,
+)::Int where {F}
+    isempty(r) && throw(ArgumentError("cannot compute extremum over empty node range"))
+    @inbounds begin
+        best = orig_index(tree.PS, first(r))
+        for i in (first(r)+1):last(r)
+            oi = orig_index(tree.PS, i)
+            better(oi, best) && (best = oi)
+        end
     end
-
-    if node.f_leaf
-        idx = min_max_func(orig_index(tree.PS, i) for i in node.r)
-        setfield!(node, field_name, idx)
-        return idx
-    end
-
-    if !isnothing(node.left) && !isnothing(node.right)
-        v_l = get_min_max_orig_index(tree, node.left, min_max_func, field_name)
-        v_r = get_min_max_orig_index(tree, node.right, min_max_func, field_name)
-        val = min_max_func((v_l, v_r))
-    else
-        val = min_max_func(orig_index(tree.PS, i) for i in node.r)
-    end
-
-    setfield!(node, field_name, val)
-    return val
+    return best
 end
 
 function get_min_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where {D,T,S,V}
-    return get_min_max_orig_index(tree, node, minimum, :min_index)
+    val = node.min_index
+    val !== nothing && return val
+    left, right = node.left, node.right
+    idx = if !node.f_leaf && left !== nothing && right !== nothing
+        min(get_min_orig_index(tree, left), get_min_orig_index(tree, right))
+    else
+        _range_ext_orig_index(tree, node.r, <)
+    end
+    node.min_index = idx
+    return idx
 end
 
 function get_max_orig_index(tree::Tree{D,T,S,V}, node::Node{D,T,S,V})::Int where {D,T,S,V}
-    return get_min_max_orig_index(tree, node, maximum, :max_index)
+    val = node.max_index
+    val !== nothing && return val
+    left, right = node.left, node.right
+    idx = if !node.f_leaf && left !== nothing && right !== nothing
+        max(get_max_orig_index(tree, left), get_max_orig_index(tree, right))
+    else
+        _range_ext_orig_index(tree, node.r, >)
+    end
+    node.max_index = idx
+    return idx
 end
 
 @inline function _bound_varray_range!(
@@ -212,7 +217,7 @@ function Tree_init_inner(
     pnts = Points(p)
     varr = VArray(pnts)
     V = typeof(pnts)
-    S = isempty(pnts) ? Float64 : typeof(dist(pnts[1], pnts[1]))
+    S = typeof(dist(zero(Point{D,T}), zero(Point{D,T})))
     tree = Tree{D,T,S,V}(varr, nothing, 0, leaf_size, compute_diam)
     tree.root = node_init(tree, 1:length(p))
     return tree

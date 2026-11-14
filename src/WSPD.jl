@@ -30,9 +30,9 @@ end
 
 const MAX_SEP = 1e18 # Representation of very large separation
 
-function separation(pair::WSPair)
-    if pair.dist <= 0.0
-        return MAX_SEP
+@inline function separation(pair::WSPair{D,T,S,V})::S where {D,T,S,V}
+    if pair.dist <= zero(S)
+        return S(MAX_SEP)
     end
     return pair.max_sides_diam / pair.dist
 end
@@ -44,12 +44,12 @@ Base.Order.lt(::WSPDOrder, a::WSPair, b::WSPair) = a.diam_ub > b.diam_ub
 const PairInt = Tuple{Int,Int}
 
 """
-    PD{D, T, S, V}
+    PD{D, T, S, V, P}
 
 WSPD construction state.
 """
-mutable struct PD{D,T,S,V}
-    pnts::AbsPntSeq{D,T}
+mutable struct PD{D,T,S,V,P<:AbsPntSeq{D,T}}
+    pnts::P
     finals::Vector{WSPair{D,T,S,V}}
     heap::BinaryHeap{WSPair{D,T,S,V},WSPDOrder}
     tree::BBT.Tree{D,T,S,V}
@@ -62,10 +62,10 @@ end
 end
 
 function push_pair!(
-    W::PD{D,T,S,V},
+    W::PD{D,T,S,V,P},
     u::BBT.Node{D,T,S,V},
     v::BBT.Node{D,T,S,V},
-) where {D,T,S,V}
+) where {D,T,S,V,P}
     id = get_id(u, v)
     if haskey(W.hash_pairs, id)
         return nothing
@@ -82,7 +82,7 @@ end
 
 Takes the top of the active pairs and refines it by splitting the larger node.
 """
-function top_refine!(W::PD{D,T,S,V}) where {D,T,S,V}
+function top_refine!(W::PD{D,T,S,V,P}) where {D,T,S,V,P}
     isempty(W.heap) && return nothing
 
     top = pop!(W.heap)
@@ -93,8 +93,8 @@ function top_refine!(W::PD{D,T,S,V}) where {D,T,S,V}
     r_diam = diam(top.right.bb)
 
     # If both are single points (diam=0), check if they are the same point
-    if l_diam == 0.0 && r_diam == 0.0
-        if top.dist > 0.0
+    if l_diam == zero(S) && r_diam == zero(S)
+        if top.dist > zero(S)
             push!(W.finals, top)
         end
         return nothing
@@ -127,14 +127,15 @@ end
 
 Initialize the WSPD construction state.
 """
-function init(pnts::AbsPntSeq{D,T}, sep::S) where {D,T,S}
+function init(pnts::P, sep::Real) where {D,T,P<:AbsPntSeq{D,T}}
     tree = BBT.Tree_init(pnts)
+    S = typeof(tree.root.diam)
     V = typeof(Points(pnts))
 
     PairT = WSPair{D,T,S,V}
     heap = BinaryHeap{PairT}(WSPDOrder(), PairT[])
 
-    W = PD{D,T,S,V}(pnts, PairT[], heap, tree, sep, Dict{PairInt,Bool}())
+    W = PD{D,T,S,V,P}(pnts, PairT[], heap, tree, S(sep), Dict{PairInt,Bool}())
 
     # Start with (root, root) pair
     push_pair!(W, tree.root, tree.root)
@@ -202,7 +203,7 @@ end
 
 Return the diameter upper bound of the top pair in the priority queue.
 """
-function top_diam_ub(W::PD{D,T,S,V}) where {D,T,S,V}
+function top_diam_ub(W::PD{D,T,S,V,P}) where {D,T,S,V,P}
     if isempty(W.heap)
         return zero(S)
     end
