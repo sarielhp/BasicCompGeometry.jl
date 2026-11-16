@@ -213,6 +213,7 @@ using Random
         sq_ex = [point(Rational{BigInt}(p.x), Rational{BigInt}(p.y)) for p in sq]
         for alg in (
             :sweep,
+            :auto,
             :seidel,
             :ear_cut_z_order,
             :ear_cut_kd_tree,

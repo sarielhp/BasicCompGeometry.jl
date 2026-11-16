@@ -708,6 +708,7 @@ Returns a `PolygonTriangulation` with:
 
 Supported `algorithm` options:
 - `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
+- `:auto`: The small-polygon fast path of `:ear_cut` for `n <= 64` (several times faster than `:sweep` there), `:sweep` above. Opt-in, so the default result does not depend on the polygon size.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
 - `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n r)` worst case; queries prune only by the ear's bounding box, so long thin ears and far outlier vertices degrade it toward quadratic in practice).
 - `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n r)` worst case; measured roughly `n^1.2` on random star polygons).
@@ -735,6 +736,10 @@ function triangulate_polygon(
 )
     if algorithm == :sweep
         return triangulate_sweep(vertices; kernel = kernel)
+    elseif algorithm == :auto
+        3 <= length(vertices) <= _SMALL_EAR_CUT_MAX &&
+            return _small_ear_cut(kernel, vertices)
+        return triangulate_sweep(vertices; kernel = kernel)
     elseif algorithm == :seidel
         return triangulate_seidel(vertices; kernel = kernel, rng = rng)
     elseif algorithm == :ear_cut_z_order
@@ -748,7 +753,7 @@ function triangulate_polygon(
     else
         throw(
             ArgumentError(
-                "unknown triangulation algorithm: $algorithm (supported: :sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
+                "unknown triangulation algorithm: $algorithm (supported: :sweep, :auto, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
             ),
         )
     end

@@ -142,4 +142,30 @@ end
             @test !inside(ExactKernel(), q, a, b, c)
         end
     end
+
+    @testset "algorithm = :auto (opt-in): ear cut fast path for n <= 64, :sweep above" begin
+        rng = Xoshiro(64)
+        for n in (3, 10, 64, 65, 200)
+            P = _small_star(rng, n)
+            auto = triangulate_polygon(P; algorithm = :auto)
+            ref = n <= 64 ? triangulate_ear_cut(P) : triangulate_sweep(P)
+            @test auto.triangles == ref.triangles
+            @test auto.diagonals == ref.diagonals
+            @test polygon_diagonals(P; algorithm = :auto) == ref.diagonals
+            @test _small_valid(
+                P,
+                triangulate_polygon(P; kernel = ExactKernel(), algorithm = :auto);
+                kernel = ExactKernel(),
+            )
+        end
+        # The default stays :sweep for small polygons too.
+        P = _small_star(rng, 12)
+        @test triangulate_polygon(P).triangles == triangulate_sweep(P).triangles
+        @test_throws ArgumentError triangulate_polygon(
+            [point(0.0, 0.0), point(1.0, 0.0)];
+            algorithm = :auto,
+        )
+        cw = [point(0.0, 0.0), point(0.0, 1.0), point(1.0, 0.0)]
+        @test_throws ArgumentError triangulate_polygon(cw; algorithm = :auto)
+    end
 end

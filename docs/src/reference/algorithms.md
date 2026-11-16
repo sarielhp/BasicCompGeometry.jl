@@ -76,7 +76,7 @@ Filter = obj -> obj in Main.documented_api
 
 | Call | Result |
 |:-----|:-------|
-| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:seidel`, `:ear_cut_z_order`, `:ear_cut_kd_tree`, `:ear_cut_u_kd_tree`, or `:ear_cut`, alias `:ear_clipping`) |
+| `triangulate_polygon(vertices; kernel=FloatingKernel(), algorithm=:sweep)` | Triangulate any simple CCW polygon into `n-3` diagonals and `n-2` CCW triangles (`:sweep`, `:auto`, `:seidel`, `:ear_cut_z_order`, `:ear_cut_kd_tree`, `:ear_cut_u_kd_tree`, or `:ear_cut`, alias `:ear_clipping`) |
 | `triangulate_sweep(vertices; kernel=FloatingKernel())` | Plane-sweep monotone partitioning and triangulation in worst-case `O(n log n)` time |
 | `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())` | Seidel's randomized incremental triangulation in expected `O(n log* n)` time |
 | `triangulate_ear_cut_z_order(vertices; kernel=FloatingKernel())` | Z-order ear clipping with a Morton spatial index over reflex vertices (`O(n r)` worst case; degrades on long thin ears and outliers) |

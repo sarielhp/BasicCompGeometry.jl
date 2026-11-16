@@ -104,6 +104,7 @@ It returns a `PolygonTriangulation` (`MonotoneTriangulation` is a compatibility 
 
 Supported algorithm options via keyword `algorithm`:
 - `:sweep` (default): Deterministic plane-sweep monotone partitioning and triangulation running in worst-case $O(n \log n)$ time, also available via `triangulate_sweep(vertices; kernel=FloatingKernel())`.
+- `:auto`: The small-polygon fast path of `:ear_cut` (reflex vertices in a 64-bit mask, adapted from [Triage](https://github.com/sarielhp/triage)) for $n \le 64$, where it is several times faster than `:sweep`, and `:sweep` for larger polygons. It is opt-in, so that the default result does not depend on the polygon size.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected $O(n \log^* n)$ time, also available via `triangulate_seidel(vertices; kernel=FloatingKernel(), rng=Random.default_rng())`.
 - `:ear_cut_z_order`: Z-order ear clipping using a Morton Z-order spatial index over active reflex vertices (worst case $O(n r)$; candidates are pruned only by the ear's bounding box, so long thin ears or far outlier vertices degrade it toward quadratic), also available via `triangulate_ear_cut_z_order(vertices; kernel=FloatingKernel())`.
 - `:ear_cut_kd_tree`: Kd-tree ear clipping using a flat array-backed 2D `Kd_tree` (`BBT.FlatTree2D`) spatial index over active reflex vertices with bounded parent climbing (worst case $O(n r)$, subquadratic in practice (about $n^{1.2}$ on random star polygons)), also available via `triangulate_ear_cut_kd_tree(vertices; kernel=FloatingKernel())`.
