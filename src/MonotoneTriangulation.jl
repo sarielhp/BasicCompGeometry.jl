@@ -329,10 +329,30 @@ end
     b::Point,
     c::Point,
 )
+    _outside_triangle_bbox(kernel, p, a, b, c) && return false
     return orient_sign(kernel, a, b, p) >= 0 &&
            orient_sign(kernel, b, c, p) >= 0 &&
            orient_sign(kernel, c, a, p) >= 0
 end
+
+# Cheap rejection before the three orientation tests of `_point_in_ccw_triangle`: almost
+# every reflex vertex tested against an ear lies outside the ear's bounding box. Coordinates
+# are compared as the kernel sees them (`FloatingKernel` converts them; `ExactKernel`
+# converts exactly, so the stored values compare the same), and a point outside the box is
+# outside the closed triangle. Other kernels skip the test.
+@inline _outside_triangle_bbox(::AbstractKernel, p, a, b, c) = false
+
+@inline function _outside_triangle_bbox(kernel::BuiltinKernel, p, a, b, c)
+    q, a, b, c = map(v -> _bbox_view(kernel, v), (p, a, b, c))
+    inside_x = min(a.x, b.x, c.x) <= q.x <= max(a.x, b.x, c.x)
+    return !(inside_x && min(a.y, b.y, c.y) <= q.y <= max(a.y, b.y, c.y))
+end
+
+# Points already in the kernel's float type are compared as stored (the branch folds at
+# compile time); a separate `Point{2,T}` method would not be chosen over the generic one.
+@inline _bbox_view(kernel::FloatingKernel{T}, p::Point{2,S}) where {T,S} =
+    S === T ? p : _kernel_point(kernel, p)
+@inline _bbox_view(::ExactKernel, p::Point{2}) = p
 
 abstract type _AbstractReflexIndex end
 
@@ -465,13 +485,21 @@ function _validate_ccw_polygon(
     n >= 3 || throw(ArgumentError("polygon must have at least 3 vertices; got n = $n"))
 
     area2 = twice_area(vertices; kernel = kernel)
-    area2 > 0 || throw(
+    area2 > 0 || _throw_not_ccw(area2)
+    check_duplicates && _check_distinct_vertices(kernel, vertices)
+    return n
+end
+
+@noinline function _throw_not_ccw(area2)
+    throw(
         ArgumentError(
             "polygon must be oriented counterclockwise with positive area; got twice_area = $area2",
         ),
     )
-    check_duplicates && _check_distinct_vertices(kernel, vertices)
-    return n
+end
+
+@noinline function _throw_duplicate_vertex(i::Int, j::Int)
+    throw(ArgumentError("polygon contains duplicate vertex $j (equal to vertex $i)"))
 end
 
 # Duplicate detection compares raw coordinates (exact equality), independent of the kernel,
@@ -487,11 +515,7 @@ function _check_distinct_vertices(kernel::AbstractKernel, vertices)
     for i in 1:(n-1)
         a = vertices[order[i]]
         b = vertices[order[i+1]]
-        (a[1] == b[1] && a[2] == b[2]) && throw(
-            ArgumentError(
-                "polygon contains duplicate vertex $(order[i + 1]) (equal to vertex $(order[i]))",
-            ),
-        )
+        (a[1] == b[1] && a[2] == b[2]) && _throw_duplicate_vertex(order[i], order[i+1])
     end
     return nothing
 end
@@ -650,15 +674,18 @@ Triangulate a simple counterclockwise polygon with `n >= 3` vertices using refle
 ear clipping in `O(n r)` time, where `r` is the number of reflex vertices (`O(n)` fast path
 on strictly x-monotone or y-monotone polygons).
 
+Polygons with at most 64 vertices take a separate small-polygon path (reflex vertices kept
+in one 64-bit mask, ears tested lazily), several times faster on such inputs. It checks the
+counterclockwise orientation and rejects consecutive equal vertices; a repeated vertex that
+is not consecutive makes the polygon non-simple and is handled like any other non-simple
+input (see [`triangulate_polygon`](@ref)), whereas larger polygons reject every duplicate.
+
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
 """
 function triangulate_ear_cut(vertices; kernel::AbstractKernel = FloatingKernel())
+    3 <= length(vertices) <= _SMALL_EAR_CUT_MAX && return _small_ear_cut(kernel, vertices)
     n = _validate_ccw_polygon(kernel, vertices)
-
-    if n == 3
-        return PolygonTriangulation(Tuple{Int,Int}[], NTuple{3,Int}[(1, 2, 3)])
-    end
 
     if is_x_monotone(vertices)
         return triangulate_monotone(vertices; kernel = kernel)

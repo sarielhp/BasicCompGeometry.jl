@@ -122,6 +122,13 @@ function main()
                 )
         ),
         (
+            "triangulate_ear_cut small",
+            () ->
+                @report_opt target_modules = (B,) function_filter = _hot triangulate_ear_cut(
+                    poly[1:4:end],
+                )
+        ),
+        (
             "triangulate_ear_cut_u_kd_tree",
             () ->
                 @report_opt target_modules = (B,) function_filter = _hot triangulate_ear_cut_u_kd_tree(

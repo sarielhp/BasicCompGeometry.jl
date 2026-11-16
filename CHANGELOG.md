@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `triangulate_ear_cut` (and `triangulate_polygon(...; algorithm = :ear_cut)`) has a fast path for polygons with at most 64 vertices, adapted from the small-polygon kernel of [Triage](https://github.com/sarielhp/triage): reflex vertices in a 64-bit mask, ears tested lazily while walking the ring. On random simple polygons it is about 3× faster for 12–64 vertices (1.8× for 6) and allocates a third as much. On this path validation is one pass (counterclockwise orientation and consecutive equal vertices); a repeated vertex that is not consecutive is treated as any other non-simple input (an `ArgumentError` or a valid triangulation) instead of being rejected up front. Larger polygons are unchanged.
+- Point-in-triangle tests of all ear-cutting algorithms reject points outside the triangle's bounding box before the orientation tests (95–99% of tests on random polygons), compared in the kernel's own coordinates (a point outside the box is outside the closed triangle). `triangulate_ear_cut` is 30–40% faster on polygons with 64–512 vertices.
+
 ### Added
 - `add_view!(canvas, layers; autocrop=true)` adds Ipe's special `VIEWBBOX` layer to the view, so that each view of a page (each page of the compiled PDF) is cropped to its own visible objects rather than to the whole page. A `"VIEWBBOX"` listed in `layers` is registered on the canvas automatically. Example `examples/ipe_view_autocrop.jl` and a section in the vector-figures guide.
 
