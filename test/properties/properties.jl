@@ -83,15 +83,7 @@ using BasicCompGeometry.LongestConvexSubset: compute_largest_convex_subset
             i in 1:length(C)
         )
 
-    tri_algs = (
-        :sweep,
-        :auto,
-        :seidel,
-        :ear_cut,
-        :ear_cut_z_order,
-        :ear_cut_kd_tree,
-        :ear_cut_u_kd_tree,
-    )
+    tri_algs = (:sweep, :auto, :seidel, :ear_cut, :ear_cut_u_kd_tree)
 
     # Full combinatorial + geometric check of a triangulation of the CCW polygon P.
     function triangulation_ok(P, t; strict = true)

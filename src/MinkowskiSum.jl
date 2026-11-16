@@ -362,7 +362,7 @@ Compute the Minkowski sum decomposition of two simple polygons into convex piece
 
 If either polygon is non-convex, it is triangulated into convex triangles using [`triangulate_polygon`](@ref)
 with the selected `algorithm` (`:sweep` by default for deterministic ``O(n \\log n + m \\log m)`` worst-case
-triangulation; also supports `:auto`, `:seidel`, `:ear_cut_z_order`, `:ear_cut_kd_tree`, `:ear_cut_u_kd_tree`, and `:ear_cut`).
+triangulation; also supports `:auto`, `:seidel`, `:ear_cut`, and `:ear_cut_u_kd_tree`).
 The Minkowski sum of each pair of convex pieces is computed in linear time.
 Returns a `Vector{Vector{Point{2, R}}}` containing all convex pieces whose union is the Minkowski sum
 ``P \\oplus Q = \\bigcup_{i, j} (P_i \\oplus Q_j)``.

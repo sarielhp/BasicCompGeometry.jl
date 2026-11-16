@@ -43,11 +43,6 @@ src/EarCutKdTreeTriangulation.jl	def:_climb_to_subtree
 src/EarCutKdTreeTriangulation.jl	def:_dfs_ear_blocked!
 src/EarCutKdTreeTriangulation.jl	def:_ear_blocked
 src/EarCutKdTreeTriangulation.jl	def:_make_tri_query
-src/EarCutZOrderTriangulation.jl	def:_build_zorder_reflex_index
-src/EarCutZOrderTriangulation.jl	def:_ear_blocked
-src/EarCutZOrderTriangulation.jl	def:_ear_candidate_blocks
-src/EarCutZOrderTriangulation.jl	def:_step_ear_scan
-src/EarCutZOrderTriangulation.jl	rule:else-after-terminal
 src/Ellipses.jl	def:EllipticArc
 src/Ellipses.jl	def:_update_arc_extrema
 src/Halfplanes.jl	def:_clip_wall_params!

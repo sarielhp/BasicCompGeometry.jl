@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
-# Compare O(n log n) plane-sweep, expected O(n log* n) Seidel, :ear_cut_z_order, and O(n r)
-# ear-clipping polygon triangulation, and draw a side-by-side partition + triangulation Ipe figure.
+# Compare O(n log n) plane-sweep, expected O(n log* n) Seidel, and O(n r) ear-clipping
+# (Kd-tree reflex index) polygon triangulation, and draw a side-by-side partition + triangulation Ipe figure.
 include(joinpath(@__DIR__, "support/runtime.jl"))
 
 using QuickEnv
@@ -80,34 +80,29 @@ end
 
 function run_benchmarks()
     prongs_list = example_size([50, 200, 600, 1200], [8, 20, 40])
-    # Warm up all six algorithms (with > 16 reflex vertices to exercise the spatial indices)
+    # Warm up all four algorithms (with > 16 reflex vertices to exercise the Kd-tree index)
     warm = make_comb_polygon(12)
-    for alg in
-        (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)
+    for alg in (:sweep, :seidel, :ear_cut_u_kd_tree, :ear_cut)
         triangulate_polygon(warm; algorithm = alg, rng = MersenneTwister(1))
     end
 
     println(
-        "Polygon Triangulation Benchmark (:sweep, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
+        "Polygon Triangulation Benchmark (:sweep, :seidel, :ear_cut_u_kd_tree, :ear_cut)",
     )
     println("  Monotone?: false for all test combs (2m reflex vertices)")
     @printf(
-        "%-7s | %-10s | %-10s | %-12s | %-11s | %-11s | %-11s | %-7s | %-7s\n",
+        "%-7s | %-10s | %-10s | %-11s | %-11s | %-11s | %-7s\n",
         "n",
         ":sweep",
         ":seidel",
-        ":z_order",
-        ":kd_tree",
         ":u_kd_tree",
         ":ear_cut",
-        "z/u_kd",
+        "sweep/ear",
         "Area OK",
     )
     @printf(
-        "%-7s | %10s | %10s | %12s | %11s | %11s | %11s | %7s | %-7s\n",
+        "%-7s | %10s | %10s | %11s | %11s | %11s | %-7s\n",
         "",
-        "(ms)",
-        "(ms)",
         "(ms)",
         "(ms)",
         "(ms)",
@@ -115,7 +110,7 @@ function run_benchmarks()
         "speedup",
         "",
     )
-    println("-"^113)
+    println("-"^83)
 
     for m in prongs_list
         poly = make_comb_polygon(m)
@@ -125,29 +120,21 @@ function run_benchmarks()
         t_sweep = @elapsed res_sweep = triangulate_polygon(poly)
         t_seidel = @elapsed res_seidel =
             triangulate_polygon(poly; algorithm = :seidel, rng = MersenneTwister(42))
-        t_zorder =
-            @elapsed res_zorder = triangulate_polygon(poly; algorithm = :ear_cut_z_order)
-        t_kdtree =
-            @elapsed res_kdtree = triangulate_polygon(poly; algorithm = :ear_cut_kd_tree)
         t_ukdtree =
             @elapsed res_ukdtree = triangulate_polygon(poly; algorithm = :ear_cut_u_kd_tree)
         t_ear = @elapsed res_ear = triangulate_polygon(poly; algorithm = :ear_cut)
 
         verify_triangulation(poly, res_sweep)
         verify_triangulation(poly, res_seidel)
-        verify_triangulation(poly, res_zorder)
-        verify_triangulation(poly, res_kdtree)
         verify_triangulation(poly, res_ukdtree)
         verify_triangulation(poly, res_ear)
 
-        speedup = t_zorder / max(t_ukdtree, 1e-9)
+        speedup = t_sweep / max(t_ear, 1e-9)
         @printf(
-            "%-7d | %10.3f | %10.3f | %12.3f | %11.3f | %11.3f | %11.3f | %6.2fx | %-7s\n",
+            "%-7d | %10.3f | %10.3f | %11.3f | %11.3f | %10.2fx | %-7s\n",
             n,
             1e3 * t_sweep,
             1e3 * t_seidel,
-            1e3 * t_zorder,
-            1e3 * t_kdtree,
             1e3 * t_ukdtree,
             1e3 * t_ear,
             speedup,

@@ -805,7 +805,8 @@ using BasicCompGeometry
                     th = 0.2 + 1.8 * pi * i / (n - 2)
                     push!(pts, point(cos(th), sin(th)))
                 end
-                push!(pts, point(0.6, 0.2), point(0.7, -0.3))
+                # A zigzag notch in the gap between the arc's ends (breaks both monotonicities).
+                push!(pts, point(0.5, 0.1), point(0.7, -0.1))
                 return pts
             end
             for n_ear in (500, 4000)
@@ -815,6 +816,19 @@ using BasicCompGeometry
                 res_ear = triangulate_polygon(poly_ear; kernel = ke, algorithm = :ear_cut)
                 @test length(res_ear.triangles) == n_ear - 2
                 @test ke.turns / n_ear < 15.0
+                @test all(
+                    t -> orient_sign(poly_ear[t[1]], poly_ear[t[2]], poly_ear[t[3]]) >= 0,
+                    res_ear.triangles,
+                )
+                @test isapprox(
+                    sum(
+                        twice_area([poly_ear[a], poly_ear[b], poly_ear[c]]) for
+                        (a, b, c) in res_ear.triangles
+                    ),
+                    twice_area(poly_ear);
+                    rtol = 1e-9,
+                )
+                @test_nowarn triangulate_sweep(poly_ear)
             end
             # r = 0 convex polygon with vertical edge also stays linear O(n)
             poly_vert_conv = Point2F[point(0.0, 1.0), point(0.0, -1.0)]
@@ -1181,345 +1195,6 @@ using BasicCompGeometry
         end
     end
 
-    @testset "Z-Order Ear-Cut Polygon Triangulation (triangulate_ear_cut_z_order)" begin
-        mutable struct _EarCutZOrderCountKernel{K<:AbstractKernel} <: AbstractKernel
-            inner::K
-            orients::Int
-        end
-        BasicCompGeometry.orient_sign(
-            k::_EarCutZOrderCountKernel,
-            a::Point{2},
-            b::Point{2},
-            c::Point{2},
-        ) = (k.orients += 1; orient_sign(k.inner, a, b, c))
-        BasicCompGeometry.turn_sign(
-            k::_EarCutZOrderCountKernel,
-            a::Point{2},
-            b::Point{2},
-            c::Point{2},
-        ) = (k.orients += 1; turn_sign(k.inner, a, b, c))
-
-        @testset "Preconditions and trivial triangle" begin
-            @test_throws ArgumentError triangulate_ear_cut_z_order([
-                point(0.0, 0.0),
-                point(1.0, 0.0),
-            ])
-            @test_throws ArgumentError triangulate_ear_cut_z_order(Point2F[])
-            cw = [point(0.0, 0.0), point(0.0, 1.0), point(1.0, 0.0)]
-            @test_throws ArgumentError triangulate_ear_cut_z_order(cw)
-            @test_throws ArgumentError triangulate_polygon(cw; algorithm = :ear_cut_z_order)
-
-            tri = [point(0.0, 0.0), point(2.0, 0.0), point(0.0, 2.0)]
-            res_tri = triangulate_ear_cut_z_order(tri)
-            @test isempty(res_tri.diagonals)
-            @test res_tri.triangles == [(1, 2, 3)]
-        end
-
-        @testset "Morton BIGMIN/LITMAX and _ZOrderReflexIndex invariants" begin
-            rng = Xoshiro(9182)
-            for _ in 1:400
-                x0 = rand(rng, UInt32(0):UInt32(65535))
-                x1 = rand(rng, UInt32(0):UInt32(65535))
-                y0 = rand(rng, UInt32(0):UInt32(65535))
-                y1 = rand(rng, UInt32(0):UInt32(65535))
-                x0 > x1 && ((x0, x1) = (x1, x0))
-                y0 > y1 && ((y0, y1) = (y1, y0))
-                lo = BasicCompGeometry._morton_code(x0, y0)
-                hi = BasicCompGeometry._morton_code(x1, y1)
-                z = rand(rng, UInt32(0):typemax(UInt32))
-                min_zx = lo & BasicCompGeometry._MORTON_X_MASK
-                max_zx = hi & BasicCompGeometry._MORTON_X_MASK
-                min_zy = lo & BasicCompGeometry._MORTON_Y_MASK
-                max_zy = hi & BasicCompGeometry._MORTON_Y_MASK
-
-                ok_b, bm = BasicCompGeometry._morton_bigmin(z, lo, hi)
-                if z <= hi
-                    @test ok_b
-                    @test bm >= z && BasicCompGeometry._in_morton_box(
-                        bm,
-                        min_zx,
-                        max_zx,
-                        min_zy,
-                        max_zy,
-                    )
-                    if !BasicCompGeometry._in_morton_box(z, min_zx, max_zx, min_zy, max_zy)
-                        @test bm > z
-                    end
-                else
-                    @test !ok_b
-                end
-
-                ok_l, lm = BasicCompGeometry._morton_litmax(z, lo, hi)
-                if z >= lo
-                    @test ok_l
-                    @test lm <= z && BasicCompGeometry._in_morton_box(
-                        lm,
-                        min_zx,
-                        max_zx,
-                        min_zy,
-                        max_zy,
-                    )
-                    if !BasicCompGeometry._in_morton_box(z, min_zx, max_zx, min_zy, max_zy)
-                        @test lm < z
-                    end
-                else
-                    @test !ok_l
-                end
-            end
-
-            # Verify _ZOrderReflexIndex bucket, bitmask, and doubly-linked list invariants
-            n_idx = 200
-            pts_idx =
-                [point(cos(2pi * i / n_idx), sin(2pi * i / n_idx)) for i in 0:(n_idx-1)]
-            refl = falses(n_idx)
-            for i in 1:3:n_idx
-                refl[i] = true
-            end
-            ok_b, min_x, min_y, inv_x, inv_y = BasicCompGeometry._compute_z_bounds(pts_idx)
-            @test ok_b
-            zidx = BasicCompGeometry._build_zorder_reflex_index(
-                pts_idx,
-                refl,
-                count(refl),
-                min_x,
-                min_y,
-                inv_x,
-                inv_y,
-            )
-
-            function _verify_zidx(zidx)
-                seq = Int[]
-                cur = zidx.rz_head
-                prev_c = 0
-                while cur != 0
-                    @test zidx.rz_prev[cur] == prev_c
-                    @test zidx.in_rz[cur]
-                    @test zidx.is_reflex[cur]
-                    push!(seq, cur)
-                    prev_c = cur
-                    cur = zidx.rz_next[cur]
-                end
-                @test prev_c == zidx.rz_tail
-                @test length(seq) == count(zidx.in_rz)
-                @test issorted([zidx.z_code[v] for v in seq])
-
-                seen_buckets = Set{Int}()
-                for (pos, v) in enumerate(seq)
-                    b = Int(zidx.z_code[v] >> zidx.shift) + 1
-                    is_first =
-                        (pos == 1) ||
-                        ((Int(zidx.z_code[seq[pos-1]] >> zidx.shift) + 1) != b)
-                    if is_first
-                        push!(seen_buckets, b)
-                        @test zidx.b_first[b] == v
-                    end
-                end
-                for b in 1:length(zidx.b_first)
-                    w = ((b - 1) >>> 6) + 1
-                    bit = (zidx.l0[w] >>> ((b - 1) & 63)) & UInt64(1)
-                    if b in seen_buckets
-                        @test zidx.b_first[b] != 0
-                        @test bit == UInt64(1)
-                        @test ((zidx.l1 >>> (w - 1)) & UInt64(1)) == UInt64(1)
-                    else
-                        @test zidx.b_first[b] == 0
-                        @test bit == UInt64(0)
-                    end
-                end
-            end
-
-            _verify_zidx(zidx)
-            for v in [1, 7, 10, 64, 100, 199]
-                BasicCompGeometry._remove_reflex!(zidx, v)
-            end
-            _verify_zidx(zidx)
-            for v in [2, 10, 64, 150, 199]
-                BasicCompGeometry._add_reflex!(zidx, v)
-            end
-            _verify_zidx(zidx)
-        end
-
-        @testset "ExactKernel, PntSeq, extreme scales, and fallbacks" begin
-            u_poly = [
-                point(0 // 1, 0 // 1),
-                point(4 // 1, 0 // 1),
-                point(4 // 1, 4 // 1),
-                point(3 // 1, 4 // 1),
-                point(3 // 1, 1 // 1),
-                point(1 // 1, 1 // 1),
-                point(1 // 1, 4 // 1),
-                point(0 // 1, 4 // 1),
-            ]
-            res_u = triangulate_ear_cut_z_order(u_poly; kernel = exact)
-            _verify_triangulation_result(u_poly, res_u; kernel = exact)
-            @test triangulate_polygon(
-                u_poly;
-                kernel = exact,
-                algorithm = :ear_cut_z_order,
-            ).diagonals == res_u.diagonals
-            @test polygon_diagonals(u_poly; kernel = exact, algorithm = :ear_cut_z_order) ==
-                  res_u.diagonals
-            @test triangulate_polygon(
-                PntSeq(u_poly);
-                kernel = exact,
-                algorithm = :ear_cut_z_order,
-            ).diagonals == res_u.diagonals
-
-            # Collinear chains + shared-x jagged reflex vertices (Rational{BigInt})
-            collinear_poly = [
-                point(big(0) // 1, big(0) // 1),
-                point(big(1) // 1, big(0) // 1),
-                point(big(2) // 1, big(0) // 1),
-                point(big(3) // 1, big(0) // 1),
-                point(big(5) // 2, big(1) // 1),
-                point(big(2) // 1, big(2) // 1),
-                point(big(3) // 2, big(3) // 1),
-                point(big(1) // 1, big(2) // 1),
-                point(big(1) // 2, big(1) // 1),
-            ]
-            _verify_triangulation_result(
-                collinear_poly,
-                triangulate_ear_cut_z_order(collinear_poly; kernel = exact);
-                kernel = exact,
-            )
-
-            # Large exact comb (> 16 reflex vertices -> Z-order index active)
-            exact_comb = Point{2,Rational{BigInt}}[]
-            for i in 1:25
-                y0 = Rational{BigInt}(2 * (i - 1))
-                push!(exact_comb, point(big(10) // 1, y0))
-                push!(exact_comb, point(big(10) // 1, y0 + 1))
-                push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 6 // 5))
-                push!(exact_comb, point(big(1) // 1 + (i % 3) // 2, y0 + 9 // 5))
-            end
-            pushfirst!(exact_comb, point(big(0) // 1, big(0) // 1))
-            push!(
-                exact_comb,
-                point(big(10) // 1, big(50) // 1),
-                point(big(0) // 1, big(50) // 1),
-            )
-            _verify_triangulation_result(
-                exact_comb,
-                triangulate_ear_cut_z_order(exact_comb; kernel = exact);
-                kernel = exact,
-            )
-
-            # BigInt > 10^308 non-finite Float64 span fallback
-            huge = big(10)^320
-            huge_comb =
-                [Point{2,Rational{BigInt}}(p.x * huge, p.y * huge) for p in exact_comb]
-            _verify_triangulation_result(
-                huge_comb,
-                triangulate_ear_cut_z_order(huge_comb; kernel = exact);
-                kernel = exact,
-            )
-
-            # Extreme Float64 coordinate scales (tiny 1e-12 and huge 1e12)
-            for s in (1e-12, 1e12)
-                comb_s = [point(Float64(p.x) * s, Float64(p.y) * s) for p in exact_comb]
-                _verify_triangulation_result(comb_s, triangulate_ear_cut_z_order(comb_s))
-            end
-        end
-
-        @testset "Near-linear practical performance vs ear_cut" begin
-            # 1. r = 0 convex polygon stays O(n)
-            poly_conv =
-                Point2F[point(cos(2pi * i / 2000), sin(2pi * i / 2000)) for i in 0:1999]
-            kc = _EarCutZOrderCountKernel(FloatingKernel(), 0)
-            res_conv =
-                triangulate_polygon(poly_conv; kernel = kc, algorithm = :ear_cut_z_order)
-            @test length(res_conv.triangles) == length(poly_conv) - 2
-            @test kc.orients / length(poly_conv) < 5.0
-
-            # 2. Low-reflex r = 2 polygon (n = 4000)
-            poly_lowr = Point2F[
-                point(
-                    (i == 1000 || i == 3000 ? 0.995 : 1.0) * cos(2pi * i / 4000),
-                    (i == 1000 || i == 3000 ? 0.995 : 1.0) * sin(2pi * i / 4000),
-                ) for i in 0:3999
-            ]
-            klr = _EarCutZOrderCountKernel(FloatingKernel(), 0)
-            res_lr =
-                triangulate_polygon(poly_lowr; kernel = klr, algorithm = :ear_cut_z_order)
-            @test length(res_lr.triangles) == 3998
-            @test klr.orients / length(poly_lowr) < 20.0
-
-            # 3. High-reflex non-monotone horizontal comb (n = 1204 and n = 4804)
-            function _hcomb(m_prongs::Int)
-                pts = Point2F[point(0.0, 0.0)]
-                for i in 1:m_prongs
-                    yb = 2.0 * (i - 1)
-                    xn = 1.2 + 1.4 * (i % 2) + 0.5 * sin(pi * i / (m_prongs + 1))
-                    push!(
-                        pts,
-                        point(10.0, yb),
-                        point(10.0, yb + 1.0),
-                        point(xn, yb + 1.2),
-                        point(xn, yb + 1.8),
-                    )
-                end
-                push!(
-                    pts,
-                    point(10.0, 2.0 * m_prongs),
-                    point(10.0, 2.0 * m_prongs + 1.0),
-                    point(0.0, 2.0 * m_prongs + 1.0),
-                )
-                return pts
-            end
-
-            comb_1k = _hcomb(300)
-            comb_5k = _hcomb(1200)
-            kec1 = _EarCutZOrderCountKernel(FloatingKernel(), 0)
-            kec5 = _EarCutZOrderCountKernel(FloatingKernel(), 0)
-            kcl1 = _EarCutZOrderCountKernel(FloatingKernel(), 0)
-
-            r_ec1 =
-                triangulate_polygon(comb_1k; kernel = kec1, algorithm = :ear_cut_z_order)
-            r_ec5 =
-                triangulate_polygon(comb_5k; kernel = kec5, algorithm = :ear_cut_z_order)
-            triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
-
-            _verify_triangulation_result(comb_1k, r_ec1)
-            @test length(r_ec5.triangles) == length(comb_5k) - 2
-            @test isapprox(
-                twice_area(comb_5k),
-                sum(
-                    twice_area([comb_5k[a], comb_5k[b], comb_5k[c]]) for
-                    (a, b, c) in r_ec5.triangles
-                );
-                rtol = 1e-8,
-            )
-            @test kec1.orients / length(comb_1k) < 10.0
-            @test kec5.orients / length(comb_5k) < 10.0
-            @test kec1.orients * 20 < kcl1.orients
-
-            # 4. Random star (n = 1000) and tight spiral (n = 1026)
-            rng_s = Xoshiro(77)
-            star = [
-                let r = iseven(i) ? 10.0 : 1.5 + 1.5 * rand(rng_s)
-                    point(r * cos(2pi * i / 1000), r * sin(2pi * i / 1000))
-                end for i in 0:999
-            ]
-            spiral = Point2F[]
-            for k in 0:512
-                r = 1.0 + 0.5 * k / 32
-                push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
-            end
-            for k in 512:-1:0
-                r = 0.7 + 0.5 * k / 32
-                push!(spiral, point(r * cos(2pi * k / 32), r * sin(2pi * k / 32)))
-            end
-            _verify_triangulation_result(
-                star,
-                triangulate_polygon(star; algorithm = :ear_cut_z_order),
-            )
-            _verify_triangulation_result(
-                spiral,
-                triangulate_polygon(spiral; algorithm = :ear_cut_z_order),
-            )
-        end
-    end
-
     mutable struct _EarCutKdTreeCountKernel{K<:AbstractKernel} <: AbstractKernel
         inner::K
         orients::Int
@@ -1539,9 +1214,9 @@ using BasicCompGeometry
 
     for (ts_name, alg_sym, alg_fn) in (
         (
-            "Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_kd_tree)",
-            :ear_cut_kd_tree,
-            triangulate_ear_cut_kd_tree,
+            "Ear-Cut Polygon Triangulation with the Kd-tree index (triangulate_ear_cut)",
+            :ear_cut,
+            triangulate_ear_cut,
         ),
         (
             "Unshrunk Kd-Tree Ear-Cut Polygon Triangulation (triangulate_ear_cut_u_kd_tree)",
@@ -1703,7 +1378,11 @@ using BasicCompGeometry
 
                 r_ec1 = triangulate_polygon(comb_1k; kernel = kec1, algorithm = alg_sym)
                 r_ec5 = triangulate_polygon(comb_5k; kernel = kec5, algorithm = alg_sym)
-                triangulate_polygon(comb_1k; kernel = kcl1, algorithm = :ear_cut)
+                BasicCompGeometry._ear_clipping_from_valid(
+                    comb_1k,
+                    length(comb_1k);
+                    kernel = kcl1,
+                )
 
                 _verify_triangulation_result(comb_1k, r_ec1)
                 @test length(r_ec5.triangles) == length(comb_5k) - 2
@@ -1762,15 +1441,25 @@ using BasicCompGeometry
         end
     end
 
+    @testset "Deprecated ear-cut variants forward to the survivors" begin
+        rng = Xoshiro(5)
+        P = [
+            let r = iseven(i) ? 2.0 : 0.5 + rand(rng)
+                point(r * cos(2pi * i / 400), r * sin(2pi * i / 400))
+            end for i in 0:399
+        ]
+        z = @test_deprecated triangulate_ear_cut_z_order(P)
+        @test z.triangles == triangulate_ear_cut(P).triangles
+        kd = @test_deprecated triangulate_ear_cut_kd_tree(P)
+        @test kd.triangles == triangulate_ear_cut_u_kd_tree(P).triangles
+        z = @test_deprecated triangulate_polygon(P; algorithm = :ear_cut_z_order)
+        @test z.diagonals == triangulate_ear_cut(P).diagonals
+        kd = @test_deprecated polygon_diagonals(P; algorithm = :ear_cut_kd_tree)
+        @test kd == triangulate_ear_cut_u_kd_tree(P).diagonals
+    end
+
     @testset "Degenerate input handling and cross-algorithm agreement" begin
-        all_algs = (
-            :sweep,
-            :seidel,
-            :ear_cut,
-            :ear_cut_z_order,
-            :ear_cut_kd_tree,
-            :ear_cut_u_kd_tree,
-        )
+        all_algs = (:sweep, :seidel, :ear_cut, :ear_cut_u_kd_tree)
         sq = [point(0.0, 0.0), point(1.0, 0.0), point(1.0, 1.0), point(0.0, 1.0)]
 
         # `:ear_clipping` (pre-0.5.15 name) stays accepted as an alias of `:ear_cut`.
@@ -1827,7 +1516,7 @@ using BasicCompGeometry
             (-0.25878032974868126, 0.2642694110679996),
         ]
         P14 = [point(x, y) for (x, y) in q14]
-        for alg in (:ear_cut, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
+        for alg in (:ear_cut, :ear_cut_u_kd_tree)
             r = try
                 triangulate_polygon(P14; algorithm = alg)
             catch e
@@ -1955,7 +1644,7 @@ using BasicCompGeometry
             # The spatial indexes only accelerate the same blocking test, so the indexed ear
             # cutters must reproduce the plain reflex-list ear clipper exactly (polygons with
             # more than 16 reflex vertices exercise the Z-order and Kd-tree indexes).
-            for alg in (:ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree)
+            for alg in (:ear_cut_u_kd_tree,)
                 @test triangulate_polygon(P; algorithm = alg, kernel = exact).triangles ==
                       ref.triangles
             end
@@ -2025,14 +1714,7 @@ using BasicCompGeometry
     end
 
     @testset "Weakly simple and near-degenerate polygons: valid triangulation or ArgumentError" begin
-        all_algs = (
-            :sweep,
-            :seidel,
-            :ear_cut,
-            :ear_cut_z_order,
-            :ear_cut_kd_tree,
-            :ear_cut_u_kd_tree,
-        )
+        all_algs = (:sweep, :seidel, :ear_cut, :ear_cut_u_kd_tree)
         exact = ExactKernel()
         tri_orient(P, t, kernel) = orient_sign(kernel, P[t[1]], P[t[2]], P[t[3]])
 

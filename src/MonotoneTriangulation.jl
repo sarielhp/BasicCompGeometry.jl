@@ -670,9 +670,14 @@ _ear_clipping_from_valid(poly, n::Int; kernel::AbstractKernel = FloatingKernel()
 """
     triangulate_ear_cut(vertices; kernel=FloatingKernel()) -> PolygonTriangulation
 
-Triangulate a simple counterclockwise polygon with `n >= 3` vertices using reflex-vertex
-ear clipping in `O(n r)` time, where `r` is the number of reflex vertices (`O(n)` fast path
-on strictly x-monotone or y-monotone polygons).
+Triangulate a simple counterclockwise polygon with `n >= 3` vertices by ear clipping, in
+`O(n r)` worst-case time, where `r` is the number of reflex vertices. It picks the fastest
+of three paths:
+- `n <= 64`: the small-polygon path described below.
+- x-monotone or y-monotone polygons: [`triangulate_monotone`](@ref), in `O(n)` time.
+- otherwise: ear clipping with the reflex vertices in an unshrunk-cell Kd-tree (as
+  [`triangulate_ear_cut_u_kd_tree`](@ref); a plain list when `r <= 16`), subquadratic in
+  practice.
 
 Polygons with at most 64 vertices take a separate small-polygon path (reflex vertices kept
 in one 64-bit mask, ears tested lazily), several times faster on such inputs. It checks the
@@ -694,7 +699,7 @@ function triangulate_ear_cut(vertices; kernel::AbstractKernel = FloatingKernel()
         res = triangulate_monotone(rotated; kernel = kernel)
         return PolygonTriangulation(res.diagonals, res.triangles)
     else
-        return _ear_clipping_from_valid(vertices, n; kernel = kernel)
+        return _ear_clipping_u_kd_tree(vertices, n, kernel)
     end
 end
 
@@ -710,10 +715,9 @@ Supported `algorithm` options:
 - `:sweep` (default): Plane-sweep monotone partitioning and triangulation running in worst-case `O(n log n)` time.
 - `:auto`: The small-polygon fast path of `:ear_cut` for `n <= 64` (several times faster than `:sweep` there), `:sweep` above. Opt-in, so the default result does not depend on the polygon size.
 - `:seidel`: Raimund Seidel's randomized incremental algorithm running in expected `O(n log* n)` time.
-- `:ear_cut_z_order`: Ear clipping indexing reflex vertices along a Morton Z-order curve (`O(n r)` worst case; queries prune only by the ear's bounding box, so long thin ears and far outlier vertices degrade it toward quadratic in practice).
-- `:ear_cut_kd_tree`: Ear clipping indexing active reflex vertices in a `Kd_tree` (`BBT.FlatTree2D`) spatial tree (`O(n r)` worst case; measured roughly `n^1.2` on random star polygons).
-- `:ear_cut_u_kd_tree`: Ear clipping indexing active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) spatial tree with uncapped upward cell-containment climbing (`O(n r)` worst case; subquadratic in practice).
-- `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping with reflex-vertex acceleration running in `O(n r)` time (`O(n)` on x-monotone or y-monotone polygons).
+- `:ear_cut` (also accepted as `:ear_clipping`, its pre-0.5.15 name): Ear clipping in `O(n r)` worst-case time, subquadratic in practice, with fast paths for `n <= 64` and for x-monotone or y-monotone polygons (`O(n)`); see [`triangulate_ear_cut`](@ref).
+- `:ear_cut_u_kd_tree`: The Kd-tree ear clipping of `:ear_cut` on every input, without its fast paths: active reflex vertices in an unshrunk-cell `Kd_tree` (`BBT.FlatUTree2D`) with uncapped upward cell-containment climbing (`O(n r)` worst case; subquadratic in practice).
+- `:ear_cut_z_order` and `:ear_cut_kd_tree` are deprecated aliases of `:ear_cut` and `:ear_cut_u_kd_tree`.
 
 # Preconditions
 - `vertices` must form a simple counterclockwise polygon with `n >= 3` vertices.
@@ -743,9 +747,9 @@ function triangulate_polygon(
     elseif algorithm == :seidel
         return triangulate_seidel(vertices; kernel = kernel, rng = rng)
     elseif algorithm == :ear_cut_z_order
-        return triangulate_ear_cut_z_order(vertices; kernel = kernel)
+        return triangulate_ear_cut_z_order(vertices; kernel = kernel)  # deprecated
     elseif algorithm == :ear_cut_kd_tree
-        return triangulate_ear_cut_kd_tree(vertices; kernel = kernel)
+        return triangulate_ear_cut_kd_tree(vertices; kernel = kernel)  # deprecated
     elseif algorithm == :ear_cut_u_kd_tree
         return triangulate_ear_cut_u_kd_tree(vertices; kernel = kernel)
     elseif algorithm == :ear_cut || algorithm == :ear_clipping
@@ -753,7 +757,7 @@ function triangulate_polygon(
     else
         throw(
             ArgumentError(
-                "unknown triangulation algorithm: $algorithm (supported: :sweep, :auto, :seidel, :ear_cut_z_order, :ear_cut_kd_tree, :ear_cut_u_kd_tree, :ear_cut)",
+                "unknown triangulation algorithm: $algorithm (supported: :sweep, :auto, :seidel, :ear_cut, :ear_cut_u_kd_tree)",
             ),
         )
     end

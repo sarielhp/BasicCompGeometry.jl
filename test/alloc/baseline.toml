@@ -48,8 +48,8 @@ julia = "1.13"
 "triangulate_ear_cut_u_kd_tree @ n=4000" = 1017960
 "triangulate_monotone @ n=1000" = 73888
 "triangulate_monotone @ n=4000" = 319232
-"triangulate_polygon :ear_cut @ n=1000" = 162208
-"triangulate_polygon :ear_cut @ n=4000" = 643680
+"triangulate_polygon :ear_cut @ n=1000" = 257304
+"triangulate_polygon :ear_cut @ n=4000" = 1019000
 "triangulate_polygon :seidel @ n=1000" = 666312
 "triangulate_polygon :seidel @ n=4000" = 2685904
 "triangulate_polygon :sweep @ n=1000" = 286480
