@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `triangulate_ear_cut_z_order` and `triangulate_polygon(...; algorithm = :ear_cut_z_order)` now call `triangulate_ear_cut`; `triangulate_ear_cut_kd_tree` and `:ear_cut_kd_tree` now call `triangulate_ear_cut_u_kd_tree`. Neither index was faster than the unshrunk-cell Kd-tree on any tested input. Both print a deprecation warning and will be removed in 0.7. The Morton Z-order implementation is removed; `BBT.FlatTree2D` stays.
 
 ### Fixed
+- DataStructures compat is `0.19`: `approx_nn`, `approx_diam` and `approx_mvbb` call `popfirst!` on a `PriorityQueue`, which DataStructures 0.18 does not define, so they failed with a `MethodError` wherever 0.18 was resolved (for example next to a package that pins `^0.18`).
 - A test polygon for `:ear_cut` on non-monotone input with few reflex vertices was self-intersecting; it is replaced by a simple one.
 
 ### Added
