@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-26
+
 ### Added
 - `GPntSeq{D,T,P}`: a point sequence whose point type `P` is a parameter, for example `Vector{T}` points in high dimensions, which are compiled once for all D instead of being unrolled for each D. `PntSeq{D,T}` is now an alias for `GPntSeq{D,T,Point{D,T}}`, with the same constructors, memory layout and compiled code as before; only `nameof` of the type and serialized objects see the new name. `push!` on a sequence accepts any `AbstractVector` and converts it to the point type. For points whose length is not part of their type (`Vector{T}`), the constructor and `push!` check that every point has D coordinates (for `D = AnyDim`, as many as the first point, which also gives `dim`); static points need no check, and their code is unchanged. The `GPntSeq` docstring and the geometry guide say which point type is faster in which dimension.
 - `MatVecPntSeq(M; copy = false)`: a matrix-backed sequence whose points are read-only views of the columns (`ColumnPoint`), for high dimensions. The dimension is read from the matrix; the type is `AbsPntSeq{AnyDim,T}` (`AnyDim` is a new marker for a dimension known only at run time), so the constructor is type-stable and its code serves every D. Memory is shared with the matrix as for `MatPntSeq`; the size is fixed. It supports indexing, iteration, `dim`, `dist(P, i, j)`, `P[j] = p`, `translate!`, `scale!` and `Matrix(P)`, as well as `dist`, `dist_sq` and `convex_comb` on its points, and `geom_length`, `prefix_lengths` and `split_edges` on the sequence; functions that build `Point{D,T}` from the dimension do not accept it.
 - Points of run-time length (`Vector` points, `ColumnPoint`s): `dist`, `dist_sq` and `convex_comb` take any two `AbstractVector`s of equal length (plain loops; `dist` does not allocate), so `geom_length` and `prefix_lengths` work on them; `push_distinct!` takes any `GPntSeq` (checking the point length); `split_edges` of a `Vector`-point sequence or a `MatVecPntSeq` returns a `GPntSeq` with `Vector` points. The static methods are unchanged and still chosen for static points.
 - `MatPntSeq(M; copy = true)` copies the matrix into a new `Matrix{T}`, so the sequence and `M` are independent. The default (`copy = false`) shares memory as before. The `MatPntSeq` docstring and the geometry guide ("Shared memory and copies") now list exactly which operations reach the input matrix or vector, for `MatPntSeq` with and without copying and for `PntSeq`.
+
+### Fixed
+- DataStructures compat is `0.19`: `approx_nn`, `approx_diam` and `approx_mvbb` call `popfirst!` on a `PriorityQueue`, which DataStructures 0.18 does not define, so they failed with a `MethodError` wherever 0.18 was resolved (for example next to a package that pins `^0.18`).
+
+## [0.6.2] - 2026-11-15
+
+### Added
+- `triangulate_polygon(...; algorithm = :auto)` (also accepted by `polygon_diagonals` and `minkowski_sum_decomposition`): the small-polygon `:ear_cut` fast path for polygons with at most 64 vertices, `:sweep` above. Opt-in; the default stays `:sweep`.
 
 ### Changed
 - `triangulate_ear_cut` (and `triangulate_polygon(...; algorithm = :ear_cut)`) has a fast path for polygons with at most 64 vertices, adapted from the small-polygon kernel of [Triage](https://github.com/sarielhp/triage): reflex vertices in a 64-bit mask, ears tested lazily while walking the ring. On random simple polygons it is about 3× faster for 12–64 vertices (1.8× for 6) and allocates a third as much. On this path validation is one pass (counterclockwise orientation and consecutive equal vertices); a repeated vertex that is not consecutive is treated as any other non-simple input (an `ArgumentError` or a valid triangulation) instead of being rejected up front. Larger polygons are unchanged.
@@ -22,11 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `triangulate_ear_cut_z_order` and `triangulate_polygon(...; algorithm = :ear_cut_z_order)` now call `triangulate_ear_cut`; `triangulate_ear_cut_kd_tree` and `:ear_cut_kd_tree` now call `triangulate_ear_cut_u_kd_tree`. Neither index was faster than the unshrunk-cell Kd-tree on any tested input. Both print a deprecation warning and will be removed in 0.7. The Morton Z-order implementation is removed; `BBT.FlatTree2D` stays.
 
 ### Fixed
-- DataStructures compat is `0.19`: `approx_nn`, `approx_diam` and `approx_mvbb` call `popfirst!` on a `PriorityQueue`, which DataStructures 0.18 does not define, so they failed with a `MethodError` wherever 0.18 was resolved (for example next to a package that pins `^0.18`).
 - A test polygon for `:ear_cut` on non-monotone input with few reflex vertices was self-intersecting; it is replaced by a simple one.
 
+## [0.6.1] - 2026-11-14
+
 ### Added
-- `triangulate_polygon(...; algorithm = :auto)` (also accepted by `polygon_diagonals` and `minkowski_sum_decomposition`): the small-polygon `:ear_cut` fast path for polygons with at most 64 vertices, `:sweep` above. Opt-in; the default stays `:sweep`.
 - `add_view!(canvas, layers; autocrop=true)` adds Ipe's special `VIEWBBOX` layer to the view, so that each view of a page (each page of the compiled PDF) is cropped to its own visible objects rather than to the whole page. A `"VIEWBBOX"` listed in `layers` is registered on the canvas automatically. Example `examples/ipe_view_autocrop.jl` and a section in the vector-figures guide.
 
 ## [0.6.0] - 2026-11-14
