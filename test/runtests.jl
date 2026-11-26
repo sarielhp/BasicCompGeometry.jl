@@ -111,6 +111,7 @@ Aqua.test_all(BasicCompGeometry)
         extra_names = (
             :AbsPolygon,
             :Canvas,
+            :ColumnPoint,
             :MatPolygon,
             :Points,
             :Polygon_random_sphere,
@@ -202,6 +203,7 @@ Aqua.test_all(BasicCompGeometry)
             :write_plt,
         )
         default_names = (
+            :AnyDim,
             :AbsCurve2D,
             :AbsPntSeq,
             :AbstractKernel,
@@ -230,6 +232,7 @@ Aqua.test_all(BasicCompGeometry)
             :EllipticArc2F,
             :ExactKernel,
             :FloatingKernel,
+            :GPntSeq,
             :Halfplane,
             :Halfplane2F,
             :Hyperbola,
@@ -239,6 +242,7 @@ Aqua.test_all(BasicCompGeometry)
             :LongestConvexSubset,
             :MVBB,
             :MatPntSeq,
+            :MatVecPntSeq,
             :MonotoneTriangulation,
             :MetricSpace,
             :Parabola,

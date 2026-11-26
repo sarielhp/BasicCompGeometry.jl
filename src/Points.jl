@@ -7,6 +7,10 @@
 Type alias for `SVector{D, T}` from `StaticArrays`. 
 Provides a concise way to work with fixed-size coordinate vectors.
 It inherits all efficient operations from StaticArrays.
+
+Code is compiled and unrolled for each dimension D: fastest in low dimensions, but
+slow to compile and slower to run than `Vector` points from about D = 128. See
+[`GPntSeq`](@ref) for sequences of such points.
 """
 const Point = SVector
 
@@ -46,6 +50,31 @@ Calculate the Euclidean distance between two points `p` and `q`.
 """
 @inline dist(p::Point{D,T1}, q::Point{D,T2}) where {D,T1,T2} = sqrt(dist_sq(p, q))
 
+# Points of run-time length (`Vector` points, `ColumnPoint`s): plain loops, no
+# temporaries. The static methods above are more specific, so static points never get
+# here. Lengths are checked once per call.
+@noinline throw_length_mismatch(m, n) =
+    throw(DimensionMismatch("points with $m and $n coordinates"))
+
+@inline function common_length(p::AbstractVector{<:Number}, q::AbstractVector{<:Number})
+    Base.require_one_based_indexing(p, q)
+    n = length(p)
+    length(q) == n || throw_length_mismatch(n, length(q))
+    return n
+end
+
+@inline function dist_sq(p::AbstractVector{<:Number}, q::AbstractVector{<:Number})
+    n = common_length(p, q)
+    s = zero(promote_type(eltype(p), eltype(q)))
+    # In bounds: both have n coordinates, indexed from 1 (common_length).
+    @inbounds @simd for i in 1:n
+        s += abs2(p[i] - q[i])
+    end
+    return s
+end
+
+@inline dist(p::AbstractVector{<:Number}, q::AbstractVector{<:Number}) = sqrt(dist_sq(p, q))
+
 """
     dist_subspace(p, q, dir)
 
@@ -69,6 +98,21 @@ When `t=0`, returns `p`. When `t=1`, returns `q`.
 """
 @inline function convex_comb(p::Point{D,T}, q::Point{D,T}, t::Real) where {D,T}
     return p + (q - p) * t
+end
+
+# Static points of different coordinate types: promoted, and the result is static.
+@inline convex_comb(p::Point{D}, q::Point{D}, t::Real) where {D} =
+    convex_comb(promote(p, q)..., t)
+
+# A new `Vector` for points of run-time length, with the same arithmetic.
+function convex_comb(p::AbstractVector{<:Number}, q::AbstractVector{<:Number}, t::Real)
+    n = common_length(p, q)
+    o = Vector{promote_type(eltype(p), eltype(q), typeof(t))}(undef, n)
+    # In bounds: p, q and o have n coordinates, indexed from 1.
+    @inbounds @simd for i in 1:n
+        o[i] = p[i] + (q[i] - p[i]) * t
+    end
+    return o
 end
 
 """

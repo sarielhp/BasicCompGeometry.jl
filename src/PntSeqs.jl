@@ -12,37 +12,250 @@ provide access to vertices.
 abstract type AbsPntSeq{D,T} <: AbsFMS end
 
 """
-    PntSeq{D, T}
+    GPntSeq{D, T, P}
 
-A wrapper around `Vector{Point{D, T}}` representing a sequence of points, 
-a polygonal curve, or a classical polygon in D dimensions.
-The points are stored sequentially in the `pnts` field.
+A sequence of points of type `P` in D dimensions with coordinate type T: a polygonal
+curve or a classical polygon. The points are stored sequentially in the `pnts` field.
+`P` must be a concrete `AbstractVector{T}` type; `PntSeq{D, T}` is the case
+`P = Point{D, T}`.
 
-`PntSeq` is a subtype of `AbsPntSeq{D, T}`, meaning it can be treated as a finite metric space
-where its vertices are the points and the distance is Euclidean.
+Choosing the point type: static points (`Point{D, T}`) have their loops unrolled and
+compiled for each D, and creating one costs nothing. Points whose length is known
+only at run time (`Vector{T}`) are compiled once for all dimensions and run plain
+vectorized loops, but each new point is a heap allocation. Measured on distance
+kernels (FrechetDist's `example_higher/point_types.jl`, AMD Ryzen 7 5700G, Julia
+1.13): static points are faster up to D = 16, the two are close for D = 32 to 96,
+and from D = 128 on `Vector` points compute distances 2 to 4.5 times faster. Static
+code also takes seconds to compile at D = 1000, and minutes for a large algorithm at
+D = 6000. Creating points stays faster with static points up to about D = 512.
+
+`D` is either the dimension or [`AnyDim`](@ref), for a dimension known only at run
+time (`dim(P)` is then the length of the first point). Points whose length is not part
+of their type are checked on construction and by `push!`: each must have D
+coordinates, or, for `AnyDim`, as many as the first point. Static points need no
+check.
+
+`GPntSeq` is a subtype of `AbsPntSeq{D, T}`, meaning it can be treated as a finite
+metric space where its vertices are the points and the distance is Euclidean.
 """
-struct PntSeq{D,T} <: AbsPntSeq{D,T}
-    pnts::Vector{Point{D,T}}
+struct GPntSeq{D,T,P<:AbstractVector{T}} <: AbsPntSeq{D,T}
+    pnts::Vector{P}
+
+    # The default constructor, plus the length check (a no-op for static points).
+    function GPntSeq{D,T,P}(pnts) where {D,T,P<:AbstractVector{T}}
+        v = convert(Vector{P}, pnts)
+        check_point_lengths(D, v)
+        return new{D,T,P}(v)
+    end
 end
 
+# Every point of `pnts` has D coordinates (for AnyDim: as many as the first one).
+# Static points carry their length in their type: nothing to check.
+check_point_lengths(_, ::Vector{<:StaticVector}) = nothing
+function check_point_lengths(D, pnts::Vector{<:AbstractVector})
+    isempty(pnts) && return nothing
+    n = D === AnyDim ? length(first(pnts)) : D
+    for (j, p) in enumerate(pnts)
+        length(p) == n || throw_point_length(j, length(p), n)
+    end
+    return nothing
+end
+
+@noinline throw_point_length(j, len, n) =
+    throw(DimensionMismatch("point $j has $len coordinates, expected $n"))
+
 """
+    PntSeq{D, T}
+
+A sequence of `Point{D, T}` (static vectors), stored contiguously in the `pnts`
+field: a polygonal curve or a classical polygon in D dimensions. Alias for
+`GPntSeq{D, T, Point{D, T}}`.
+"""
+const PntSeq{D,T} = GPntSeq{D,T,Point{D,T}}
+
+PntSeq(pnts::Vector{Point{D,T}}) where {D,T} = PntSeq{D,T}(pnts)
+
+"""
+    MatPntSeq(mat::AbstractMatrix{T}; copy::Bool = false)
     MatPntSeq{D, T, M, V}
 
-A representation of a sequence of points backed by an `AbstractMatrix{T}` 
-of size `D x N`. It provides a zero-copy view of the matrix columns as 
-`Point{D, T}` objects.
+A sequence of points stored in a `D × N` matrix: column `j` is point `j`, read as a
+`Point{D, T}`. `D = size(mat, 1)`.
+
+**By default the sequence shares the matrix's memory; nothing is copied.**
+
+- Changes to the matrix are seen by the sequence: after `mat[1, 2] = 5.0`,
+  `P[2][1] == 5.0`.
+- Changes through the sequence are written into the matrix: `P[j] = p`,
+  [`translate!`](@ref) and [`scale!`](@ref) modify `mat`.
+- The same holds for a view or an adjoint: the sequence then shares the memory of
+  the view's parent array.
+- Points read from the sequence are copies (`P[j]` is a static vector built from
+  column `j`), so they cannot be written through; changing a point later does not
+  change the sequence.
+- The number of points is fixed: `push!`, `pop!` and `empty!` are not defined.
+
+**`copy = true` copies the matrix** into a new dense `Matrix{T}` first. The sequence
+is then independent: later changes to `mat` are not seen, and changes through the
+sequence do not reach `mat`. Use it when the matrix will be modified afterwards, or
+when the sequence will be translated or scaled and the matrix must stay as it was.
+`Matrix(P)` always returns a copy.
+
+Since `D` is read from the matrix at run time, this constructor is not type-stable;
+pass the result to a function (a function barrier) before using it in a hot loop.
 """
 struct MatPntSeq{D,T,M<:AbstractMatrix{T},V<:AbstractVector{Point{D,T}}} <: AbsPntSeq{D,T}
     mat::M
     pnts::V
 
-    function MatPntSeq(mat::M) where {T,M<:AbstractMatrix{T}}
-        D = size(mat, 1)
-        # Use reinterpret and vec to get a view of columns as Points
-        # For Array, vec() is zero-copy.
-        pnts = reinterpret(Point{D,T}, vec(mat))
-        return new{D,T,M,typeof(pnts)}(mat, pnts)
+    function MatPntSeq(mat::AbstractMatrix{T}; copy::Bool = false) where {T}
+        # `copy` names the option, so this calls the Matrix constructor, which
+        # always allocates a new array.
+        stored = copy ? Matrix{T}(mat) : mat
+        D = size(stored, 1)
+        # reinterpret views the column-major coordinates as consecutive points;
+        # vec() of an Array is zero-copy, so the matrix memory is shared.
+        #
+        # Resizing is deliberately not offered. A vector that shares a matrix's
+        # memory (vec(mat)) behaves inconsistently when resized: push! copies it to
+        # new memory, but on Julia 1.13 a pop! followed by push! writes into the
+        # matrix again. A copy-on-modify scheme would need its own bookkeeping.
+        pnts = reinterpret(Point{D,T}, vec(stored))
+        return new{D,T,typeof(stored),typeof(pnts)}(stored, pnts)
     end
+end
+
+"""
+    AnyDim
+
+Marker in the dimension slot of `AbsPntSeq{D, T}` for a sequence whose dimension is
+known only at run time, such as [`MatVecPntSeq`](@ref). Code compiled for such a
+sequence serves every dimension. Use [`dim`](@ref) to get the dimension; functions
+that use `D` as a number (for example to build a `Point{D, T}`) do not accept these
+sequences.
+"""
+struct AnyDim end
+
+"""
+    ColumnPoint{T, M}
+
+Column `j` of a matrix, as a read-only point (`AbstractVector{T}`) that shares the
+matrix's memory: reading it reads the matrix, nothing is copied, and writing through
+it (`p[i] = x`) is an error. The points of a [`MatVecPntSeq`](@ref) are of this type.
+Arithmetic on them (`p - q`, `2p`) returns a new `Vector{T}`; `copy(p)` and
+`collect(p)` give a `Vector{T}` that no longer shares memory.
+
+`ColumnPoint(mat, j)` checks that `mat` has a column `j` and 1-based indices.
+"""
+struct ColumnPoint{T,M<:AbstractMatrix{T}} <: AbstractVector{T}
+    mat::M
+    j::Int
+
+    # Unchecked: for ColumnPoints, which checks j itself (or runs under @inbounds).
+    ColumnPoint{T,M}(mat::M, j::Int, ::Val{:unchecked}) where {T,M<:AbstractMatrix{T}} =
+        new{T,M}(mat, j)
+end
+
+function ColumnPoint(mat::AbstractMatrix{T}, j::Integer) where {T}
+    Base.require_one_based_indexing(mat)
+    checkbounds(mat, :, j)
+    return ColumnPoint{T,typeof(mat)}(mat, Int(j), Val(:unchecked))
+end
+
+Base.size(p::ColumnPoint) = (size(p.mat, 1),)
+Base.IndexStyle(::Type{<:ColumnPoint}) = IndexLinear()
+Base.@propagate_inbounds function Base.getindex(p::ColumnPoint, i::Int)
+    @boundscheck checkbounds(p, i)
+    # In bounds: i was checked above (or by the caller under @inbounds), and j when the
+    # point was created.
+    return @inbounds p.mat[i, p.j]
+end
+
+# The columns of a matrix as a vector of `ColumnPoint`s, created on access.
+struct ColumnPoints{T,M<:AbstractMatrix{T}} <: AbstractVector{ColumnPoint{T,M}}
+    mat::M
+end
+
+Base.size(c::ColumnPoints) = (size(c.mat, 2),)
+Base.IndexStyle(::Type{<:ColumnPoints}) = IndexLinear()
+Base.@propagate_inbounds function Base.getindex(c::ColumnPoints{T,M}, j::Int) where {T,M}
+    @boundscheck checkbounds(c, j)
+    return ColumnPoint{T,M}(c.mat, j, Val(:unchecked))
+end
+
+"""
+    MatVecPntSeq(mat::AbstractMatrix{T}; copy::Bool = false)
+
+A sequence of points stored in a `D × N` matrix, like [`MatPntSeq`](@ref), whose
+points are read-only views of the columns ([`ColumnPoint`](@ref)) instead of static
+vectors. The dimension is `size(mat, 1)`, read at run time: the type is
+`AbsPntSeq{AnyDim, T}` (see [`AnyDim`](@ref)), so the constructor is type-stable and
+code compiled for one dimension serves all of them. This is the representation for
+high dimensions: loops over the coordinates are not unrolled, and reading a point
+copies nothing. In low dimensions `MatPntSeq` is faster (see the guide's "Static or
+`Vector` points"). Functions written for any point type accept this sequence (among
+them `dist`, `dist_sq` and `convex_comb` on its points, and `geom_length`, `prefix_lengths` and `split_edges` on the sequence); those that need `Point{D, T}` do not.
+
+Memory is shared with the matrix exactly as for `MatPntSeq`: changes to the matrix are
+seen by the sequence, and `P[j] = p`, [`translate!`](@ref) and [`scale!`](@ref) write
+into the matrix. Points cannot be written through, and the number of points is fixed.
+`copy = true` first copies the matrix into a new dense `Matrix{T}`, making the
+sequence independent of it.
+"""
+struct MatVecPntSeq{T,M<:AbstractMatrix{T}} <: AbsPntSeq{AnyDim,T}
+    mat::M
+    pnts::ColumnPoints{T,M}
+
+    function MatVecPntSeq(mat::AbstractMatrix{T}; copy::Bool = false) where {T}
+        Base.require_one_based_indexing(mat)
+        # `copy` names the option, so this calls the Matrix constructor, which
+        # always allocates a new array. Resizing is not offered, as for MatPntSeq.
+        stored = copy ? Matrix{T}(mat) : mat
+        return new{T,typeof(stored)}(stored, ColumnPoints(stored))
+    end
+end
+
+@inline dim(P::MatVecPntSeq) = size(P.mat, 1)
+
+@inline function dist(P::MatVecPntSeq{T}, i::Int, j::Int) where {T}
+    i == j && return zero(float(T))
+    A = P.mat
+    checkbounds(A, :, i)
+    checkbounds(A, :, j)
+    s = zero(float(T))
+    # In bounds: columns i and j were checked above.
+    @inbounds for k in axes(A, 1)
+        s += abs2(A[k, i] - A[k, j])
+    end
+    return sqrt(s)
+end
+
+function translate_columns!(P::MatVecPntSeq, v::AbstractVector)
+    length(v) == dim(P) || throw(
+        DimensionMismatch(
+            "translation of length $(length(v)) for points of dimension $(dim(P))",
+        ),
+    )
+    P.mat .+= v
+    return P
+end
+
+translate!(P::MatVecPntSeq, v::AbstractVector) = translate_columns!(P, v)
+# Resolves the ambiguity with translate!(::AbsPntSeq{D,T}, ::Point{D,T}) at D = AnyDim.
+translate!(P::MatVecPntSeq{T}, v::Point{AnyDim,T}) where {T} = translate_columns!(P, v)
+
+function scale!(P::MatVecPntSeq, s::Real)
+    P.mat .*= s
+    return P
+end
+
+Base.setindex!(P::MatVecPntSeq, v::AbstractVector, i::Int) = (P.mat[:, i] = v; v)
+Base.eltype(::Type{<:MatVecPntSeq{T,M}}) where {T,M} = ColumnPoint{T,M}
+Base.eltype(::MatVecPntSeq{T,M}) where {T,M} = ColumnPoint{T,M}
+Base.Matrix(P::MatVecPntSeq{T}) where {T} = Matrix{T}(P.mat)
+
+function Base.show(io::IO, P::MatVecPntSeq{T}) where {T}
+    print(io, "MatVecPntSeq{$T} with $(length(P)) points in dimension $(dim(P))")
 end
 
 """
@@ -51,6 +264,11 @@ end
 Return the dimension of the points in the point sequence.
 """
 @inline dim(P::AbsPntSeq{D,T}) where {D,T} = D
+# The dimension of an AnyDim sequence of separate points: that of its first point.
+function dim(P::GPntSeq{AnyDim})
+    isempty(P.pnts) && throw(ArgumentError("dim of an empty sequence with AnyDim"))
+    return length(first(P.pnts))
+end
 
 """
     dist(P::AbsPntSeq, i::Int, j::Int)
@@ -73,7 +291,13 @@ Construct an empty point sequence for dimension `D` and type `T`.
 """
 PntSeq{D,T}() where {D,T} = PntSeq{D,T}(Point{D,T}[])
 
-# Note: Struct definition already provides: PntSeq(pnts::Vector{Point{D, T}})
+"""
+    GPntSeq{D, T, P}()
+
+Construct an empty point sequence with points of type `P`.
+"""
+GPntSeq{D,T,P}() where {D,T,P<:AbstractVector{T}} = GPntSeq{D,T,P}(P[])
+
 
 # Accessors
 """
@@ -191,9 +415,17 @@ Base.iterate(P::AbsPntSeq) = iterate(P.pnts)
 Base.iterate(P::AbsPntSeq, state) = iterate(P.pnts, state)
 Base.eltype(::Type{<:AbsPntSeq{D,T}}) where {D,T} = Point{D,T}
 Base.eltype(::AbsPntSeq{D,T}) where {D,T} = Point{D,T}
-Base.push!(P::PntSeq, p::Point) = push!(P.pnts, p)
-Base.pop!(P::PntSeq) = pop!(P.pnts)
-Base.empty!(P::PntSeq) = empty!(P.pnts)
+Base.eltype(::Type{<:GPntSeq{D,T,P}}) where {D,T,P} = P
+Base.eltype(::GPntSeq{D,T,P}) where {D,T,P} = P
+Base.push!(P::GPntSeq, p::AbstractVector) = push!(P.pnts, p)
+# Points whose length is not in their type: check it against D (or the first point).
+function Base.push!(P::GPntSeq{D,T,V}, p::AbstractVector) where {D,T,V<:Vector}
+    n = D === AnyDim ? (isempty(P.pnts) ? length(p) : length(first(P.pnts))) : D
+    length(p) == n || throw_point_length(length(P.pnts) + 1, length(p), n)
+    return push!(P.pnts, p)
+end
+Base.pop!(P::GPntSeq) = pop!(P.pnts)
+Base.empty!(P::GPntSeq) = empty!(P.pnts)
 Base.first(P::AbsPntSeq) = first(P.pnts)
 Base.last(P::AbsPntSeq) = last(P.pnts)
 # For AbsFMS interface, size should return the number of points as an Int
@@ -313,6 +545,15 @@ function push_distinct!(P::PntSeq{D,T}, p::Point{D,T}) where {D,T}
     return false
 end
 
+# Any point type; push! checks the length of points of run-time length.
+function push_distinct!(P::GPntSeq, p::AbstractVector)
+    if isempty(P.pnts) || dist_sq(last(P.pnts), p) > 0
+        push!(P, p)
+        return true
+    end
+    return false
+end
+
 """
     split_edges(P)
 
@@ -333,6 +574,24 @@ end
 
 split_edges(::AbsPntSeq) =
     throw(ArgumentError("split_edges requires floating-point coordinates"))
+
+# Points of run-time length: the result has `Vector` points (for a `MatVecPntSeq`, a
+# new `GPntSeq{AnyDim}`; the matrix is not resized).
+split_edges(P::GPntSeq{D,T,V}) where {D,T<:AbstractFloat,V<:Vector{T}} =
+    split_edges_into!(GPntSeq{D,T,V}(), P)
+split_edges(P::MatVecPntSeq{T}) where {T<:AbstractFloat} =
+    split_edges_into!(GPntSeq{AnyDim,T,Vector{T}}(), P)
+
+function split_edges_into!(Q::GPntSeq, P::AbsPntSeq)
+    n = length(P)
+    n == 0 && return Q
+    for i in 1:(n-1)
+        push_distinct!(Q, P[i])
+        push_distinct!(Q, convex_comb(P[i], P[i+1], 0.5))
+    end
+    push_distinct!(Q, P[n])
+    return Q
+end
 
 """
     reverse(P::PntSeq)
@@ -444,7 +703,8 @@ Alias for `pnt_seq_random_sphere`.
 """
 const Polygon_random_sphere = pnt_seq_random_sphere
 
-export PntSeq, AbsPntSeq, MatPntSeq, PntSeq2I, PntSeq2F, PntSeq3F
+export PntSeq,
+    GPntSeq, AbsPntSeq, MatPntSeq, MatVecPntSeq, AnyDim, PntSeq2I, PntSeq2F, PntSeq3F
 export Polygon, Polygon2I, Polygon2F, Polygon3F
 export dim, geom_length
 export translate!, scale!, simplify, sample_uniformly

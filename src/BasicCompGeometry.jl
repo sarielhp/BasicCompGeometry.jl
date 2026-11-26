@@ -285,7 +285,7 @@ export PolygonTriangulation,
     BasicCompGeometry.Extras
 
 Additional supported public API names omitted from the default export list.
-Exports 91 helpers, accessors, compatibility aliases, auxiliary namespaces,
+Exports 92 helpers, accessors, compatibility aliases, auxiliary namespaces,
 and Cairo/LaTeX utilities. All bindings refer to the original objects in
 `BasicCompGeometry`; visualization implementations still require their
 optional packages to be loaded.
@@ -302,6 +302,7 @@ module Extras
 using ..BasicCompGeometry:
     AbsPolygon,
     Canvas,
+    ColumnPoint,
     MatPolygon,
     Points,
     Polygon_random_sphere,
@@ -394,6 +395,7 @@ using ..BasicCompGeometry:
 
 export AbsPolygon,
     Canvas,
+    ColumnPoint,
     MatPolygon,
     Points,
     Polygon_random_sphere,
