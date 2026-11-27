@@ -206,7 +206,13 @@ Base.hash(x::VPoint, h::UInt) = hash((objectid(x.space), x.a, x.b, x.t), h)
 Base.isnan(::VPoint) = false
 Base.isfinite(::VPoint) = true
 
-is_input(x::VPoint) = x.a == x.b
+"""
+    is_generator(x::VPoint)
+
+Whether `x` is one of the input points that generate its space, rather than a point
+`(1 - t) x_a + t x_b` derived from two of them.
+"""
+is_generator(x::VPoint) = x.a == x.b
 
 """
     same_space(x::VPoint, y::VPoint)
@@ -223,7 +229,7 @@ end
 
 Whether every vertex of the virtual curve `P` is an input vertex of its space.
 """
-is_vertex_curve(P::GPntSeq{AnyDim,Float64,<:VPoint}) = all(is_input, P.pnts)
+is_vertex_curve(P::GPntSeq{AnyDim,Float64,<:VPoint}) = all(is_generator, P.pnts)
 
 #########################################################################
 # The cache
@@ -342,7 +348,7 @@ dist(x::VPoint, y::VPoint) = sqrt(dist_sq(x, y))
 # The position of x on the segment of the input vertices (u, v), u < v, or NaN.
 @inline function param_on(x::VPoint, u::Int32, v::Int32)
     x.a == u && x.b == v && return x.t
-    is_input(x) || return NaN
+    is_generator(x) || return NaN
     return x.a == u ? 0.0 : x.a == v ? 1.0 : NaN
 end
 
@@ -354,10 +360,10 @@ The point `(1 - s) x + s y`. Both points must lie on one segment of two input ve
 """
 function convex_comb(x::VPoint, y::VPoint, s::Real)
     same_space(x, y)
-    if is_input(x) && is_input(y)
+    if is_generator(x) && is_generator(y)
         return VPoint(x.space, x.a, y.a, s)
     end
-    u, v = is_input(x) ? (y.a, y.b) : (x.a, x.b)
+    u, v = is_generator(x) ? (y.a, y.b) : (x.a, x.b)
     tx, ty = param_on(x, u, v), param_on(y, u, v)
     (isnan(tx) || isnan(ty)) && throw(
         ArgumentError(
@@ -413,7 +419,7 @@ Kahan's triangle area; otherwise through [`local_frame`](@ref BasicCompGeometry.
 function line_params(q::VPoint, a::VPoint, b::VPoint)
     same_space(q, a)
     same_space(q, b)
-    if is_input(q) && is_input(a) && is_input(b)
+    if is_generator(q) && is_generator(a) && is_generator(b)
         S = q.space
         L2 = vdist2(S, a.a, b.a)
         L2 > 0 || throw(ArgumentError("line_params of a degenerate segment"))

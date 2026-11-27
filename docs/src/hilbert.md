@@ -40,7 +40,9 @@ positive-definite kernel), and return finite non-negative values.
 
 `vpoint(S, i)` is the input point `i`, `vcurve(S, idx)` the curve through the input
 points `idx`, and `VPoint(S, a, b, t)` the point `(1 - t) x_a + t x_b` on the segment
-of any two input points. A space is also a finite metric space (`size`, `dist(S, i, j)`).
+of any two input points. `BasicCompGeometry.is_generator(x)` tells whether a virtual
+point is an input point or derived from two of them. A space is also a finite metric
+space (`size`, `dist(S, i, j)`).
 
 ## Geometry
 

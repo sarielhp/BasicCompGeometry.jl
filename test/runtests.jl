@@ -204,6 +204,7 @@ Aqua.test_all(BasicCompGeometry)
             :VDiff,
             :cache_stats,
             :inner_diff,
+            :is_generator,
             :is_vertex_curve,
             :line_params,
             :local_frame,

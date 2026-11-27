@@ -24,6 +24,7 @@ VPoint
 vpoint
 vcurve
 BasicCompGeometry.local_frame
+BasicCompGeometry.is_generator
 BasicCompGeometry.is_vertex_curve
 BasicCompGeometry.same_space
 BasicCompGeometry.cache_stats

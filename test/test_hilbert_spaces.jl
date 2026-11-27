@@ -7,6 +7,7 @@ using BasicCompGeometry:
     VDiff,
     cache_stats,
     inner_diff,
+    is_generator,
     is_vertex_curve,
     line_params,
     local_frame,
@@ -189,6 +190,9 @@ end
         P = vcurve(S, [1, 4, 4, 9, 2])
         @test P isa GPntSeq{AnyDim,Float64,VPoint{typeof(S)}}
         @test length(P) == 5 && is_vertex_curve(P)
+        @test all(is_generator, P.pnts)
+        @test !is_generator(VPoint(S, 1, 4, 0.5))
+        @test is_generator(VPoint(S, 1, 4, 1.0)) && VPoint(S, 1, 4, 1.0) == vpoint(S, 4)
         L = sum(norm(X[j] - X[i]) for (i, j) in ((1, 4), (4, 4), (4, 9), (9, 2)))
         @test geom_length(P) ≈ L
         @test BasicCompGeometry.prefix_lengths(P)[end] ≈ L
