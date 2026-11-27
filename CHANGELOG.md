@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.1] - 2026-11-27
 
 ### Added
 - `HilbertSpace`: a dataset known only through the squared distances of its points (a kernel function, a distance function, or coordinates read once), possibly in an infinite-dimensional space such as a kernel feature space. Each squared distance is computed at most once and cached in blocks allocated on first use; threads can share a space. `max_bytes` limits the cache, `empty!` frees it, `cache_stats` counts the calls of the distance function. A space is an `AbsFMS`, so the metric-space algorithms take it.
