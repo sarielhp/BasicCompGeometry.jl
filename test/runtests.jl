@@ -201,9 +201,23 @@ Aqua.test_all(BasicCompGeometry)
             :width,
             :write_halfplanes,
             :write_plt,
+            :VDiff,
+            :cache_stats,
+            :inner_diff,
+            :is_vertex_curve,
+            :line_params,
+            :local_frame,
+            :same_space,
+            :vdist2,
+            :vscale,
         )
         default_names = (
             :AnyDim,
+            :AbsVirtualPoint,
+            :HilbertSpace,
+            :VPoint,
+            :vpoint,
+            :vcurve,
             :AbsCurve2D,
             :AbsPntSeq,
             :AbstractKernel,
@@ -1224,6 +1238,7 @@ Aqua.test_all(BasicCompGeometry)
     include("test_pnt_seq_hierarchy.jl")
     include("test_curve_ops.jl")
     include("test_metric_space.jl")
+    include("test_hilbert_spaces.jl")
     include("test_read_write.jl")
     include("test_longest_convex_subset.jl")
     include("test_convex_hull_3d.jl")

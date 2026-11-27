@@ -59,6 +59,7 @@ makedocs(
             "Kernels and numerical scope" => "kernels.md",
             "Algorithms and spatial structures" => "algorithms.md",
             "Finite metric spaces" => "metrics.md",
+            "Hilbert spaces and virtual points" => "hilbert.md",
             "Vector figures" => "figures.md",
             "Cairo and LaTeX" => "cairo.md",
         ],

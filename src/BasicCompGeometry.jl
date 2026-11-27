@@ -22,6 +22,16 @@ Points in a finite metric space are represented by integers 1:n.
 abstract type AbsFMS end
 
 """
+    AbsVirtualPoint
+
+Abstract supertype for points known only through distances, without coordinates, such
+as [`VPoint`](@ref)s of a [`HilbertSpace`](@ref). A [`GPntSeq`](@ref) accepts them as
+its point type (with `D = AnyDim` and `T = Float64`); functions that need coordinates do
+not accept such sequences.
+"""
+abstract type AbsVirtualPoint end
+
+"""
     AbsCurve2D{T}
 
 Abstract supertype for 2D curve primitives.
@@ -36,6 +46,7 @@ include("KernelPredicates.jl")
 include("Segments.jl")
 include("Planes.jl")
 include("PntSeqs.jl")
+include("HilbertSpaces.jl")
 include("BBoxes.jl")
 include("Transforms2D.jl")
 include("PntSeqHausdorff.jl")
@@ -391,7 +402,16 @@ using ..BasicCompGeometry:
     vertices,
     width,
     write_halfplanes,
-    write_plt
+    write_plt,
+    VDiff,
+    cache_stats,
+    inner_diff,
+    is_vertex_curve,
+    line_params,
+    local_frame,
+    same_space,
+    vdist2,
+    vscale
 
 export AbsPolygon,
     Canvas,
@@ -484,7 +504,16 @@ export AbsPolygon,
     vertices,
     width,
     write_halfplanes,
-    write_plt
+    write_plt,
+    VDiff,
+    cache_stats,
+    inner_diff,
+    is_vertex_curve,
+    line_params,
+    local_frame,
+    same_space,
+    vdist2,
+    vscale
 
 end # module Extras
 

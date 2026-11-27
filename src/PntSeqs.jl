@@ -17,7 +17,9 @@ abstract type AbsPntSeq{D,T} <: AbsFMS end
 A sequence of points of type `P` in D dimensions with coordinate type T: a polygonal
 curve or a classical polygon. The points are stored sequentially in the `pnts` field.
 `P` must be a concrete `AbstractVector{T}` type; `PntSeq{D, T}` is the case
-`P = Point{D, T}`.
+`P = Point{D, T}`. `P` may also be a virtual point type ([`AbsVirtualPoint`](@ref), such as
+[`VPoint`](@ref)), points known only through distances: the sequence is then a
+`GPntSeq{AnyDim, Float64, P}`, and functions that need coordinates do not accept it.
 
 Choosing the point type: static points (`Point{D, T}`) have their loops unrolled and
 compiled for each D, and creating one costs nothing. Points whose length is known
@@ -38,27 +40,38 @@ check.
 `GPntSeq` is a subtype of `AbsPntSeq{D, T}`, meaning it can be treated as a finite
 metric space where its vertices are the points and the distance is Euclidean.
 """
-struct GPntSeq{D,T,P<:AbstractVector{T}} <: AbsPntSeq{D,T}
+struct GPntSeq{D,T,P<:Union{AbstractVector{T},AbsVirtualPoint}} <: AbsPntSeq{D,T}
     pnts::Vector{P}
 
     # The default constructor, plus the length check (a no-op for static points).
-    function GPntSeq{D,T,P}(pnts) where {D,T,P<:AbstractVector{T}}
+    function GPntSeq{D,T,P}(pnts) where {D,T,P<:Union{AbstractVector{T},AbsVirtualPoint}}
         v = convert(Vector{P}, pnts)
-        check_point_lengths(D, v)
+        check_point_lengths(D, T, v)
         return new{D,T,P}(v)
     end
 end
 
 # Every point of `pnts` has D coordinates (for AnyDim: as many as the first one).
 # Static points carry their length in their type: nothing to check.
-check_point_lengths(_, ::Vector{<:StaticVector}) = nothing
-function check_point_lengths(D, pnts::Vector{<:AbstractVector})
+check_point_lengths(_, _, ::Vector{<:StaticVector}) = nothing
+function check_point_lengths(D, _, pnts::Vector{<:AbstractVector})
     isempty(pnts) && return nothing
     n = D === AnyDim ? length(first(pnts)) : D
     for (j, p) in enumerate(pnts)
         length(p) == n || throw_point_length(j, length(p), n)
     end
     return nothing
+end
+
+# Virtual points have no coordinates: a sequence of them has D = AnyDim and Float64
+# distances. The check is on types only.
+function check_point_lengths(D, T, ::Vector{<:AbsVirtualPoint})
+    D === AnyDim && T === Float64 && return nothing
+    throw(
+        ArgumentError(
+            "a sequence of virtual points is a GPntSeq{AnyDim,Float64,P}, not {$D,$T}",
+        ),
+    )
 end
 
 @noinline throw_point_length(j, len, n) =
@@ -269,6 +282,8 @@ function dim(P::GPntSeq{AnyDim})
     isempty(P.pnts) && throw(ArgumentError("dim of an empty sequence with AnyDim"))
     return length(first(P.pnts))
 end
+dim(::GPntSeq{AnyDim,T,<:AbsVirtualPoint}) where {T} =
+    throw(ArgumentError("virtual points have no coordinates, so no dimension"))
 
 """
     dist(P::AbsPntSeq, i::Int, j::Int)
@@ -296,7 +311,8 @@ PntSeq{D,T}() where {D,T} = PntSeq{D,T}(Point{D,T}[])
 
 Construct an empty point sequence with points of type `P`.
 """
-GPntSeq{D,T,P}() where {D,T,P<:AbstractVector{T}} = GPntSeq{D,T,P}(P[])
+GPntSeq{D,T,P}() where {D,T,P<:Union{AbstractVector{T},AbsVirtualPoint}} =
+    GPntSeq{D,T,P}(P[])
 
 
 # Accessors
@@ -424,6 +440,7 @@ function Base.push!(P::GPntSeq{D,T,V}, p::AbstractVector) where {D,T,V<:Vector}
     length(p) == n || throw_point_length(length(P.pnts) + 1, length(p), n)
     return push!(P.pnts, p)
 end
+Base.push!(P::GPntSeq{D,T,V}, p::V) where {D,T,V<:AbsVirtualPoint} = push!(P.pnts, p)
 Base.pop!(P::GPntSeq) = pop!(P.pnts)
 Base.empty!(P::GPntSeq) = empty!(P.pnts)
 Base.first(P::AbsPntSeq) = first(P.pnts)
@@ -704,7 +721,15 @@ Alias for `pnt_seq_random_sphere`.
 const Polygon_random_sphere = pnt_seq_random_sphere
 
 export PntSeq,
-    GPntSeq, AbsPntSeq, MatPntSeq, MatVecPntSeq, AnyDim, PntSeq2I, PntSeq2F, PntSeq3F
+    GPntSeq,
+    AbsPntSeq,
+    AbsVirtualPoint,
+    MatPntSeq,
+    MatVecPntSeq,
+    AnyDim,
+    PntSeq2I,
+    PntSeq2F,
+    PntSeq3F
 export Polygon, Polygon2I, Polygon2F, Polygon3F
 export dim, geom_length
 export translate!, scale!, simplify, sample_uniformly

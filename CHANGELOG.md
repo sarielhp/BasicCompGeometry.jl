@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `HilbertSpace`: a dataset known only through the squared distances of its points (a kernel function, a distance function, or coordinates read once), possibly in an infinite-dimensional space such as a kernel feature space. Each squared distance is computed at most once and cached in blocks allocated on first use; threads can share a space. `max_bytes` limits the cache, `empty!` frees it, `cache_stats` counts the calls of the distance function. A space is an `AbsFMS`, so the metric-space algorithms take it.
+- `VPoint`: a virtual point `(1 - t) x_a + t x_b` on the segment of two input points of a space (24 bytes, canonical, so `==` and `hash` are geometric), with `vpoint` and `vcurve`. `dist`, `dist_sq` and `convex_comb` work on virtual points (from at most four input points per call, without allocating), and `geom_length`, `prefix_lengths`, `push_distinct!` and `split_edges` on their curves. `local_frame` places up to four virtual points isometrically in ℝ³ so that Euclidean code can run on them; `line_params`, `inner_diff` (and `x - y` as a formal difference accepted by `dot`) and `vscale` are building blocks for algorithms (through `Extras`). A convex combination of points of different segments throws; `HilbertSpace(vpoints)` re-bases points into a new space.
+- `AbsVirtualPoint`: `GPntSeq{D,T,P}` accepts virtual point types as `P` (with `D = AnyDim`, `T = Float64`). The bound on `P` was `AbstractVector{T}`; for coordinate points nothing changes, and their compiled code is identical.
+- Guide page "Hilbert spaces and virtual points".
+
+
 ## [0.7.0] - 2026-11-26
 
 ### Added

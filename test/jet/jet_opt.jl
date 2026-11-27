@@ -39,6 +39,9 @@ function main()
     W = WSPD.init(P2, 2.0)
     keys = rand(rng, 1000)
     h = hierarchy_init(P2)
+    HS = HilbertSpace([randn(rng, 20) for _ in 1:300])
+    vx, vy = VPoint(HS, 1, 200, 0.3), VPoint(HS, 7, 299, 0.6)
+    VC = vcurve(HS, 1:300)
 
     cases = [
         (
@@ -192,6 +195,22 @@ function main()
                     P2,
                     500,
                 )
+        ),
+        (
+            "dist(VPoint)",
+            () -> @report_opt target_modules = (B,) function_filter = _hot dist(vx, vy)
+        ),
+        (
+            "local_frame",
+            () ->
+                @report_opt target_modules = (B,) function_filter = _hot B.local_frame(
+                    vx,
+                    vy,
+                )
+        ),
+        (
+            "geom_length(VPoint curve)",
+            () -> @report_opt target_modules = (B,) function_filter = _hot geom_length(VC)
         ),
     ]
 
